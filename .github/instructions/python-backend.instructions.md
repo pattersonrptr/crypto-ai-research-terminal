@@ -23,7 +23,18 @@ applyTo: "backend/**/*.py"
 - Never instantiate a session directly in business logic — use FastAPI dependency injection.
 - Alembic migrations must be created for every schema change. Never use `create_all()` in production code.
 
-## Testing
+## Testing — TDD workflow
+This project follows strict Test-Driven Development. Apply this cycle for every new behaviour:
+
+1. **Red** — Write a failing test in `backend/tests/` that describes exactly what the unit must do. Run it and confirm the failure message makes sense.
+2. **Green** — Write the minimum production code to make that test pass. Do not add anything beyond what the test requires.
+3. **Refactor** — Improve readability, remove duplication, enforce style (ruff, mypy). Re-run tests to stay green.
+4. Only then move to the next behaviour.
+
+**Naming convention:** `test_<unit>_<scenario>_<expected_outcome>`
+Examples: `test_coingecko_collector_fetch_returns_market_data`, `test_fundamental_scorer_missing_volume_raises_scoring_error`
+
+**Other rules:**
 - Mirror the `app/` structure inside `tests/` (e.g., `tests/collectors/test_coingecko_collector.py`).
 - Use `pytest-asyncio` with `asyncio_mode = "auto"` for async tests.
 - Mock all external HTTP calls with `pytest-httpx` or `respx`.

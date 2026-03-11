@@ -6,6 +6,21 @@
 
 ---
 
+## Development methodology — TDD (mandatory)
+
+Every task below must follow the **Red → Green → Refactor** cycle:
+
+1. **Red** — Write a failing test first. Run it. Confirm it fails for the right reason.
+2. **Green** — Write the minimum production code to make the test pass. Nothing more.
+3. **Refactor** — Clean up without changing behaviour. Re-run to stay green.
+4. Commit. Move to the next behaviour.
+
+**No production code is written before a failing test exists for it.**
+Test naming: `test_<unit>_<scenario>_<expected_outcome>`
+See `.github/copilot-instructions.md` and `.github/instructions/python-backend.instructions.md` for the full rules.
+
+---
+
 ## Phase 1 — Functional MVP (target: ~2 weeks)
 
 **Goal:** System running with real data, functional CLI, basic ranking.

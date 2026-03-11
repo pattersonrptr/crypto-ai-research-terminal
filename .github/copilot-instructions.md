@@ -41,9 +41,24 @@ the final decision is always the user's.
 Follow the directory layout defined in `SCOPE.md` section 5. Do not invent new
 top-level directories without updating `SCOPE.md` and `TODO.md`.
 
+## Development workflow — Test-Driven Development (TDD)
+This project follows strict TDD. This is mandatory, not optional.
+
+**The cycle for every new unit of behaviour:**
+1. **Red** — Write a failing test that describes the expected behaviour. Run it and confirm it fails.
+2. **Green** — Write the minimum production code needed to make the test pass. Nothing more.
+3. **Refactor** — Clean up code and tests without changing behaviour. Re-run tests to confirm green.
+4. Commit only after the cycle is complete and all tests pass.
+
+**Rules:**
+- Never write production code before a failing test exists for it.
+- One behaviour per test. Name tests as `test_<unit>_<scenario>_<expected_outcome>`.
+- If implementing a feature would require changing an existing test, stop and reconsider the design.
+- Baby steps: each TDD cycle should be completable in a few minutes. If a cycle takes too long, break it down further.
+
 ## Testing policy
 - Every new module must have a corresponding test file under `backend/tests/`.
-- Minimum coverage target: **80%** per module.
+- Minimum coverage target: **80%** per module (enforced progressively as modules are implemented).
 - Tests must pass locally before any commit is made (`pre-push` hook enforces this).
 
 ## Commit convention (Conventional Commits)
