@@ -9,8 +9,8 @@ build/
 *.so
 *.pyd
 
-# Poetry
-poetry.lock
+# Poetry — lock file is intentionally versioned for reproducible installs
+# poetry.lock
 
 # Mypy
 .mypy_cache/
