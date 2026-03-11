@@ -1,0 +1,52 @@
+repos:
+  # ── Ruff (lint + format) ──────────────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # ── Mypy ─────────────────────────────────────────────────────────────────
+  # Usa o mypy do .venv do projeto para que todos os pacotes instalados via
+  # poetry estejam visíveis (fastapi, httpx, structlog, tenacity, etc.)
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        language: system
+        entry: bash -c 'source .venv/bin/activate && mypy backend/app'
+        pass_filenames: false
+        args: [--config-file=pyproject.toml]
+        stages: [pre-push]
+
+  # ── Bandit (security) ────────────────────────────────────────────────────
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.8
+    hooks:
+      - id: bandit
+        args: [-c, pyproject.toml]
+        stages: [pre-push]
+
+  # ── Pytest (unit tests) ───────────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        language: system
+        # Ativa o .venv antes de rodar os testes
+        entry: bash -c 'source .venv/bin/activate && pytest'
+        pass_filenames: false
+        stages: [pre-push]
+
+  # ── Misc hygiene ──────────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: detect-private-key
