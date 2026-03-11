@@ -17,6 +17,7 @@ from app.models.token import Token
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_score(
     id_: int,
     token_id: int,
@@ -56,6 +57,7 @@ def _mock_session_rows(rows: Any) -> AsyncMock:
 # ---------------------------------------------------------------------------
 # GET /rankings/opportunities
 # ---------------------------------------------------------------------------
+
 
 class TestGetRankingsOpportunities:
     """Tests for GET /rankings/opportunities."""
@@ -176,6 +178,3 @@ class TestGetRankingsOpportunities:
 
         assert response.status_code == 200
         assert response.json() == []
-
-
-

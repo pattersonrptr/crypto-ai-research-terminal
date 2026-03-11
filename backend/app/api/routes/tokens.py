@@ -19,6 +19,7 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
 # Response schema
 # ---------------------------------------------------------------------------
 
+
 class TokenResponse(BaseModel):
     """Public representation of a Token."""
 
@@ -34,6 +35,7 @@ class TokenResponse(BaseModel):
 # Endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.get("/", response_model=list[TokenResponse])
 async def get_tokens(db: DbDep) -> list[Token]:
     """Return all tracked tokens."""
@@ -44,9 +46,7 @@ async def get_tokens(db: DbDep) -> list[Token]:
 @router.get("/{symbol}", response_model=TokenResponse)
 async def get_token_by_symbol(symbol: str, db: DbDep) -> Token:
     """Return a single token by its symbol, or 404 if not found."""
-    result = await db.execute(
-        select(Token).where(Token.symbol == symbol.upper())
-    )
+    result = await db.execute(select(Token).where(Token.symbol == symbol.upper()))
     token = result.scalar_one_or_none()
     if token is None:
         raise HTTPException(status_code=404, detail=f"Token '{symbol}' not found.")

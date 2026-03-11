@@ -20,6 +20,7 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
 # Response schema
 # ---------------------------------------------------------------------------
 
+
 class OpportunityRankItem(BaseModel):
     """Single entry in the opportunity ranking."""
 
@@ -33,6 +34,7 @@ class OpportunityRankItem(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get("/opportunities", response_model=list[OpportunityRankItem])
 async def get_opportunities(

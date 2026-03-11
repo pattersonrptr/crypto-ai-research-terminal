@@ -18,9 +18,9 @@ _WEIGHTS = {
 }
 
 # Rough upper bounds used for normalisation (percentile-based heuristics)
-_VOLUME_MCAP_MAX = 1.0       # ratio: 100 % turnover is the ceiling
-_VELOCITY_MAX = 100.0        # price change cap at ±100 %
-_ATH_DIST_MAX = 99.0         # never exactly 100 % (token would be worthless)
+_VOLUME_MCAP_MAX = 1.0  # ratio: 100 % turnover is the ceiling
+_VELOCITY_MAX = 100.0  # price change cap at ±100 %
+_ATH_DIST_MAX = 99.0  # never exactly 100 % (token would be worthless)
 _MCAP_MAX = 1_000_000_000_000.0  # ~$1 T (Bitcoin-scale)
 
 _REQUIRED_FIELDS = set(_WEIGHTS.keys())

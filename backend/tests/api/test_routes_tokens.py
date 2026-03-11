@@ -15,6 +15,7 @@ from app.models.token import Token
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_token(
     id_: int,
     symbol: str,
@@ -45,6 +46,7 @@ def _mock_session(return_value: Any) -> AsyncMock:
 # ---------------------------------------------------------------------------
 # GET /tokens
 # ---------------------------------------------------------------------------
+
 
 class TestGetTokensList:
     """Tests for GET /tokens."""
@@ -131,6 +133,7 @@ class TestGetTokensList:
 # GET /tokens/{symbol}
 # ---------------------------------------------------------------------------
 
+
 class TestGetTokenBySymbol:
     """Tests for GET /tokens/{symbol}."""
 
@@ -202,6 +205,3 @@ class TestGetTokenBySymbol:
         app.dependency_overrides.clear()
 
         assert "detail" in response.json()
-
-
-

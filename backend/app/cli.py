@@ -14,6 +14,7 @@ _BASE_URL = "http://localhost:8000"
 # Internal helpers — thin HTTP wrappers (patchable in tests)
 # ---------------------------------------------------------------------------
 
+
 def fetch_opportunities(n: int = 10) -> list[Any]:
     """Fetch the top-n opportunity rankings from the API."""
     response = httpx.get(f"{_BASE_URL}/rankings/opportunities", params={"limit": n})
@@ -37,9 +38,7 @@ def fetch_token_detail(symbol: str) -> Any | None:
     token_data = response.json()
 
     # Fetch latest score to enrich the detail object
-    scores_response = httpx.get(
-        f"{_BASE_URL}/rankings/opportunities", params={"limit": 500}
-    )
+    scores_response = httpx.get(f"{_BASE_URL}/rankings/opportunities", params={"limit": 500})
     scores_response.raise_for_status()
     scores: list[dict[str, Any]] = scores_response.json()
     score_map = {s["symbol"]: s for s in scores}
@@ -65,6 +64,7 @@ class _DictObj:
 # CLI group
 # ---------------------------------------------------------------------------
 
+
 @click.group()
 def cli() -> None:
     """Crypto AI Research Terminal — command-line interface."""
@@ -73,6 +73,7 @@ def cli() -> None:
 # ---------------------------------------------------------------------------
 # cryptoai top [--n N]
 # ---------------------------------------------------------------------------
+
 
 @cli.command()
 @click.option("--n", default=10, show_default=True, help="Number of top tokens to display.")
@@ -96,6 +97,7 @@ def top(n: int) -> None:
 # ---------------------------------------------------------------------------
 # cryptoai report <SYMBOL>
 # ---------------------------------------------------------------------------
+
 
 @cli.command()
 @click.argument("symbol")

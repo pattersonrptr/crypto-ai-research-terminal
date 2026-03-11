@@ -125,4 +125,3 @@ class TestDailyCollectionJob:
         assert call_args[0]["symbol"] == "BTC"
         assert call_args[0]["fundamental_score"] == 0.75
         assert call_args[0]["opportunity_score"] == 0.75
-

@@ -26,9 +26,8 @@ if config.config_file_name is not None:
 # Import every model module here so SQLAlchemy's MetaData is populated before
 # autogenerate compares against the live database schema.
 # ---------------------------------------------------------------------------
-from app.models import *  # noqa: E402, F401, F403  -- intentional wildcard import
-
 from app.db.base import Base  # noqa: E402
+from app.models import *  # noqa: E402, F401, F403  -- intentional wildcard import
 
 target_metadata = Base.metadata
 

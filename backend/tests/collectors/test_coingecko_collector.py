@@ -3,15 +3,12 @@
 All HTTP calls are mocked with respx — no real network requests are made.
 """
 
-from unittest.mock import AsyncMock, patch
-
 import httpx
 import pytest
 import respx
 
 from app.collectors.coingecko_collector import CoinGeckoCollector
 from app.exceptions import CollectorError
-
 
 COINGECKO_MARKETS_RESPONSE = [
     {
@@ -82,8 +79,17 @@ class TestCoinGeckoCollectorCollect:
             results = await collector.collect(["bitcoin"])
 
         record = results[0]
-        assert {"coingecko_id", "symbol", "name", "price_usd", "market_cap_usd",
-                "volume_24h_usd", "rank", "ath_usd", "circulating_supply"}.issubset(record.keys())
+        assert {
+            "coingecko_id",
+            "symbol",
+            "name",
+            "price_usd",
+            "market_cap_usd",
+            "volume_24h_usd",
+            "rank",
+            "ath_usd",
+            "circulating_supply",
+        }.issubset(record.keys())
 
     @pytest.mark.asyncio
     @respx.mock

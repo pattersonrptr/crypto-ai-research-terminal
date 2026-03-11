@@ -10,6 +10,7 @@ from app.cli import cli
 # Helper
 # ---------------------------------------------------------------------------
 
+
 def _make_opportunity_item(
     symbol: str,
     name: str,
@@ -45,6 +46,7 @@ def _make_token_detail(
 # ---------------------------------------------------------------------------
 # cryptoai top
 # ---------------------------------------------------------------------------
+
 
 class TestCliTop:
     """Tests for `cryptoai top` command."""
@@ -96,6 +98,7 @@ class TestCliTop:
 # ---------------------------------------------------------------------------
 # cryptoai report
 # ---------------------------------------------------------------------------
+
 
 class TestCliReport:
     """Tests for `cryptoai report <SYMBOL>` command."""
