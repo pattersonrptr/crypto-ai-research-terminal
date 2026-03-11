@@ -6,8 +6,8 @@ It is NOT a trading bot or price predictor. It researches, scores and explains â
 the final decision is always the user's.
 
 ## Language & documentation
-- All code docstrings must be written in **English**.
-- Inline comments may be in **Portuguese (pt-BR)** when clarifying business logic.
+- All code, docstrings, and inline comments must be written in **English** â€” no exceptions.
+- PR titles, descriptions, and all repository documentation must be in **English**.
 - Commit messages follow **Conventional Commits** (see CHANGELOG.md / README.md for the convention).
 - The `README.md` must be updated before every commit if the change affects setup, usage or architecture.
 - `CHANGELOG.md` must receive an entry for every commit.

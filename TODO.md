@@ -37,38 +37,38 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 - ✅ `.github/instructions/` (path-specific instructions)
 - ✅ `README.md`, `TODO.md`, `CHANGELOG.md`
 - ✅ `.env.example`
-- 🔲 Docker Compose (`infra/docker-compose.yml`) — PostgreSQL + Redis + Ollama
-- 🔲 Alembic initialised (`alembic init`) + `env.py` configured for async
+- ✅ Docker Compose (`infra/docker-compose.yml`) — PostgreSQL + Redis + Ollama
+- ✅ Alembic initialised (`alembic init`) + `env.py` configured for async
 
 ### Database models (SQLAlchemy 2.x async)
-- 🔲 `models/token.py` — Token
-- 🔲 `models/market_data.py` — MarketData
-- 🔲 `models/dev_activity.py` — DevActivity
-- 🔲 `models/social_data.py` — SocialData
-- 🔲 `models/signal.py` — Signal
-- 🔲 `models/score.py` — TokenScore
-- 🔲 `models/alert.py` — Alert
-- 🔲 Alembic migration for initial schema
+- ✅ `models/token.py` — Token
+- ✅ `models/market_data.py` — MarketData
+- ✅ `models/dev_activity.py` — DevActivity
+- ✅ `models/social_data.py` — SocialData
+- ✅ `models/signal.py` — Signal
+- ✅ `models/score.py` — TokenScore
+- ✅ `models/alert.py` — Alert
+- 🔲 Alembic migration for initial schema (requires running PostgreSQL)
 
 ### Data Collection
-- 🔲 `collectors/coingecko_collector.py` — price, market cap, volume, rank, ATH, supply, links
-- 🔲 Tests for CoinGecko collector (mock HTTP)
+- ✅ `collectors/coingecko_collector.py` — price, market cap, volume, rank, ATH, supply, links
+- ✅ Tests for CoinGecko collector (mock HTTP)
 
 ### Feature Engineering
-- 🔲 `processors/market_processor.py` — volume/mcap ratio, velocity, ATH distance
-- 🔲 `processors/normalizer.py` — min-max normalization helpers
+- ✅ `processors/market_processor.py` — volume/mcap ratio, velocity, ATH distance
+- ✅ `processors/normalizer.py` — min-max normalization helpers
 
 ### Scoring
-- 🔲 `scoring/fundamental_scorer.py` — simplified version (no LLM; static weights)
-- 🔲 `scoring/opportunity_engine.py` — base composite score
+- ✅ `scoring/fundamental_scorer.py` — simplified version (no LLM; static weights)
+- ✅ `scoring/opportunity_engine.py` — base composite score
 
 ### API & CLI
-- 🔲 `api/routes/tokens.py` — GET /tokens, GET /tokens/{symbol}
-- 🔲 `api/routes/rankings.py` — GET /rankings/opportunities
-- 🔲 `cli.py` — `cryptoai top [--n N]` and `cryptoai report <SYMBOL>`
+- ✅ `api/routes/tokens.py` — GET /tokens, GET /tokens/{symbol}
+- ✅ `api/routes/rankings.py` — GET /rankings/opportunities
+- ✅ `cli.py` — `cryptoai top [--n N]` and `cryptoai report <SYMBOL>`
 
 ### Scheduler
-- 🔲 `scheduler/jobs.py` — daily collection job
+- ✅ `scheduler/jobs.py` — daily collection job
 
 **Deliverable:** `cryptoai top 20` shows ranking with real data.
 
