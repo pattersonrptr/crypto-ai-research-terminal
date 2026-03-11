@@ -1,0 +1,24 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Install system dependencies required by asyncpg and WeasyPrint
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf2.0-0 \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy only manifest files first to leverage Docker layer caching
+COPY pyproject.toml poetry.lock ./
+
+RUN pip install --no-cache-dir poetry==2.3.2 \
+    && poetry config virtualenvs.create false \
+    && poetry install --only main --no-interaction --no-ansi
+
+# Copy application source
+COPY backend/ ./backend/
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

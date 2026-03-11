@@ -1,0 +1,83 @@
+services:
+  # ── PostgreSQL 15 ────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: cryptoai_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cryptoai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cryptoai}
+      POSTGRES_DB: ${POSTGRES_DB:-cryptoai}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cryptoai} -d ${POSTGRES_DB:-cryptoai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: cryptoai_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Ollama (local LLM) ───────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cryptoai_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Remove the entire deploy block if no NVIDIA GPU is available
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ── Backend (FastAPI) ────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    container_name: cryptoai_backend
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-cryptoai}:${POSTGRES_PASSWORD:-cryptoai}@postgres:5432/${POSTGRES_DB:-cryptoai}
+      REDIS_URL: redis://redis:6379
+      OLLAMA_BASE_URL: http://ollama:11434
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../backend:/app/backend
+    # Run only with: docker compose --profile full up
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_data:
