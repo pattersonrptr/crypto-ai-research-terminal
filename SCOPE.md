@@ -567,22 +567,22 @@ class SignalType(Enum):
     HOLDER_SPIKE         # Holders growing fast
     VOLUME_SURGE         # Abnormal volume
     LIQUIDITY_GROWTH     # Liquidity increasing
-    
+
     # Market
     VOLUME_ANOMALY       # Statistically anomalous volume
     PRICE_BREAKOUT       # Breakout of a level
-    
+
     # Listing
     LISTING_CANDIDATE    # High probability listing
     DEX_VOLUME_PRE_LISTING # DEX volume rising without CEX listing
-    
+
     # Risk
     WHALE_ACCUMULATION   # Whales accumulating
     WHALE_DISTRIBUTION   # Whales selling
     MANIPULATION_RISK    # Signs of manipulation
     RUGPULL_RISK         # Rugpull signals
     TOKEN_UNLOCK_INCOMING # Upcoming token unlocks
-    
+
     # Narrative
     NARRATIVE_ALIGNMENT  # Token aligned with an emerging narrative
     ECOSYSTEM_GROWING    # Token ecosystem expanding
@@ -607,7 +607,7 @@ Priority:
 
 #### `whitepaper_analyzer.py`
 
-**Input:** Whitepaper URL (PDF) or extracted text  
+**Input:** Whitepaper URL (PDF) or extracted text
 **Output:**
 
 ```json
@@ -654,7 +654,7 @@ Priority:
 Classifies each token into categories:
 
 ```
-Layer1 | Layer2 | DeFi | AI | Gaming | Infrastructure | 
+Layer1 | Layer2 | DeFi | AI | Gaming | Infrastructure |
 DePIN | Oracle | Privacy | Memecoin | RWA | Restaking
 ```
 
@@ -713,7 +713,7 @@ Top Growing Ecosystems (last 30 days):
    Growth score: 8.7
    Trend: ACCELERATING ↑↑
 
-2. Solana Ecosystem  
+2. Solana Ecosystem
    Tokens: SOL, JUP, RAY, DRIFT
    Growth score: 7.9
    Trend: GROWING ↑
@@ -894,7 +894,7 @@ Listing score: 82/100
 
 Detected signals:
 ✅ DEX volume grew 340% in 7 days
-✅ Holders grew 28% in 7 days  
+✅ Holders grew 28% in 7 days
 ✅ Social mentions +180%
 ✅ Bridge integration detected
 
@@ -1197,7 +1197,7 @@ CREATE TABLE historical_snapshots (
 
 ```python
 def calculate_opportunity_score(token: Token) -> float:
-    
+
     # Pillar 1: Fundamentals (30%)
     fundamental = (
         technology_score * 0.20 +
@@ -1206,7 +1206,7 @@ def calculate_opportunity_score(token: Token) -> float:
         dev_score        * 0.20 +
         narrative_fit    * 0.20
     )
-    
+
     # Pillar 2: Growth (25%)
     growth = (
         dev_commit_growth    * 0.25 +
@@ -1215,16 +1215,16 @@ def calculate_opportunity_score(token: Token) -> float:
         volume_growth        * 0.20 +
         liquidity_growth     * 0.15
     )
-    
+
     # Pillar 3: Narrative (20%)
     narrative = narrative_momentum_score
-    
+
     # Pillar 4: Listing probability (15%)
     listing = listing_probability_score
-    
+
     # Pillar 5: Risk adjustment (10%)
     risk_adjustment = 1.0 - (risk_score * 0.5)  # high risk penalizes
-    
+
     base_score = (
         fundamental  * 0.30 +
         growth       * 0.25 +
@@ -1232,10 +1232,10 @@ def calculate_opportunity_score(token: Token) -> float:
         listing      * 0.15 +
         risk_adjustment * 0.10
     )
-    
+
     # ML boost
     cycle_boost = 1.0 + (cycle_leader_probability * 0.20)
-    
+
     return min(base_score * cycle_boost, 10.0)  # cap at 10.0
 ```
 
@@ -1435,7 +1435,7 @@ services:
       - postgres
       - redis
     command: python -m app.scheduler.jobs
-    
+
   frontend:
     build: ./frontend
     ports:
@@ -1538,7 +1538,7 @@ Network: Solana
 📊 Listing score: 84/100
 
 Detected signals:
-✅ DEX Volume: +420% in 7 days  
+✅ DEX Volume: +420% in 7 days
 ✅ Holders: +35% in 7 days
 ✅ Twitter mentions: +890% in 48h
 ✅ Liquidity steadily increasing
@@ -1570,6 +1570,6 @@ Recommended action: MONITOR
 
 ---
 
-*Document generated for use with GitHub Copilot + Claude Sonnet 4.6*  
-*Last updated: 2025-03-10*  
+*Document generated for use with GitHub Copilot + Claude Sonnet 4.6*
+*Last updated: 2025-03-10*
 *Status: Ready for development — Phase 1*

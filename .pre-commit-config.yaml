@@ -8,15 +8,15 @@ repos:
       - id: ruff-format
 
   # ── Mypy ─────────────────────────────────────────────────────────────────
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0
+  # Usa o mypy do .venv do projeto para que todos os pacotes instalados via
+  # poetry estejam visíveis (fastapi, httpx, structlog, tenacity, etc.)
+  - repo: local
     hooks:
       - id: mypy
-        additional_dependencies:
-          - pydantic
-          - pydantic-settings
-          - sqlalchemy[asyncio]
-          - types-redis
+        name: mypy
+        language: system
+        entry: bash -c 'source .venv/bin/activate && mypy backend/app'
+        pass_filenames: false
         args: [--config-file=pyproject.toml]
         stages: [pre-push]
 

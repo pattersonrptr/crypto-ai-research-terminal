@@ -1,7 +1,5 @@
 """Smoke test for BaseCollector."""
 
-import pytest
-
 from app.collectors.base_collector import BaseCollector
 
 
