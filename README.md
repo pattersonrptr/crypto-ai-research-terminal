@@ -229,10 +229,13 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 
 | Phase | Description | Status |
 |---|---|---|
-| 1 | Functional MVP — CoinGecko, DB schema, basic scoring, CLI | 🔲 Not started |
-| 2 | Dev Activity + Social (GitHub, Reddit, X) | 🔲 Not started |
-| 3 | AI & Narratives (Ollama, Gemini, embeddings) | 🔲 Not started |
-| 4 | Listing Radar + Risk detection | 🔲 Not started |
-| 5 | Telegram alerts + Reports (MD/PDF) | 🔲 Not started |
+| 1 | Functional MVP — CoinGecko, DB schema, basic scoring, CLI | ✅ Complete |
+| 2 | Dev Activity + Social (GitHub, Reddit, X) | ✅ Complete |
+| 3 | AI & Narratives (Ollama, Gemini, embeddings) | ✅ Complete |
+| 4 | Listing Radar + Risk detection | ✅ Complete |
+| 5 | Telegram alerts + Reports (MD/PDF) | ✅ Complete |
 | 6 | React Dashboard | 🔲 Not started |
 | 7 | ML + Knowledge Graph + Backtesting | 🔲 Not started |
+
+**Current status:** 499 tests passing, 93% coverage
+

@@ -12,6 +12,64 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Added
 
+#### Alerts System (Phase 5)
+- `app/alerts/alert_formatter.py` — `AlertFormatter`: formats alerts for Telegram
+  delivery; `AlertType` enum (8 types: LISTING_CANDIDATE, WHALE_ACCUMULATION,
+  RUGPULL_RISK, MANIPULATION_DETECTED, TOKEN_UNLOCK_SOON, NARRATIVE_EMERGING,
+  MEMECOIN_HYPE_DETECTED, DAILY_REPORT); `FormattedAlert` dataclass with
+  `to_telegram()` method; emoji support; 99% coverage
+- `app/alerts/alert_rules.py` — `AlertRule` ABC with 7 concrete implementations:
+  `ListingCandidateRule`, `WhaleAccumulationRule`, `RugpullRiskRule`,
+  `ManipulationDetectedRule`, `TokenUnlockRule`, `NarrativeEmergingRule`,
+  `MemecoinHypeRule`; configurable thresholds; `AlertRuleEngine` for rule
+  management and evaluation; 100% coverage
+- `app/alerts/telegram_bot.py` — `TelegramBot`: async bot using httpx; rate
+  limiting support (messages_per_minute); `send_message()`, `send_alert()`;
+  async context manager; `TelegramBotError` exception; 100% coverage
+
+#### Reports System (Phase 5)
+- `app/reports/markdown_generator.py` — `MarkdownGenerator`: Jinja2-based report
+  generation; custom filters (`format_number`, `format_percentage`); helper
+  functions for assessments; `generate_token_report()`, `generate_market_report()`;
+  92% coverage
+- `app/reports/pdf_generator.py` — `PDFGenerator`: WeasyPrint-based PDF generation;
+  custom CSS styling (A4, professional typography); markdown-to-HTML conversion;
+  `generate_from_markdown()`, `generate_from_html()`, `generate_to_file()`;
+  `PDFGenerationError` exception; 78% coverage
+- `app/reports/templates/token_report.md.j2` — Token analysis report template:
+  Market Data, Scores, Detected Signals, Risk Factors, Disclaimer sections
+- `app/reports/templates/market_report.md.j2` — Daily market report template:
+  Market Overview, Top Opportunities, Emerging Narratives, Active Alerts sections
+
+#### API Endpoints (Phase 5)
+- `app/api/routes/alerts.py` — Alerts REST API:
+  - `GET /alerts` — List alerts with filters (limit, alert_type, acknowledged)
+  - `GET /alerts/stats` — Alert statistics by type
+  - `GET /alerts/{alert_id}` — Single alert detail
+  - `POST /alerts/test` — Send test Telegram message
+  - `PUT /alerts/{alert_id}/acknowledge` — Mark alert as acknowledged
+  - Pydantic schemas: `AlertResponse`, `AlertStatsResponse`, `AlertTestRequest`
+- `app/api/routes/reports.py` — Reports REST API:
+  - `GET /reports/token/{symbol}` — Generate token report (markdown/pdf)
+  - `GET /reports/market` — Generate market report (markdown/pdf)
+  - `ReportFormat` enum for format selection
+  - Content-Disposition headers for downloads
+
+#### Tests (TDD — Red → Green → Refactor)
+- `tests/alerts/test_alert_formatter.py` — 24 tests
+- `tests/alerts/test_alert_rules.py` — 32 tests
+- `tests/alerts/test_telegram_bot.py` — 19 tests
+- `tests/reports/test_markdown_generator.py` — 16 tests
+- `tests/reports/test_pdf_generator.py` — 18 tests
+- `tests/api/routes/test_alerts.py` — 12 tests
+- `tests/api/routes/test_reports.py` — 14 tests
+- **Total Phase 5 tests: 135 new tests**
+- **Total test count: 499 tests, 93% coverage**
+
+### Changed
+- Updated `pyproject.toml` — WeasyPrint >=62.0 (removed upper bound for Python 3.13)
+- Added `types-Markdown` for type stubs
+
 #### Risk Detection System
 - `app/risk/rugpull_detector.py` — `RugpullDetector`: detects rugpull risk signals
   including anonymous team, wallet concentration >30%, low liquidity (<1%), no

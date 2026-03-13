@@ -1,0 +1,52 @@
+# {{ name }} ({{ symbol }}) — Token Report
+
+**Generated:** {{ generated_at.strftime('%Y-%m-%d %H:%M UTC') }}
+
+---
+
+## 📊 Market Data
+
+| Metric | Value |
+|--------|-------|
+| **Price** | ${{ "{:,.2f}".format(price_usd) }} |
+| **Market Cap** | ${{ format_large_number(market_cap_usd) }} |
+| **24h Volume** | ${{ format_large_number(volume_24h_usd) }} |
+
+---
+
+## 🎯 Scores
+
+| Score | Value | Assessment |
+|-------|-------|------------|
+| **Listing Score** | {{ listing_score }}/100 | {{ get_listing_assessment(listing_score) }} |
+| **Risk Score** | {{ "%.0f"|format(risk_score * 100) }}% | {{ get_risk_assessment(risk_score) }} |
+| **Whale Score** | {{ "%.1f"|format(whale_score) }}/10 | {{ get_whale_assessment(whale_score) }} |
+
+---
+
+{% if signals %}
+## ✅ Detected Signals
+
+{% for signal in signals %}
+- {{ signal }}
+{% endfor %}
+
+{% endif %}
+{% if risk_factors %}
+## ⚠️ Risk Factors
+
+{% for factor in risk_factors %}
+- 🚩 {{ factor }}
+{% endfor %}
+
+{% endif %}
+---
+
+## 📝 Disclaimer
+
+This report is for informational purposes only. It does not constitute financial advice. 
+Always do your own research (DYOR) before making any investment decisions.
+
+---
+
+*Crypto AI Research Terminal — Automated Analysis*
