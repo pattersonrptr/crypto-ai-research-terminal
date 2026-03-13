@@ -12,6 +12,48 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Added
 
+#### AI & LLM Integration
+- `app/ai/llm_provider.py` — `LLMProvider`: multi-provider LLM abstraction with
+  automatic fallback (Ollama → Gemini → OpenAI); async HTTP calls, configurable
+  temperature, max_tokens; `LLMResponse` dataclass for typed responses
+- `app/ai/whitepaper_analyzer.py` — `WhitepaperAnalyzer`: extracts structured
+  insights from PDF whitepapers (summary, problem_solved, technology, token_utility,
+  competitors, main_risks, innovation_score, differentiators); PDF text extraction
+  via pypdf; URL download support
+- `app/ai/narrative_detector.py` — `NarrativeDetector`: detects emerging market
+  narratives from social media posts using embeddings + HDBSCAN clustering; extracts
+  tokens ($TICKER mentions), calculates momentum and trend; LLM-powered cluster labeling
+- `app/ai/project_classifier.py` — `ProjectClassifier`: classifies tokens into
+  12 categories (Layer1, Layer2, DeFi, AI, Gaming, Infrastructure, DePIN, Oracle,
+  Privacy, Memecoin, RWA, Restaking); `ProjectCategory` enum, confidence scoring
+- `app/ai/summary_generator.py` — `SummaryGenerator`: generates plain-language
+  summaries for tokens; structured (`ProjectSummary`) and plain text modes;
+  includes key strengths, risks, investment thesis, target audience
+
+#### Scoring
+- `app/scoring/narrative_scorer.py` — `NarrativeScorer`: scores tokens based on
+  narrative alignment; identifies aligned narratives, strongest narrative, calculates
+  narrative fit score (0-10) and momentum; batch scoring support
+
+#### Dependencies
+- Added `pypdf ^6.8.0` for PDF text extraction
+
+#### Tests (TDD — Red → Green → Refactor)
+- `tests/ai/test_llm_provider.py` — 12 tests
+- `tests/ai/test_whitepaper_analyzer.py` — 12 tests
+- `tests/ai/test_narrative_detector.py` — 16 tests
+- `tests/ai/test_project_classifier.py` — 11 tests
+- `tests/ai/test_summary_generator.py` — 12 tests
+- `tests/scoring/test_narrative_scorer.py` — 11 tests
+
+**Total: 243 tests — all passing (was 169 in Phase 2).**
+
+---
+
+## [Phase 2] — 2026-03-12
+
+### Added
+
 #### Data collection
 - `app/collectors/github_collector.py` — `GithubCollector`: fetches stars, forks,
   open issues, contributor count, and 30-day commit activity from GitHub REST API;

@@ -50,6 +50,7 @@ weasyprint = "^62.0"      # PDF generation
 # CLI
 typer = { version = "^0.12.0", extras = ["all"] }
 rich = "^13.7.0"
+pypdf = "^6.8.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -163,7 +164,7 @@ addopts = "--cov=backend/app --cov-report=term-missing --cov-fail-under=50"
 # ---------------------------------------------------------------------------
 [tool.bandit]
 targets = ["backend/app"]
-skips = ["B101"]  # assert — allowed
+skips = ["B101", "B105", "B106"]  # B101: assert, B105/B106: false positives on token_*
 
 
 # ---------------------------------------------------------------------------
