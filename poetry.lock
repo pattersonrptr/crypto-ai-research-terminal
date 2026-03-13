@@ -5068,6 +5068,18 @@ files = [
 types-setuptools = "*"
 
 [[package]]
+name = "types-markdown"
+version = "3.10.2.20260211"
+description = "Typing stubs for Markdown"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "types_markdown-3.10.2.20260211-py3-none-any.whl", hash = "sha256:2d94d08587e3738203b3c4479c449845112b171abe8b5cadc9b0c12fcf3e99da"},
+    {file = "types_markdown-3.10.2.20260211.tar.gz", hash = "sha256:66164310f88c11a58c6c706094c6f8c537c418e3525d33b76276a5fbd66b01ce"},
+]
+
+[[package]]
 name = "types-pyopenssl"
 version = "24.1.0.20240722"
 description = "Typing stubs for pyOpenSSL"
@@ -5745,4 +5757,4 @@ test = ["pytest"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "08af656c8c53442916d2c7f27ffdee027f105db25c211ac7e5cb0d7a6086990d"
+content-hash = "a5ca93729cc60341d411e409802ea25747e211c11d4a1276b21189d204f8756d"
