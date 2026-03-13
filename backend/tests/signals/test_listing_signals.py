@@ -80,13 +80,17 @@ class TestListingSignalsStrength:
 
     def test_listing_signals_multiple_exchanges_boost_strength(self) -> None:
         """Multiple exchange listings should boost overall strength."""
-        single = ListingSignals.from_changes([
-            ListingChange(token="SOL", exchange="binance", change_type="listed"),
-        ])
-        multiple = ListingSignals.from_changes([
-            ListingChange(token="SOL", exchange="binance", change_type="listed"),
-            ListingChange(token="SOL", exchange="coinbase", change_type="listed"),
-        ])
+        single = ListingSignals.from_changes(
+            [
+                ListingChange(token="SOL", exchange="binance", change_type="listed"),
+            ]
+        )
+        multiple = ListingSignals.from_changes(
+            [
+                ListingChange(token="SOL", exchange="binance", change_type="listed"),
+                ListingChange(token="SOL", exchange="coinbase", change_type="listed"),
+            ]
+        )
         assert multiple[0].strength > single[0].strength
 
 
