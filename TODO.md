@@ -89,15 +89,15 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 
 ---
 
-## Phase 3 — AI & Narratives (target: ~2 weeks)
+## Phase 3 — AI & Narratives (target: ~2 weeks) ✅ COMPLETE
 
-- 🔲 `ai/llm_provider.py` — Ollama / Gemini / OpenAI abstraction with fallback chain
-- 🔲 `ai/whitepaper_analyzer.py` — PDF → structured analysis JSON
-- 🔲 `ai/narrative_detector.py` — embeddings + HDBSCAN clustering
-- 🔲 `ai/project_classifier.py` — Layer1 / DeFi / AI / etc.
-- 🔲 `ai/summary_generator.py` — plain-language token summary
-- 🔲 `scoring/narrative_scorer.py`
-- 🔲 Tests for AI module (mocked LLM responses)
+- ✅ `ai/llm_provider.py` — Ollama / Gemini / OpenAI abstraction with fallback chain
+- ✅ `ai/whitepaper_analyzer.py` — PDF → structured analysis JSON
+- ✅ `ai/narrative_detector.py` — embeddings + HDBSCAN clustering
+- ✅ `ai/project_classifier.py` — Layer1 / DeFi / AI / etc.
+- ✅ `ai/summary_generator.py` — plain-language token summary
+- ✅ `scoring/narrative_scorer.py`
+- ✅ Tests for AI module (mocked LLM responses; 74 new tests, 243 total)
 
 **Deliverable:** `cryptoai report SOL` generates full analysis with plain-language text.
 
