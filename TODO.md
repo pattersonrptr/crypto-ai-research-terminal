@@ -103,15 +103,27 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 
 ---
 
-## Phase 4 — Listing Radar + Risk (target: ~1–2 weeks)
+## Phase 4 — Listing Radar + Risk (target: ~1–2 weeks) ✅ COMPLETE
 
-- 🔲 `collectors/exchange_monitor.py` — listing diff per exchange
-- 🔲 `signals/listing_signals.py` + `ml/listing_predictor.py`
-- 🔲 `risk/rugpull_detector.py`
-- 🔲 `risk/manipulation_detector.py`
-- 🔲 `risk/whale_tracker.py`
-- 🔲 `risk/tokenomics_risk.py` — unlock calendar
-- 🔲 `scoring/risk_scorer.py` + `scoring/listing_scorer.py`
+### Risk Detection
+- ✅ `risk/rugpull_detector.py` — anonymous team, wallet concentration >30%, low liquidity, no audit, no GitHub
+- ✅ `risk/manipulation_detector.py` — pump & dump, wash trading, coordinated social
+- ✅ `risk/whale_tracker.py` — top 10/50 wallet concentration, accumulation/distribution
+- ✅ `risk/tokenomics_risk.py` — unlock calendar, inflation rate, >5% unlock in 30 days = alert
+
+### Scoring
+- ✅ `scoring/risk_scorer.py` — composite risk score (0.30×rugpull + 0.25×manipulation + 0.25×tokenomics + 0.20×whale)
+- ✅ `scoring/listing_scorer.py` — combines signals, predictions, exchange breadth
+
+### Listing Radar
+- ✅ `collectors/exchange_monitor.py` — listing diff per exchange, snapshot, change detection
+- ✅ `signals/listing_signals.py` — generates signals from listing changes, exchange tier strength
+- ✅ `ml/listing_predictor.py` — ML-based listing probability (heuristic model for Phase 4)
+
+### Tests (TDD)
+- ✅ 121 new tests across risk, scoring, collectors, signals, ml modules
+- ✅ **Total: 364 tests — all passing (was 243 in Phase 3)**
+- ✅ **Test coverage: 93%**
 
 **Deliverable:** Listing and risk alerts operational.
 
