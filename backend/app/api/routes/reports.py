@@ -5,7 +5,7 @@ Provides endpoints for generating token and market reports in various formats.
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
 from fastapi.responses import Response
@@ -22,6 +22,9 @@ class ReportFormat(str, Enum):
     markdown = "markdown"
     pdf = "pdf"
 
+
+# Type alias for format query parameter
+FormatQuery = Annotated[ReportFormat, Query()]
 
 # Initialize generators
 _md_generator = MarkdownGenerator()
@@ -71,7 +74,7 @@ def _get_mock_market_data() -> dict[str, Any]:
 @router.get("/token/{symbol}")
 async def get_token_report(
     symbol: str,
-    format: ReportFormat = Query(default=ReportFormat.markdown),
+    format: FormatQuery = ReportFormat.markdown,
 ) -> Response:
     """Generate token analysis report.
 
@@ -105,7 +108,7 @@ async def get_token_report(
 
 @router.get("/market")
 async def get_market_report(
-    format: ReportFormat = Query(default=ReportFormat.markdown),
+    format: FormatQuery = ReportFormat.markdown,
 ) -> Response:
     """Generate daily market report.
 

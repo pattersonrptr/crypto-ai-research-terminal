@@ -4,13 +4,9 @@ TDD RED phase: Tests written before implementation.
 """
 
 from datetime import datetime
-from unittest.mock import MagicMock
-
-import pytest
 
 from app.alerts.alert_formatter import AlertType
 from app.alerts.alert_rules import (
-    AlertRule,
     AlertRuleEngine,
     ListingCandidateRule,
     ManipulationDetectedRule,

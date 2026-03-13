@@ -6,8 +6,6 @@ TDD RED phase: Tests written before implementation.
 from datetime import datetime
 from pathlib import Path
 
-import pytest
-
 from app.reports.markdown_generator import MarkdownGenerator
 
 

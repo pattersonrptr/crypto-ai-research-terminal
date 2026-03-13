@@ -1,6 +1,6 @@
 """Tests for AlertFormatter — formats alerts for Telegram delivery."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -205,7 +205,7 @@ class TestFormatTokenUnlock:
             "symbol": "LOCK",
             "name": "Lock Token",
             "unlock_pct": 8.5,
-            "unlock_date": datetime(2026, 3, 20, tzinfo=timezone.utc),
+            "unlock_date": datetime(2026, 3, 20, tzinfo=UTC),
             "unlock_usd_value": 15_000_000,
         }
         result = formatter.format(AlertType.TOKEN_UNLOCK_SOON, data)
@@ -241,7 +241,7 @@ class TestFormatDailyReport:
         """Format a daily report alert."""
         formatter = AlertFormatter()
         data = {
-            "date": datetime(2026, 3, 13, tzinfo=timezone.utc),
+            "date": datetime(2026, 3, 13, tzinfo=UTC),
             "top_opportunities": [
                 {"symbol": "ARB", "score": 0.88},
                 {"symbol": "SOL", "score": 0.85},

@@ -3,13 +3,9 @@
 TDD RED phase: Tests written before implementation.
 """
 
-from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-import pytest
-
-from app.reports.pdf_generator import PDFGenerator, PDFGenerationError
+from app.reports.pdf_generator import PDFGenerationError, PDFGenerator
 
 
 class TestPDFGeneratorInit:

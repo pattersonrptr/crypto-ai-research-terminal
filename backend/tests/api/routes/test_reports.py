@@ -27,9 +27,7 @@ def client(app: FastAPI) -> TestClient:
 class TestGetTokenReport:
     """Tests for GET /reports/token/{symbol} endpoint."""
 
-    def test_get_token_report_markdown_returns_content(
-        self, client: TestClient
-    ) -> None:
+    def test_get_token_report_markdown_returns_content(self, client: TestClient) -> None:
         """Test that token report returns markdown content."""
         response = client.get(
             "/reports/token/SOL",
@@ -53,18 +51,14 @@ class TestGetTokenReport:
         # PDF files start with %PDF
         assert response.content[:4] == b"%PDF"
 
-    def test_get_token_report_default_format_is_markdown(
-        self, client: TestClient
-    ) -> None:
+    def test_get_token_report_default_format_is_markdown(self, client: TestClient) -> None:
         """Test that default format is markdown."""
         response = client.get("/reports/token/BTC")
 
         assert response.status_code == status.HTTP_200_OK
         assert "text/markdown" in response.headers.get("content-type", "")
 
-    def test_get_token_report_invalid_format_returns_error(
-        self, client: TestClient
-    ) -> None:
+    def test_get_token_report_invalid_format_returns_error(self, client: TestClient) -> None:
         """Test that invalid format returns 422."""
         response = client.get(
             "/reports/token/SOL",
@@ -73,9 +67,7 @@ class TestGetTokenReport:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    def test_get_token_report_includes_content_disposition(
-        self, client: TestClient
-    ) -> None:
+    def test_get_token_report_includes_content_disposition(self, client: TestClient) -> None:
         """Test that response includes download filename."""
         response = client.get(
             "/reports/token/SOL",
@@ -90,9 +82,7 @@ class TestGetTokenReport:
 class TestGetMarketReport:
     """Tests for GET /reports/market endpoint."""
 
-    def test_get_market_report_markdown_returns_content(
-        self, client: TestClient
-    ) -> None:
+    def test_get_market_report_markdown_returns_content(self, client: TestClient) -> None:
         """Test that market report returns markdown content."""
         response = client.get(
             "/reports/market",
@@ -115,18 +105,14 @@ class TestGetMarketReport:
         assert "application/pdf" in response.headers.get("content-type", "")
         assert response.content[:4] == b"%PDF"
 
-    def test_get_market_report_default_format_is_markdown(
-        self, client: TestClient
-    ) -> None:
+    def test_get_market_report_default_format_is_markdown(self, client: TestClient) -> None:
         """Test that default format is markdown."""
         response = client.get("/reports/market")
 
         assert response.status_code == status.HTTP_200_OK
         assert "text/markdown" in response.headers.get("content-type", "")
 
-    def test_get_market_report_includes_content_disposition(
-        self, client: TestClient
-    ) -> None:
+    def test_get_market_report_includes_content_disposition(self, client: TestClient) -> None:
         """Test that response includes download filename."""
         response = client.get(
             "/reports/market",
@@ -173,9 +159,7 @@ class TestReportFormats:
 class TestReportContent:
     """Tests for report content quality."""
 
-    def test_token_report_contains_required_sections(
-        self, client: TestClient
-    ) -> None:
+    def test_token_report_contains_required_sections(self, client: TestClient) -> None:
         """Test token report has all required sections."""
         response = client.get("/reports/token/SOL")
 
@@ -184,9 +168,7 @@ class TestReportContent:
         assert "price" in content or "market" in content
         assert "score" in content or "risk" in content
 
-    def test_market_report_contains_required_sections(
-        self, client: TestClient
-    ) -> None:
+    def test_market_report_contains_required_sections(self, client: TestClient) -> None:
         """Test market report has all required sections."""
         response = client.get("/reports/market")
 

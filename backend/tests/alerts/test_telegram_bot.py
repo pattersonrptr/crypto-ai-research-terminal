@@ -86,7 +86,8 @@ class TestSendMessage:
             await bot.send_message("*Bold* message")
 
             call_args = mock_client.post.call_args
-            assert "parse_mode" in str(call_args) or call_args[1].get("json", {}).get("parse_mode") == "Markdown"
+            json_data = call_args[1].get("json", {})
+            assert "parse_mode" in str(call_args) or json_data.get("parse_mode") == "Markdown"
 
     @pytest.mark.asyncio
     async def test_send_message_returns_false_on_error(self) -> None:
