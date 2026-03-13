@@ -48,7 +48,7 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 - ✅ `models/signal.py` — Signal
 - ✅ `models/score.py` — TokenScore
 - ✅ `models/alert.py` — Alert
-- 🔲 Alembic migration for initial schema (requires running PostgreSQL)
+- ✅ Alembic migration for initial schema
 
 ### Data Collection
 - ✅ `collectors/coingecko_collector.py` — price, market cap, volume, rank, ATH, supply, links
@@ -74,15 +74,16 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 
 ---
 
-## Phase 2 — Dev Activity + Social (target: ~1–2 weeks)
+## Phase 2 — Dev Activity + Social (target: ~1–2 weeks) ✅ COMPLETE
 
-- 🔲 `collectors/github_collector.py` — commits, contributors, stars, forks, issues
-- 🔲 `collectors/social_collector.py` — Reddit posts, subscribers, upvotes
-- 🔲 `processors/dev_processor.py` — dev_activity_score, commit growth
-- 🔲 `processors/social_processor.py` — mention growth, sentiment_score
-- 🔲 `processors/anomaly_detector.py` — statistical anomaly scores
-- 🔲 `scoring/growth_scorer.py` — composite growth score
-- 🔲 Tests for all new collectors and processors
+- ✅ `collectors/github_collector.py` — commits, contributors, stars, forks, issues
+- ✅ `collectors/social_collector.py` — Reddit posts, subscribers, upvotes
+- ✅ `processors/dev_processor.py` — dev_activity_score, commit growth
+- ✅ `processors/social_processor.py` — mention growth, sentiment_score
+- ✅ `processors/anomaly_detector.py` — statistical anomaly scores
+- ✅ `scoring/growth_scorer.py` — composite growth score
+- ✅ `scoring/opportunity_engine.py` — updated with growth_score integration
+- ✅ Tests for all new collectors and processors (74 new tests, 169 total)
 
 **Deliverable:** Score includes dev activity and social growth.
 

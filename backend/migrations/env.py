@@ -16,7 +16,7 @@ config = context.config
 
 # Inject the DATABASE_URL from pydantic-settings at runtime so credentials
 # never live in alembic.ini or version-controlled files.
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Configure Python logging from alembic.ini if a logging section is present
 if config.config_file_name is not None:

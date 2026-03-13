@@ -10,6 +10,44 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Added
+
+#### Data collection
+- `app/collectors/github_collector.py` — `GithubCollector`: fetches stars, forks,
+  open issues, contributor count, and 30-day commit activity from GitHub REST API;
+  supports optional API token for higher rate limits
+- `app/collectors/social_collector.py` — `SocialCollector`: fetches subreddit
+  subscribers, active users, recent posts count, and average post score from Reddit
+  JSON API; configurable user agent
+
+#### Feature engineering
+- `app/processors/dev_processor.py` — `DevProcessor`: `commit_growth()`,
+  `contributor_growth()`, `activity_score()` (log-scaled composite), `process()`
+- `app/processors/social_processor.py` — `SocialProcessor`: `mention_growth()`,
+  `subscriber_growth()`, `engagement_score()` (log-scaled composite), `process()`
+- `app/processors/anomaly_detector.py` — `AnomalyDetector`: `z_score()`,
+  `anomaly_score()`, `detect_from_history()`, `detect_volume_anomaly()`,
+  `detect_price_anomaly()`
+
+#### Scoring
+- `app/scoring/growth_scorer.py` — `GrowthScorer.score()`: composite growth score
+  from dev (50%) and social (50%) metrics; dev_activity 20%, commit_growth 15%,
+  contributor_growth 15%, social_engagement 20%, subscriber_growth 15%,
+  mention_growth 15%
+- Updated `OpportunityEngine.composite_score()` — now accepts optional `growth_score`;
+  Phase 2 weights: 60% fundamental + 40% growth
+
+#### Tests (TDD — Red → Green → Refactor)
+- `tests/collectors/test_github_collector.py` — 8 tests (respx HTTP mocks)
+- `tests/collectors/test_social_collector.py` — 8 tests (respx HTTP mocks)
+- `tests/processors/test_dev_processor.py` — 14 tests
+- `tests/processors/test_social_processor.py` — 14 tests
+- `tests/processors/test_anomaly_detector.py` — 17 tests
+- `tests/scoring/test_growth_scorer.py` — 8 tests
+- Updated `tests/scoring/test_opportunity_engine.py` — 5 new tests for growth_score
+
+**Total: 169 tests — all passing (was 95 in Phase 1).**
+
 ---
 
 ## [0.2.0] — 2026-06-12
