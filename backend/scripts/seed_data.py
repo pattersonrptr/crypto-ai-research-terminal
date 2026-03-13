@@ -7,7 +7,7 @@ Usage:
 
 import asyncio
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 # Add backend to path for imports
@@ -16,11 +16,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.models.token import Token
 from app.models.market_data import MarketData
 from app.models.score import TokenScore
 from app.models.signal import Signal
-
+from app.models.token import Token
 
 # Sample tokens data (top cryptos)
 SAMPLE_TOKENS = [
@@ -38,8 +37,18 @@ SAMPLE_TOKENS = [
 
 # Sample market data (realistic-ish prices)
 SAMPLE_MARKET_DATA = {
-    "BTC": {"price": 67500.0, "market_cap": 1320000000000, "volume_24h": 28500000000, "change_24h": 2.3},
-    "ETH": {"price": 3450.0, "market_cap": 415000000000, "volume_24h": 15200000000, "change_24h": 1.8},
+    "BTC": {
+        "price": 67500.0,
+        "market_cap": 1320000000000,
+        "volume_24h": 28500000000,
+        "change_24h": 2.3,
+    },
+    "ETH": {
+        "price": 3450.0,
+        "market_cap": 415000000000,
+        "volume_24h": 15200000000,
+        "change_24h": 1.8,
+    },
     "SOL": {"price": 142.0, "market_cap": 62000000000, "volume_24h": 2800000000, "change_24h": 4.5},
     "AVAX": {"price": 35.50, "market_cap": 13500000000, "volume_24h": 520000000, "change_24h": 3.2},
     "MATIC": {"price": 0.72, "market_cap": 7100000000, "volume_24h": 380000000, "change_24h": -1.2},
@@ -79,7 +88,7 @@ async def seed_database(database_url: str) -> None:
             return
 
         print("Seeding database with sample data...")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Insert tokens
         tokens = {}
@@ -142,15 +151,15 @@ async def main() -> None:
     """Entry point."""
     # Use the same DATABASE_URL format as the app
     import os
+
     from dotenv import load_dotenv
 
     load_dotenv()
 
     database_url = os.getenv(
-        "DATABASE_URL",
-        "postgresql+asyncpg://cryptoai:cryptoai@localhost:5433/cryptoai"
+        "DATABASE_URL", "postgresql+asyncpg://cryptoai:cryptoai@localhost:5433/cryptoai"
     )
-    
+
     # Ensure we're using asyncpg
     if database_url.startswith("postgresql://"):
         database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
