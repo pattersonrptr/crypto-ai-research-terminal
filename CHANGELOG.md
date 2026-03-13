@@ -12,6 +12,59 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Added
 
+#### Risk Detection System
+- `app/risk/rugpull_detector.py` — `RugpullDetector`: detects rugpull risk signals
+  including anonymous team, wallet concentration >30%, low liquidity (<1%), no
+  audit, no GitHub; weighted risk score (0-1); `RugpullRiskResult` dataclass
+- `app/risk/manipulation_detector.py` — `ManipulationDetector`: detects market
+  manipulation patterns including pump & dump (>50% spike + >30% crash), wash
+  trading (unique traders <30%), coordinated social (burst detection);
+  `ManipulationRiskResult` dataclass with detection flags
+- `app/risk/whale_tracker.py` — `WhaleTracker`: tracks whale wallet concentration
+  (top 10/50 wallets), detects accumulation/distribution patterns, flags large
+  movements (>5% of supply); `WhaleAnalysisResult` dataclass
+- `app/risk/tokenomics_risk.py` — `TokenomicsRisk`: evaluates unlock calendar
+  (>5% in 30 days = alert), inflation rate (>10% = high), circulating ratio;
+  `TokenomicsRiskResult` dataclass
+
+#### Scoring (Risk & Listing)
+- `app/scoring/risk_scorer.py` — `RiskScorer`: composite risk score from SCOPE.md
+  formula (0.30×rugpull + 0.25×manipulation + 0.25×tokenomics + 0.20×whale);
+  letter grade (A-F); `RiskScoreResult` dataclass
+- `app/scoring/listing_scorer.py` — `ListingScorer`: combines listing signals,
+  ML prediction, and exchange breadth bonus; letter grade; `ListingScoreResult`
+
+#### Listing Radar
+- `app/collectors/exchange_monitor.py` — `ExchangeMonitor`: tracks token listings
+  across exchanges; `ListingSnapshot` for point-in-time state; `diff()` for
+  detecting new listings and delistings; `ListingChange` dataclass
+- `app/signals/listing_signals.py` — `ListingSignals`: generates signals from
+  listing changes; exchange tier strength (Tier1=0.8, Tier2=0.5, Tier3=0.2);
+  multi-exchange bonus; `ListingSignal` dataclass
+- `app/ml/listing_predictor.py` — `ListingPredictor`: ML-based listing probability
+  prediction; heuristic model using market cap, volume, exchange count, GitHub
+  stars, Twitter followers, age; confidence scoring; `ListingPrediction` dataclass
+
+#### Tests (TDD — Red → Green → Refactor)
+- `tests/risk/test_rugpull_detector.py` — 15 tests
+- `tests/risk/test_manipulation_detector.py` — 14 tests
+- `tests/risk/test_whale_tracker.py` — 15 tests
+- `tests/risk/test_tokenomics_risk.py` — 16 tests
+- `tests/scoring/test_risk_scorer.py` — 14 tests
+- `tests/collectors/test_exchange_monitor.py` — 11 tests
+- `tests/signals/test_listing_signals.py` — 12 tests
+- `tests/ml/test_listing_predictor.py` — 11 tests
+- `tests/scoring/test_listing_scorer.py` — 13 tests
+
+**Total: 364 tests — all passing (was 243 in Phase 3).**
+**Test coverage: 93%**
+
+---
+
+## [Phase 3] — 2026-03-13
+
+### Added
+
 #### AI & LLM Integration
 - `app/ai/llm_provider.py` — `LLMProvider`: multi-provider LLM abstraction with
   automatic fallback (Ollama → Gemini → OpenAI); async HTTP calls, configurable
