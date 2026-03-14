@@ -23,6 +23,30 @@ _PROCESSED = {
 }
 
 
+def _make_collector_mock(
+    *,
+    collect_return: list[dict[str, object]] | None = None,
+    collect_side_effect: Exception | None = None,
+) -> tuple[MagicMock, MagicMock]:
+    """Return (collector_cls_mock, collector_instance_mock) wired for ``async with``.
+
+    The returned ``collector_cls_mock`` can be used as the patch target for
+    ``CoinGeckoCollector``.  The instance mock is configured so that
+    ``async with CoinGeckoCollector() as c:`` yields the instance with
+    ``.collect`` pre-configured.
+    """
+    instance = MagicMock()
+    if collect_side_effect is not None:
+        instance.collect = AsyncMock(side_effect=collect_side_effect)
+    else:
+        instance.collect = AsyncMock(return_value=collect_return or [_RAW])
+    instance.__aenter__ = AsyncMock(return_value=instance)
+    instance.__aexit__ = AsyncMock(return_value=False)
+
+    cls_mock = MagicMock(return_value=instance)
+    return cls_mock, instance
+
+
 class TestDailyCollectionJob:
     """Tests for daily_collection_job()."""
 
@@ -31,32 +55,31 @@ class TestDailyCollectionJob:
         """daily_collection_job must call CoinGeckoCollector.collect()."""
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
 
+        cls_mock, instance = _make_collector_mock()
         with (
-            patch("app.scheduler.jobs.CoinGeckoCollector") as mock_collector_cls,
+            patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs.MarketProcessor"),
             patch("app.scheduler.jobs.FundamentalScorer"),
             patch("app.scheduler.jobs.OpportunityEngine"),
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
         ):
-            collector_instance = mock_collector_cls.return_value
-            collector_instance.collect = AsyncMock(return_value=[_RAW])
             await daily_collection_job()
 
-        collector_instance.collect.assert_awaited_once()
+        instance.collect.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_daily_collection_job_calls_market_processor(self) -> None:
         """daily_collection_job must call MarketProcessor.process() for each token."""
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
 
+        cls_mock, _ = _make_collector_mock()
         with (
-            patch("app.scheduler.jobs.CoinGeckoCollector") as mock_collector_cls,
+            patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs.MarketProcessor") as mock_processor,
             patch("app.scheduler.jobs.FundamentalScorer"),
             patch("app.scheduler.jobs.OpportunityEngine"),
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
         ):
-            mock_collector_cls.return_value.collect = AsyncMock(return_value=[_RAW])
             mock_processor.process = MagicMock(return_value=_PROCESSED)
             await daily_collection_job()
 
@@ -67,14 +90,14 @@ class TestDailyCollectionJob:
         """daily_collection_job must call FundamentalScorer.score() for each token."""
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
 
+        cls_mock, _ = _make_collector_mock()
         with (
-            patch("app.scheduler.jobs.CoinGeckoCollector") as mock_collector_cls,
+            patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs.MarketProcessor") as mock_processor,
             patch("app.scheduler.jobs.FundamentalScorer") as mock_scorer,
             patch("app.scheduler.jobs.OpportunityEngine"),
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
         ):
-            mock_collector_cls.return_value.collect = AsyncMock(return_value=[_RAW])
             mock_processor.process = MagicMock(return_value=_PROCESSED)
             mock_scorer.score = MagicMock(return_value=0.75)
             await daily_collection_job()
@@ -86,14 +109,14 @@ class TestDailyCollectionJob:
         """daily_collection_job must call OpportunityEngine.composite_score() for each token."""
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
 
+        cls_mock, _ = _make_collector_mock()
         with (
-            patch("app.scheduler.jobs.CoinGeckoCollector") as mock_collector_cls,
+            patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs.MarketProcessor") as mock_processor,
             patch("app.scheduler.jobs.FundamentalScorer") as mock_scorer,
             patch("app.scheduler.jobs.OpportunityEngine") as mock_engine,
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
         ):
-            mock_collector_cls.return_value.collect = AsyncMock(return_value=[_RAW])
             mock_processor.process = MagicMock(return_value=_PROCESSED)
             mock_scorer.score = MagicMock(return_value=0.75)
             mock_engine.composite_score = MagicMock(return_value=0.75)
@@ -106,14 +129,14 @@ class TestDailyCollectionJob:
         """daily_collection_job must call _persist_results with the scored results."""
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
 
+        cls_mock, _ = _make_collector_mock()
         with (
-            patch("app.scheduler.jobs.CoinGeckoCollector") as mock_collector_cls,
+            patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs.MarketProcessor") as mock_processor,
             patch("app.scheduler.jobs.FundamentalScorer") as mock_scorer,
             patch("app.scheduler.jobs.OpportunityEngine") as mock_engine,
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock) as mock_persist,
         ):
-            mock_collector_cls.return_value.collect = AsyncMock(return_value=[_RAW])
             mock_processor.process = MagicMock(return_value=_PROCESSED)
             mock_scorer.score = MagicMock(return_value=0.75)
             mock_engine.composite_score = MagicMock(return_value=0.75)
@@ -125,6 +148,26 @@ class TestDailyCollectionJob:
         assert call_args[0]["symbol"] == "BTC"
         assert call_args[0]["fundamental_score"] == 0.75
         assert call_args[0]["opportunity_score"] == 0.75
+
+    @pytest.mark.asyncio
+    async def test_daily_collection_job_uses_collector_as_context_manager(
+        self,
+    ) -> None:
+        """daily_collection_job must use CoinGeckoCollector as async context manager."""
+        from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
+
+        cls_mock, instance = _make_collector_mock()
+        with (
+            patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
+            patch("app.scheduler.jobs.MarketProcessor"),
+            patch("app.scheduler.jobs.FundamentalScorer"),
+            patch("app.scheduler.jobs.OpportunityEngine"),
+            patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
+        ):
+            await daily_collection_job()
+
+        instance.__aenter__.assert_awaited_once()
+        instance.__aexit__.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------
@@ -193,15 +236,15 @@ class TestJobHealthMonitor:
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
 
         mock_redis = AsyncMock()
+        cls_mock, _ = _make_collector_mock()
         with (
-            patch("app.scheduler.jobs.CoinGeckoCollector") as mock_cg,
+            patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs.MarketProcessor"),
             patch("app.scheduler.jobs.FundamentalScorer"),
             patch("app.scheduler.jobs.OpportunityEngine"),
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
             patch("app.scheduler.jobs.record_job_success", new_callable=AsyncMock) as mock_rec,
         ):
-            mock_cg.return_value.collect = AsyncMock(return_value=[_RAW])
             await daily_collection_job(redis=mock_redis)
 
         mock_rec.assert_awaited_once()
@@ -212,12 +255,12 @@ class TestJobHealthMonitor:
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
 
         mock_redis = AsyncMock()
+        cls_mock, _ = _make_collector_mock(collect_side_effect=Exception("network error"))
         with (
-            patch("app.scheduler.jobs.CoinGeckoCollector") as mock_cg,
+            patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
             patch("app.scheduler.jobs.record_job_failure", new_callable=AsyncMock) as mock_fail,
         ):
-            mock_cg.return_value.collect = AsyncMock(side_effect=Exception("network error"))
             await daily_collection_job(redis=mock_redis)
 
         mock_fail.assert_awaited_once()

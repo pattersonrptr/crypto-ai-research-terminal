@@ -53,7 +53,28 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
     `last_status`, `error_count`, `last_error` (all `None` when never ran).
   - `daily_collection_job(redis=None)` — accepts optional Redis client; records
     success/failure; skips health recording when `redis=None` (dev mode).
-  - 6 new TDD tests in `backend/tests/scheduler/test_jobs.py` (11 total).
+  - `daily_collection_job` now uses `async with CoinGeckoCollector()` (proper
+    context manager for `httpx.AsyncClient` lifecycle).
+  - 7 new TDD tests in `backend/tests/scheduler/test_jobs.py` (12 total).
+
+##### Backend — Pipeline Persistence
+- `backend/app/scheduler/jobs.py` — `_persist_results()` replaced stub with real
+  DB writes:
+  - Upserts `Token` row (get-or-create by `coingecko_id`).
+  - Inserts `TokenScore` with `composite`, `market`, `fundamental`, `social`,
+    `ai_sentiment` fields linked to the Token.
+  - Inserts `MarketData` with `price_usd`, `volume_24h`, `market_cap` fields
+    linked to the Token.
+  - Accepts optional `session: AsyncSession` parameter for test injection.
+  - 8 TDD tests in `backend/tests/scheduler/test_persist_results.py`.
+
+##### Backend — CLI
+- `backend/app/cli.py` — new `collect-now` command for manual pipeline execution:
+  - `run_collection_job()` — async function: collect → process → score → persist.
+  - `cryptoai collect-now` — Click command wrapping `asyncio.run(run_collection_job())`.
+  - Prints `"Done — N tokens collected, scored and persisted."` on success.
+  - Prints error message and exits 1 on failure.
+  - 4 TDD tests in `backend/tests/cli/test_cli.py` (13 total).
 
 ##### Backend — New API Endpoints
 - `backend/app/api/routes/scheduler.py` — scheduler health API:
@@ -101,7 +122,7 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
   `TWITTER_BEARER_TOKEN` to reflect Phase 8 requirements.
 
 ### Changed
-- `backend/tests/` — total tests: **788** (+66 vs Phase 7).
+- `backend/tests/` — total tests: **802** (+80 vs Phase 7).
 - `frontend/src/` — total tests: **126** (+3 vs Phase 7).
 
 

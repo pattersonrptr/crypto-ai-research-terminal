@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import structlog
-from sklearn.cluster import HDBSCAN  # type: ignore[import-untyped]
+from sklearn.cluster import HDBSCAN
 
 from app.ai.llm_provider import LLMProvider
 

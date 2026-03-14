@@ -12,12 +12,16 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from app.collectors.coingecko_collector import CoinGeckoCollector
+from app.models.market_data import MarketData
+from app.models.score import TokenScore
+from app.models.token import Token
 from app.processors.market_processor import MarketProcessor
 from app.scoring.fundamental_scorer import FundamentalScorer
 from app.scoring.opportunity_engine import OpportunityEngine
 
 if TYPE_CHECKING:
     import redis.asyncio as aioredis
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger(__name__)
 
@@ -153,10 +157,10 @@ async def daily_collection_job(
     log.info("daily_collection_job.started")
 
     try:
-        collector = CoinGeckoCollector()
-        raw_data = await collector.collect(symbols=[])
+        async with CoinGeckoCollector() as collector:
+            raw_data = await collector.collect(symbols=[])
 
-        results: list[dict[str, object]] = []
+        results: list[dict[str, Any]] = []
         for raw in raw_data:
             try:
                 processed = MarketProcessor.process(raw)
@@ -193,6 +197,93 @@ async def daily_collection_job(
             )
 
 
-async def _persist_results(results: list[dict[str, object]]) -> None:
-    """Persist scored results to the database (stub — full DB wiring in production)."""
-    logger.info("_persist_results.called", count=len(results))
+async def _persist_results(
+    results: list[dict[str, Any]],
+    *,
+    session: AsyncSession | None = None,
+) -> None:
+    """Persist scored results to tokens, token_scores and market_data tables.
+
+    Args:
+        results: Pipeline output dicts containing token info + scores.
+        session: Optional externally-managed session (used by tests).
+                 When ``None`` the function creates its own session.
+    """
+    if not results:
+        logger.info("_persist_results.empty")
+        return
+
+    from sqlalchemy import select  # noqa: PLC0415
+
+    own_session = False
+    if session is None:
+        from app.db.session import _SessionLocal  # noqa: PLC0415
+
+        session = _SessionLocal()
+        own_session = True
+
+    try:
+        for item in results:
+            symbol = str(item["symbol"])
+            coingecko_id = str(item["coingecko_id"])
+            name = str(item["name"])
+
+            # Upsert token (get-or-create by coingecko_id, fallback by symbol)
+            stmt = select(Token).where(Token.coingecko_id == coingecko_id)
+            token: Token | None = (await session.execute(stmt)).scalars().first()
+            if token is None:
+                # Also check by symbol — CoinGecko can return duplicate symbols
+                sym_stmt = select(Token).where(Token.symbol == symbol.upper())
+                token = (await session.execute(sym_stmt)).scalars().first()
+            if token is None:
+                token = Token(
+                    symbol=symbol.upper(),
+                    name=name,
+                    coingecko_id=coingecko_id,
+                )
+                session.add(token)
+                await session.flush()  # generate token.id
+            else:
+                # Skip score/market_data for the duplicate-symbol variant
+                if token.coingecko_id != coingecko_id:
+                    logger.debug(
+                        "_persist_results.skip_duplicate_symbol",
+                        symbol=symbol,
+                        existing_id=token.coingecko_id,
+                        incoming_id=coingecko_id,
+                    )
+                    continue
+
+            # Insert score snapshot
+            score = TokenScore(
+                token_id=token.id,
+                fundamental_score=float(item.get("fundamental_score", 0.0)),
+                opportunity_score=float(item.get("opportunity_score", 0.0)),
+            )
+            session.add(score)
+
+            # Insert market data snapshot
+            md = MarketData(
+                token_id=token.id,
+                price_usd=float(item.get("price_usd", 0.0)),
+                market_cap_usd=float(item.get("market_cap_usd", 0.0)),
+                volume_24h_usd=float(item.get("volume_24h_usd", 0.0)),
+                rank=int(item["rank"]) if item.get("rank") is not None else None,
+                ath_usd=float(item["ath_usd"]) if item.get("ath_usd") is not None else None,
+                circulating_supply=(
+                    float(item["circulating_supply"])
+                    if item.get("circulating_supply") is not None
+                    else None
+                ),
+            )
+            session.add(md)
+
+        await session.commit()
+        logger.info("_persist_results.committed", count=len(results))
+    except Exception:
+        await session.rollback()
+        logger.exception("_persist_results.failed")
+        raise
+    finally:
+        if own_session:
+            await session.close()
