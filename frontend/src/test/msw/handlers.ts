@@ -16,6 +16,11 @@ import type {
 } from "@/services/tokens.service";
 import type { Alert, AlertStats } from "@/services/alerts.service";
 import type { NarrativeCluster } from "@/services/narratives.service";
+import type {
+  Community,
+  CentralityResult,
+  EcosystemSnapshot,
+} from "@/services/graph.service";
 
 // ── Shared mock data factories ─────────────────────────────────────────────
 
@@ -224,6 +229,87 @@ export function marketReportHandler() {
   );
 }
 
+// ── Graph mock data ───────────────────────────────────────────────────────
+
+export const MOCK_COMMUNITIES: Community[] = [
+  { id: 0, members: ["ETH", "ARB", "OP", "MATIC", "UNI", "AAVE"], size: 6 },
+  { id: 1, members: ["FET", "RNDR", "TAO"], size: 3 },
+  { id: 2, members: ["BTC", "BNB", "SOL", "AVAX", "TIA"], size: 5 },
+];
+
+export const MOCK_CENTRALITY: CentralityResult[] = [
+  { symbol: "ETH", pagerank: 0.22, betweenness: 0.45, degree_centrality: 0.57 },
+  { symbol: "BTC", pagerank: 0.14, betweenness: 0.10, degree_centrality: 0.14 },
+  { symbol: "FET", pagerank: 0.09, betweenness: 0.20, degree_centrality: 0.29 },
+];
+
+export const MOCK_ECOSYSTEM: EcosystemSnapshot = {
+  timestamp: "2025-01-15T00:00:00+00:00",
+  n_communities: 3,
+  total_tokens: 14,
+  top_tokens: ["ETH", "BTC", "FET", "UNI", "RNDR"],
+};
+
+// ── Graph handler factories ───────────────────────────────────────────────
+
+export function graphCommunitiesHandler(data: Community[] = MOCK_COMMUNITIES) {
+  return http.get("/api/graph/communities", () => HttpResponse.json(data));
+}
+
+export function graphCommunitiesErrorHandler() {
+  return http.get("/api/graph/communities", () =>
+    HttpResponse.json({ detail: "Internal server error" }, { status: 500 }),
+  );
+}
+
+export function graphCentralityHandler(
+  data: CentralityResult[] = MOCK_CENTRALITY,
+) {
+  return http.get("/api/graph/centrality", () => HttpResponse.json(data));
+}
+
+export function graphEcosystemHandler(data: EcosystemSnapshot = MOCK_ECOSYSTEM) {
+  return http.get("/api/graph/ecosystem", () => HttpResponse.json(data));
+}
+
+// ── Backtesting mock data ─────────────────────────────────────────────────
+
+export interface BacktestResult {
+  symbol: string;
+  cycle: string;
+  total_return_pct: number;
+  n_trades: number;
+  win_rate: number;
+  sharpe_ratio: number;
+  max_drawdown_pct: number;
+  avg_trade_return_pct: number;
+  is_profitable: boolean;
+}
+
+export const MOCK_BACKTEST_RESULT: BacktestResult = {
+  symbol: "BTC",
+  cycle: "bull",
+  total_return_pct: 42.5,
+  n_trades: 8,
+  win_rate: 0.75,
+  sharpe_ratio: 1.2,
+  max_drawdown_pct: 15.3,
+  avg_trade_return_pct: 5.3,
+  is_profitable: true,
+};
+
+// ── Backtesting handler factories ─────────────────────────────────────────
+
+export function backtestRunHandler(data: BacktestResult = MOCK_BACKTEST_RESULT) {
+  return http.post("/api/backtesting/run", () => HttpResponse.json(data));
+}
+
+export function backtestRunErrorHandler() {
+  return http.post("/api/backtesting/run", () =>
+    HttpResponse.json({ detail: "Simulation failed" }, { status: 500 }),
+  );
+}
+
 // ── Default handlers (happy-path baseline) ────────────────────────────────
 
 export const handlers = [
@@ -237,4 +323,8 @@ export const handlers = [
   narrativesHandler(),
   tokenReportHandler(),
   marketReportHandler(),
+  graphCommunitiesHandler(),
+  graphCentralityHandler(),
+  graphEcosystemHandler(),
+  backtestRunHandler(),
 ];

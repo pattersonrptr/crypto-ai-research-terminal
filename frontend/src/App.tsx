@@ -7,6 +7,8 @@ import { Home } from "@/pages/Home";
 import { TokenDetail } from "@/pages/TokenDetail";
 import { Alerts } from "@/pages/Alerts";
 import { Narratives } from "@/pages/Narratives";
+import { Ecosystems } from "@/pages/Ecosystems";
+import { Backtesting } from "@/pages/Backtesting";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,6 +30,8 @@ export function App() {
               <Route path="/tokens/:symbol" element={<TokenDetail />} />
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/narratives" element={<Narratives />} />
+              <Route path="/ecosystems" element={<Ecosystems />} />
+              <Route path="/backtesting" element={<Backtesting />} />
             </Routes>
           </AppShell>
         </BrowserRouter>

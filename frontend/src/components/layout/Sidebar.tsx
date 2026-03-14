@@ -4,6 +4,8 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
+  FlaskConical,
+  Network,
   TrendingUp,
   Zap,
 } from "lucide-react";
@@ -18,9 +20,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: "/",           label: "Rankings",   icon: BarChart3,  ariaLabel: "Go to Rankings" },
-  { to: "/narratives", label: "Narratives", icon: TrendingUp, ariaLabel: "Go to Narratives" },
-  { to: "/alerts",     label: "Alerts",     icon: Bell,       ariaLabel: "Go to Alerts" },
+  { to: "/",            label: "Rankings",    icon: BarChart3,     ariaLabel: "Go to Rankings" },
+  { to: "/narratives",  label: "Narratives",  icon: TrendingUp,    ariaLabel: "Go to Narratives" },
+  { to: "/ecosystems",  label: "Ecosystems",  icon: Network,       ariaLabel: "Go to Ecosystems" },
+  { to: "/backtesting", label: "Backtesting", icon: FlaskConical,  ariaLabel: "Go to Backtesting" },
+  { to: "/alerts",      label: "Alerts",      icon: Bell,          ariaLabel: "Go to Alerts" },
 ];
 
 /**

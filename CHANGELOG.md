@@ -12,6 +12,55 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Added
 
+#### Phase 7 — Graph + Backtesting API Endpoints + Frontend Pages (COMPLETE)
+- `backend/app/api/routes/graph.py` — three new endpoints:
+  - `GET /graph/communities` — returns Louvain-detected token communities from the seed
+    `TokenGraph`; each item contains `id`, `members`, `size`.
+  - `GET /graph/centrality?top_n=N` — returns centrality scores (PageRank, betweenness,
+    degree) ranked by PageRank; `top_n` query param (min 1, default 10) validated by
+    FastAPI; returns HTTP 422 on `top_n=0`.
+  - `GET /graph/ecosystem` — returns a full `EcosystemSnapshot` with `timestamp`,
+    `n_communities`, `total_tokens`, `top_tokens`.
+  - Seed graph: 15 nodes (BTC, ETH, SOL, BNB, AVAX, ARB, OP, MATIC, LINK, UNI, AAVE,
+    FET, RNDR, TAO, TIA) + 16 typed edges (ecosystem + correlation).
+  - 16 TDD tests in `backend/tests/api/routes/test_graph.py`.
+- `backend/app/api/routes/backtesting.py` — replaces placeholder stub:
+  - `POST /backtesting/run` — accepts `{ symbol, cycle }`, runs `SimulationEngine` over
+    synthetic seed candles (5 symbols × 3 cycles), computes `PerformanceMetrics`, returns
+    full `BacktestResponse` with `total_return_pct`, `n_trades`, `win_rate`,
+    `sharpe_ratio`, `max_drawdown_pct`, `avg_trade_return_pct`, `is_profitable`.
+  - `CycleLabelEnum` Pydantic enum enforces valid cycle values (bull / bear /
+    accumulation); missing/invalid fields return HTTP 422.
+  - Synthetic candles generated via sinusoidal drift so the momentum strategy
+    produces real trade events across all cycle windows.
+  - 12 TDD tests in `backend/tests/api/routes/test_backtesting.py`.
+- `backend/app/main.py` — wired `graph.router` at prefix `/graph`.
+- `frontend/src/services/graph.service.ts` — three typed async functions:
+  `fetchCommunities()`, `fetchCentrality(topN?)`, `fetchEcosystem()`.
+  - 8 unit tests with MSW in `graph.service.test.ts`.
+- `frontend/src/pages/Ecosystems.tsx` — knowledge graph page:
+  - Summary stats (communities count, total tokens).
+  - `CommunityCard` components with member token badges per cluster.
+  - "Top Tokens by PageRank" section with rank badges.
+  - Loading spinner (`role="status"`) and error state.
+  - 7 TDD tests in `Ecosystems.test.tsx`.
+- `frontend/src/services/backtesting.service.ts` — `runBacktest(request)` async
+  function posting to `POST /backtesting/run`.
+  - 5 unit tests with MSW in `backtesting.service.test.ts`.
+- `frontend/src/pages/Backtesting.tsx` — backtesting page:
+  - Form with symbol text input, cycle `<select>`, and "Run Backtesting" button.
+  - `ResultsPanel` showing 6 metric cards (total return, trades, win rate, Sharpe,
+    max drawdown, avg trade return) with colour highlights.
+  - Error state on API failure; loading state on button during mutation.
+  - 8 TDD tests in `Backtesting.test.tsx`.
+- `frontend/src/test/msw/handlers.ts` — added mock data (`MOCK_COMMUNITIES`,
+  `MOCK_CENTRALITY`, `MOCK_ECOSYSTEM`, `MOCK_BACKTEST_RESULT`) and handler factories
+  (`graphCommunitiesHandler`, `graphCentralityHandler`, `graphEcosystemHandler`,
+  `backtestRunHandler`, error variants); all added to default `handlers` export.
+- `frontend/src/App.tsx` — added `/ecosystems` and `/backtesting` routes.
+- `frontend/src/components/layout/Sidebar.tsx` — added Ecosystems (`Network` icon) and
+  Backtesting (`FlaskConical` icon) nav items.
+
 #### Phase 7 — Seed Historical Data
 - `backend/app/models/historical_candle.py` — `HistoricalCandle` SQLAlchemy 2.x async
   ORM model (`historical_candles` table) with `symbol`, `timestamp`, `open`, `high`,
