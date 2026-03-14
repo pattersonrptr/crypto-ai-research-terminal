@@ -129,13 +129,27 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 
 ---
 
-## Phase 5 — Telegram + Reports (target: ~1 week)
+## Phase 5 — Telegram + Reports (target: ~1 week) ✅ COMPLETE
 
-- 🔲 `alerts/telegram_bot.py`
-- 🔲 `alerts/alert_rules.py` + `alerts/alert_formatter.py`
-- 🔲 `reports/markdown_generator.py` + Jinja2 templates
-- 🔲 `reports/pdf_generator.py` (WeasyPrint)
-- 🔲 `api/routes/alerts.py` + `api/routes/reports.py`
+### Alerts System
+- ✅ `alerts/alert_formatter.py` — AlertType enum (8 types), FormattedAlert dataclass, AlertFormatter
+- ✅ `alerts/alert_rules.py` — AlertRule ABC, 7 concrete rules, AlertRuleEngine
+- ✅ `alerts/telegram_bot.py` — async Telegram bot with httpx, rate limiting
+
+### Reports System
+- ✅ `reports/markdown_generator.py` — Jinja2-based Markdown generation
+- ✅ `reports/pdf_generator.py` — WeasyPrint-based PDF generation
+- ✅ `reports/templates/token_report.md.j2` — Token analysis template
+- ✅ `reports/templates/market_report.md.j2` — Market report template
+
+### API Endpoints
+- ✅ `api/routes/alerts.py` — GET/POST/PUT endpoints for alerts management
+- ✅ `api/routes/reports.py` — GET endpoints for report generation (markdown/pdf)
+
+### Tests (TDD)
+- ✅ 135 new tests across alerts, reports, API modules
+- ✅ **Total: 499 tests — all passing (was 364 in Phase 4)**
+- ✅ **Test coverage: 93%**
 
 **Deliverable:** Alerts arriving on Telegram. Exportable reports.
 

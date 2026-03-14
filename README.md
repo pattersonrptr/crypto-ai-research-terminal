@@ -17,7 +17,7 @@
 - [Project Setup](#project-setup)
 - [Running locally](#running-locally)
 - [Code Quality](#code-quality)
-- [Running the CI pipeline locally (act)](#running-the-ci-pipeline-locally-act)
+- [Running CI checks locally](#running-ci-checks-locally)
 - [Commit Convention](#commit-convention)
 - [Project Roadmap](#project-roadmap)
 
@@ -157,9 +157,54 @@ pytest
 
 ---
 
-## Running the CI pipeline locally (act)
+## Running CI checks locally
 
-[act](https://github.com/nektos/act) runs GitHub Actions workflows locally using Docker.
+**Always run this before pushing** to catch errors before they reach the remote CI pipeline.
+
+### Option 1 — `ci-local.sh` script (recommended)
+
+```bash
+./scripts/ci-local.sh
+```
+
+This runs the exact same checks as the GitHub Actions pipeline, in order:
+
+| Step | Tool | What it checks |
+|---|---|---|
+| 1 | `ruff check` | Lint rules (unused imports, style, security patterns) |
+| 2 | `ruff format --check` | Code formatting |
+| 3 | `mypy` | Static type checking (strict mode) |
+| 4 | `bandit` | Security vulnerabilities |
+| 5 | `pytest` | Tests + coverage (≥ 50% required) |
+
+> **Note:** Activate the virtual environment first if not already active:
+> `source .venv/bin/activate`
+
+### Option 2 — run checks individually
+
+```bash
+source .venv/bin/activate
+
+# Lint (with auto-fix)
+ruff check backend/ --fix
+
+# Format (with auto-fix)
+ruff format backend/
+
+# Type check
+mypy backend/app
+
+# Security scan
+bandit -c pyproject.toml -r backend/app -q
+
+# Tests with coverage
+pytest backend/tests/ --tb=short -q
+```
+
+### Option 3 — `act` (full GitHub Actions simulation)
+
+[act](https://github.com/nektos/act) runs the complete `.github/workflows/ci.yml`
+pipeline locally inside Docker — identical to what runs on GitHub.
 
 ```bash
 # Install act (Arch Linux)
@@ -177,6 +222,16 @@ act push -j quality
 
 > **Note:** act requires Docker. On the first run it downloads the `ubuntu-22.04`
 > runner image (~1.5 GB).
+
+### Common Ruff errors and how to fix them
+
+| Code | Description | Fix |
+|---|---|---|
+| `F401` | Unused import | Remove the import |
+| `B008` | `Query()` in function default | Use `Annotated[T, Query()]` as type hint |
+| `E501` | Line too long (> 100 chars) | Break the line |
+| `UP017` | Use `datetime.UTC` instead of `timezone.utc` | Replace `timezone.utc` → `UTC` |
+| `I001` | Unsorted imports | Run `ruff check --fix` |
 
 ---
 
@@ -229,10 +284,12 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 
 | Phase | Description | Status |
 |---|---|---|
-| 1 | Functional MVP — CoinGecko, DB schema, basic scoring, CLI | 🔲 Not started |
-| 2 | Dev Activity + Social (GitHub, Reddit, X) | 🔲 Not started |
-| 3 | AI & Narratives (Ollama, Gemini, embeddings) | 🔲 Not started |
-| 4 | Listing Radar + Risk detection | 🔲 Not started |
-| 5 | Telegram alerts + Reports (MD/PDF) | 🔲 Not started |
+| 1 | Functional MVP — CoinGecko, DB schema, basic scoring, CLI | ✅ Complete |
+| 2 | Dev Activity + Social (GitHub, Reddit, X) | ✅ Complete |
+| 3 | AI & Narratives (Ollama, Gemini, embeddings) | ✅ Complete |
+| 4 | Listing Radar + Risk detection | ✅ Complete |
+| 5 | Telegram alerts + Reports (MD/PDF) | ✅ Complete |
 | 6 | React Dashboard | 🔲 Not started |
 | 7 | ML + Knowledge Graph + Backtesting | 🔲 Not started |
+
+**Current status:** 499 tests passing, 93% coverage
