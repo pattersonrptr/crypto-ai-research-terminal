@@ -222,11 +222,15 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 - ✅ Tests for backtesting engine (TDD)
 
 ### Frontend — New Pages
-- 🔲 `frontend/src/pages/Ecosystems.tsx` — interactive ecosystem knowledge graph (React Flow or D3.js)
-- 🔲 `frontend/src/pages/Backtesting.tsx` — backtesting results and model validation metrics
-- 🔲 Wire new backend endpoints to the frontend + MSW tests
+- ✅ `frontend/src/pages/Ecosystems.tsx` — ecosystem knowledge graph (community cards + top tokens by PageRank)
+- ✅ `frontend/src/pages/Backtesting.tsx` — backtesting results and model validation metrics
+- ✅ Wire new backend endpoints to the frontend + MSW tests
 
-**Deliverable:** "Next Solana" score. Validated backtesting. Visual Knowledge Graph.
+### Backend — API Routes (Phase 7 endpoints)
+- ✅ `api/routes/graph.py` — GET /graph/communities, GET /graph/centrality, GET /graph/ecosystem
+- ✅ `api/routes/backtesting.py` — POST /backtesting/run (replaces placeholder stub)
+
+**Deliverable:** "Next Solana" score. Validated backtesting. Visual Knowledge Graph. ✅ COMPLETE
 
 ---
 
