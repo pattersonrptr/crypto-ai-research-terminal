@@ -13,7 +13,6 @@ from app.ml.cycle_leader_model import CycleLeaderModel
 from app.ml.feature_builder import RawTokenData
 from app.ml.model_trainer import ModelTrainer, TrainerConfig, TrainerReport
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -59,11 +58,11 @@ class TestTrainerConfig:
         cfg = TrainerConfig()
         assert 0.1 <= cfg.validation_split <= 0.5
 
-    def test_custom_config_is_accepted(self) -> None:
+    def test_custom_config_is_accepted(self, tmp_path: pytest.TempPathFactory) -> None:
         """TrainerConfig must accept custom validation_split and output_dir."""
-        cfg = TrainerConfig(validation_split=0.3, output_dir="/tmp/models")
+        cfg = TrainerConfig(validation_split=0.3, output_dir=str(tmp_path))
         assert cfg.validation_split == 0.3
-        assert cfg.output_dir == "/tmp/models"
+        assert cfg.output_dir == str(tmp_path)
 
     def test_invalid_split_below_minimum_raises_value_error(self) -> None:
         """validation_split < 0.1 must raise ValueError."""
@@ -173,18 +172,14 @@ class TestModelTrainerSaveModel:
         saved_path = trainer.save_model()
         assert Path(saved_path).exists()
 
-    def test_save_model_without_training_raises_runtime_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_save_model_without_training_raises_runtime_error(self, tmp_path: Path) -> None:
         """save_model() before run_training() must raise RuntimeError."""
         cfg = TrainerConfig(output_dir=str(tmp_path))
         trainer = ModelTrainer(config=cfg)
         with pytest.raises(RuntimeError, match="not trained"):
             trainer.save_model()
 
-    def test_saved_model_can_be_loaded_into_cycle_leader_model(
-        self, tmp_path: Path
-    ) -> None:
+    def test_saved_model_can_be_loaded_into_cycle_leader_model(self, tmp_path: Path) -> None:
         """A model saved by the trainer must be loadable by CycleLeaderModel."""
         cfg = TrainerConfig(output_dir=str(tmp_path))
         trainer = ModelTrainer(config=cfg)

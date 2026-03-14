@@ -70,7 +70,7 @@ class FeatureVector:
     mcap_log: float = 0.0
     volume_log: float = 0.0
     ath_distance: float = 0.0
-    supply_ratio: float = 0.0       # circulating / implied total (0 if unknown)
+    supply_ratio: float = 0.0  # circulating / implied total (0 if unknown)
 
     # Dev features (log1p of raw counts)
     commits_30d_log: float = 0.0
@@ -91,11 +91,7 @@ class FeatureVector:
 
     def to_list(self) -> list[float]:
         """Return feature values as an ordered list of floats (no symbol)."""
-        return [
-            getattr(self, f.name)
-            for f in fields(self)
-            if f.name != "symbol"
-        ]
+        return [getattr(self, f.name) for f in fields(self) if f.name != "symbol"]
 
     def feature_names(self) -> list[str]:
         """Return feature names in the same order as ``to_list()``."""
@@ -128,7 +124,9 @@ class FeatureBuilder:
             mcap_log=self._log1p(data.market_cap_usd),
             volume_log=self._log1p(data.volume_24h_usd),
             ath_distance=self._ath_distance(data.price_usd, data.ath_usd),
-            supply_ratio=self._supply_ratio(data.circulating_supply, data.market_cap_usd, data.price_usd),
+            supply_ratio=self._supply_ratio(
+                data.circulating_supply, data.market_cap_usd, data.price_usd
+            ),
             # ---- dev ---------------------------------------------------
             commits_30d_log=self._log1p(data.commits_30d),
             contributors_log=self._log1p(data.contributors),

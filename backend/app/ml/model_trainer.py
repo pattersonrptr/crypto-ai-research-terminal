@@ -23,13 +23,12 @@ Usage::
 from __future__ import annotations
 
 import datetime
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 import structlog
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split  # type: ignore[import-untyped]
 
 from app.ml.cycle_leader_model import CycleLeaderModel
 from app.ml.feature_builder import FeatureBuilder, FeatureVector, RawTokenData
@@ -56,9 +55,7 @@ class TrainerConfig:
 
     def __post_init__(self) -> None:
         if not 0.1 <= self.validation_split <= 0.5:
-            raise ValueError(
-                f"validation_split must be in [0.1, 0.5], got {self.validation_split}"
-            )
+            raise ValueError(f"validation_split must be in [0.1, 0.5], got {self.validation_split}")
 
 
 @dataclass
@@ -118,13 +115,11 @@ class ModelTrainer:
         """
         if len(data) != len(labels):
             raise ValueError(
-                f"data and labels must have the same length, "
-                f"got {len(data)} vs {len(labels)}"
+                f"data and labels must have the same length, " f"got {len(data)} vs {len(labels)}"
             )
         if len(data) < _MIN_SAMPLES:
             raise ValueError(
-                f"run_training requires at least {_MIN_SAMPLES} samples, "
-                f"got {len(data)}"
+                f"run_training requires at least {_MIN_SAMPLES} samples, " f"got {len(data)}"
             )
 
         # Build feature vectors
@@ -151,12 +146,7 @@ class ModelTrainer:
 
         # Evaluate on validation set using the model's internal classifier
         val_preds = (
-            np.array(
-                self._model.predict_batch(
-                    [vectors[i] for i in idx_val]
-                )
-            )
-            >= 0.5
+            np.array(self._model.predict_batch([vectors[i] for i in idx_val])) >= 0.5
         ).astype(float)
         val_accuracy = float(np.mean(val_preds == y_val))
 
@@ -195,9 +185,7 @@ class ModelTrainer:
             RuntimeError: If the model has not been trained yet.
         """
         if not self._trained:
-            raise RuntimeError(
-                "Cannot save: model is not trained. Call run_training() first."
-            )
+            raise RuntimeError("Cannot save: model is not trained. Call run_training() first.")
 
         output_dir = Path(self._config.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)

@@ -9,7 +9,6 @@ import pytest
 
 from app.ml.feature_builder import FeatureBuilder, FeatureVector, RawTokenData
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -135,9 +134,7 @@ class TestFeatureBuilderMarketFeatures:
         fv = builder.build(full_data)
         assert 0.0 <= fv.ath_distance <= 1.0
 
-    def test_build_ath_distance_at_ath_is_zero(
-        self, builder: FeatureBuilder
-    ) -> None:
+    def test_build_ath_distance_at_ath_is_zero(self, builder: FeatureBuilder) -> None:
         """ath_distance must be 0.0 when current price equals ATH."""
         data = RawTokenData(
             symbol="ATH",
@@ -220,8 +217,6 @@ class TestFeatureBuilderBatch:
         assert result[0].symbol == "SOL"
         assert result[1].symbol == "UNKNOWN"
 
-    def test_build_batch_empty_input_returns_empty_list(
-        self, builder: FeatureBuilder
-    ) -> None:
+    def test_build_batch_empty_input_returns_empty_list(self, builder: FeatureBuilder) -> None:
         """build_batch([]) must return []."""
         assert builder.build_batch([]) == []

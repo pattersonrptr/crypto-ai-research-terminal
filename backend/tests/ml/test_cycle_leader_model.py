@@ -10,7 +10,6 @@ import pytest
 from app.ml.cycle_leader_model import CycleLeaderModel, TrainingResult
 from app.ml.feature_builder import FeatureBuilder, RawTokenData
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -38,7 +37,6 @@ def _make_raw(symbol: str, score: float = 0.5) -> RawTokenData:
 
 def _make_training_set(n: int = 30) -> tuple[list[RawTokenData], list[float]]:
     """Return n synthetic training samples with labels in {0.0, 1.0}."""
-    builder = FeatureBuilder()
     data: list[RawTokenData] = []
     labels: list[float] = []
     for i in range(n):
@@ -165,9 +163,7 @@ class TestCycleLeaderModelPredictTrained:
         weak = builder.build(_make_raw("WEAK", 0.05))
         assert trained_model.predict(strong) >= trained_model.predict(weak)
 
-    def test_predict_batch_returns_list_of_floats(
-        self, trained_model: CycleLeaderModel
-    ) -> None:
+    def test_predict_batch_returns_list_of_floats(self, trained_model: CycleLeaderModel) -> None:
         """predict_batch() must return a list of floats, one per input."""
         builder = FeatureBuilder()
         fvs = builder.build_batch([_make_raw("A", 0.7), _make_raw("B", 0.3)])
@@ -199,8 +195,10 @@ class TestCycleLeaderModelPersistence:
         fv = FeatureBuilder().build(_make_raw("SOL", 0.9))
         assert 0.0 <= loaded.predict(fv) <= 1.0
 
-    def test_load_nonexistent_file_raises_file_not_found(self) -> None:
+    def test_load_nonexistent_file_raises_file_not_found(
+        self, tmp_path: pytest.TempPathFactory
+    ) -> None:
         """load() with a non-existent path must raise FileNotFoundError."""
         model = CycleLeaderModel()
         with pytest.raises(FileNotFoundError):
-            model.load("/tmp/does_not_exist_xyz.pkl")
+            model.load(str(tmp_path / "does_not_exist.pkl"))  # type: ignore[operator]

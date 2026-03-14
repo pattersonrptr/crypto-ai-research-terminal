@@ -31,7 +31,7 @@ Usage::
 
 from __future__ import annotations
 
-import pickle
+import pickle  # nosec B403
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -108,15 +108,14 @@ class CycleLeaderModel:
         """
         if len(data) != len(labels):
             raise ValueError(
-                f"data and labels must have the same length, "
-                f"got {len(data)} vs {len(labels)}"
+                f"data and labels must have the same length, " f"got {len(data)} vs {len(labels)}"
             )
 
         vectors = self._feature_builder.build_batch(data)
         x = np.array([fv.to_list() for fv in vectors], dtype=np.float32)
         y = np.array(labels, dtype=np.float32)
 
-        clf = XGBClassifier(**_DEFAULT_PARAMS)  # type: ignore[arg-type]
+        clf = XGBClassifier(**_DEFAULT_PARAMS)
         clf.fit(x, y)
         self._clf = clf
 
@@ -127,8 +126,7 @@ class CycleLeaderModel:
         # Feature importances keyed by name
         names = vectors[0].feature_names()
         importances = {
-            name: float(score)
-            for name, score in zip(names, clf.feature_importances_, strict=True)
+            name: float(score) for name, score in zip(names, clf.feature_importances_, strict=True)
         }
 
         logger.info(
@@ -159,9 +157,7 @@ class CycleLeaderModel:
             RuntimeError: If the model has not been trained or loaded yet.
         """
         if self._clf is None:
-            raise RuntimeError(
-                "CycleLeaderModel is not trained. Call train() or load() first."
-            )
+            raise RuntimeError("CycleLeaderModel is not trained. Call train() or load() first.")
         x = np.array([fv.to_list()], dtype=np.float32)
         proba: float = float(self._clf.predict_proba(x)[0, 1])
         return proba
@@ -179,9 +175,7 @@ class CycleLeaderModel:
             RuntimeError: If the model has not been trained or loaded yet.
         """
         if self._clf is None:
-            raise RuntimeError(
-                "CycleLeaderModel is not trained. Call train() or load() first."
-            )
+            raise RuntimeError("CycleLeaderModel is not trained. Call train() or load() first.")
         if not fvs:
             return []
         x = np.array([fv.to_list() for fv in fvs], dtype=np.float32)
@@ -222,5 +216,5 @@ class CycleLeaderModel:
         if not p.exists():
             raise FileNotFoundError(f"Model file not found: {path}")
         with p.open("rb") as f:
-            self._clf = pickle.load(f)  # noqa: S301
+            self._clf = pickle.load(f)  # noqa: S301  # nosec B301
         logger.info("cycle_leader_model.loaded", path=path)
