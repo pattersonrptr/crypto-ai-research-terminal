@@ -313,9 +313,7 @@ class TestTwitterCollectorSearchMentions:
     async def test_twitter_collector_search_mentions_raises_on_unauthorized(
         self,
     ) -> None:
-        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(
-            return_value=httpx.Response(401)
-        )
+        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(return_value=httpx.Response(401))
         with pytest.raises(CollectorError, match="[Uu]nauthorized|[Ii]nvalid|401"):
             async with TwitterCollector(bearer_token="bad-token") as collector:
                 await collector.search_mentions(query="$SOL")
@@ -325,9 +323,7 @@ class TestTwitterCollectorSearchMentions:
     async def test_twitter_collector_search_mentions_raises_on_rate_limit(
         self,
     ) -> None:
-        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(
-            return_value=httpx.Response(429)
-        )
+        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(return_value=httpx.Response(429))
         with pytest.raises(CollectorError, match="rate limit"):
             async with TwitterCollector(bearer_token="test-token") as collector:
                 await collector.search_mentions(query="$SOL")

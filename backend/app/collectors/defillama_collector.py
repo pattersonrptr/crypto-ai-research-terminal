@@ -227,10 +227,6 @@ class DefiLlamaCollector(BaseCollector):
         status = exc.response.status_code
         if status == 404:
             logger.warning("defillama.not_found", context=context)
-            raise CollectorError(
-                f"DefiLlama resource not found ({context})"
-            ) from exc
+            raise CollectorError(f"DefiLlama resource not found ({context})") from exc
         logger.error("defillama.http_error", status=status, context=context)
-        raise CollectorError(
-            f"DefiLlama HTTP {status} server error ({context})"
-        ) from exc
+        raise CollectorError(f"DefiLlama HTTP {status} server error ({context})") from exc

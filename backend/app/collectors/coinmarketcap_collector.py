@@ -42,9 +42,7 @@ class CoinMarketCapCollector(BaseCollector):
             "X-CMC_PRO_API_KEY": self.api_key,
             "Accept": "application/json",
         }
-        self._client = httpx.AsyncClient(
-            base_url=self.base_url, timeout=30.0, headers=headers
-        )
+        self._client = httpx.AsyncClient(base_url=self.base_url, timeout=30.0, headers=headers)
         return self
 
     # ------------------------------------------------------------------
@@ -186,6 +184,4 @@ class CoinMarketCapCollector(BaseCollector):
                 f"Unauthorized — Invalid API key for CoinMarketCap ({context})"
             ) from exc
         logger.error("cmc.http_error", status=status, context=context)
-        raise CollectorError(
-            f"CoinMarketCap HTTP {status} error ({context})"
-        ) from exc
+        raise CollectorError(f"CoinMarketCap HTTP {status} error ({context})") from exc

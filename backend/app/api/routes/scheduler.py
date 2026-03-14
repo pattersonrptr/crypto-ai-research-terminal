@@ -53,9 +53,7 @@ async def get_job_status(job_name: str) -> dict[str, Any]:
         from app.config import settings  # noqa: PLC0415
         from app.scheduler.jobs import get_job_status as _get  # noqa: PLC0415
 
-        client: aioredis.Redis = aioredis.from_url(
-            settings.redis_url, decode_responses=False
-        )
+        client: aioredis.Redis = aioredis.from_url(settings.redis_url, decode_responses=False)
         try:
             return await _get(redis=client, job_name=job_name)
         finally:

@@ -150,9 +150,7 @@ class TwitterCollector(BaseCollector):
             "Authorization": f"Bearer {self.api_key}",
             "Accept": "application/json",
         }
-        self._client = httpx.AsyncClient(
-            base_url=self.base_url, timeout=30.0, headers=headers
-        )
+        self._client = httpx.AsyncClient(base_url=self.base_url, timeout=30.0, headers=headers)
         return self
 
     # ------------------------------------------------------------------
@@ -218,9 +216,7 @@ class TwitterCollector(BaseCollector):
         }
 
         try:
-            data: dict[str, Any] = await self._get(
-                "/tweets/search/recent", params=params
-            )
+            data: dict[str, Any] = await self._get("/tweets/search/recent", params=params)
         except httpx.HTTPStatusError as exc:
             self._handle_http_error(exc, context=f"search '{query}'")
             raise  # unreachable
@@ -255,15 +251,11 @@ class TwitterCollector(BaseCollector):
         status = exc.response.status_code
         if status == 429:
             logger.warning("twitter.rate_limit", context=context)
-            raise CollectorError(
-                f"Twitter/X rate limit exceeded ({context})"
-            ) from exc
+            raise CollectorError(f"Twitter/X rate limit exceeded ({context})") from exc
         if status == 401:
             logger.warning("twitter.unauthorized", context=context)
             raise CollectorError(
                 f"Unauthorized — Invalid Twitter bearer token ({context})"
             ) from exc
         logger.error("twitter.http_error", status=status, context=context)
-        raise CollectorError(
-            f"Twitter/X HTTP {status} error ({context})"
-        ) from exc
+        raise CollectorError(f"Twitter/X HTTP {status} error ({context})") from exc

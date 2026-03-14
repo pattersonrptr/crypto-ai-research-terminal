@@ -102,9 +102,7 @@ async def get_job_status(
         ``error_count``, ``last_error``.  Fields are ``None`` when the
         job has never run.
     """
-    raw: dict[bytes, bytes] = await redis.hgetall(
-        _JOB_HASH_KEY.format(job_name=job_name)
-    )
+    raw: dict[bytes, bytes] = await redis.hgetall(_JOB_HASH_KEY.format(job_name=job_name))
     if not raw:
         return {
             "job_name": job_name,
@@ -198,4 +196,3 @@ async def daily_collection_job(
 async def _persist_results(results: list[dict[str, object]]) -> None:
     """Persist scored results to the database (stub — full DB wiring in production)."""
     logger.info("_persist_results.called", count=len(results))
-

@@ -191,9 +191,7 @@ class TestDefiLlamaCollectorCollect:
     @pytest.mark.asyncio
     @respx.mock
     async def test_defillama_collector_collect_raises_on_server_error(self) -> None:
-        respx.get(f"{LLAMA_BASE_URL}/protocols").mock(
-            return_value=httpx.Response(500)
-        )
+        respx.get(f"{LLAMA_BASE_URL}/protocols").mock(return_value=httpx.Response(500))
         with pytest.raises(CollectorError, match="500|server error"):
             async with DefiLlamaCollector() as collector:
                 await collector.collect(symbols=[])
@@ -268,9 +266,7 @@ class TestDefiLlamaCollectorFetchDetail:
     async def test_defillama_collector_fetch_detail_raises_on_not_found(
         self,
     ) -> None:
-        respx.get(f"{LLAMA_BASE_URL}/protocol/unknown-slug").mock(
-            return_value=httpx.Response(404)
-        )
+        respx.get(f"{LLAMA_BASE_URL}/protocol/unknown-slug").mock(return_value=httpx.Response(404))
         with pytest.raises(CollectorError, match="not found|404"):
             async with DefiLlamaCollector() as collector:
                 await collector.fetch_protocol_detail(slug="unknown-slug")

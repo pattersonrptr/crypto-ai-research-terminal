@@ -169,9 +169,7 @@ class TestJobHealthMonitor:
             b"last_status": b"success",
             b"error_count": b"0",
         }
-        result = await get_job_status(
-            redis=mock_redis, job_name="daily_collection_job"
-        )
+        result = await get_job_status(redis=mock_redis, job_name="daily_collection_job")
         assert isinstance(result, dict)
         assert "last_run" in result
         assert "last_status" in result
@@ -185,9 +183,7 @@ class TestJobHealthMonitor:
 
         mock_redis = AsyncMock()
         mock_redis.hgetall.return_value = {}
-        result = await get_job_status(
-            redis=mock_redis, job_name="never_ran_job"
-        )
+        result = await get_job_status(redis=mock_redis, job_name="never_ran_job")
         assert result["last_run"] is None
         assert result["last_status"] is None
 
@@ -221,9 +217,7 @@ class TestJobHealthMonitor:
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
             patch("app.scheduler.jobs.record_job_failure", new_callable=AsyncMock) as mock_fail,
         ):
-            mock_cg.return_value.collect = AsyncMock(
-                side_effect=Exception("network error")
-            )
+            mock_cg.return_value.collect = AsyncMock(side_effect=Exception("network error"))
             await daily_collection_job(redis=mock_redis)
 
         mock_fail.assert_awaited_once()
