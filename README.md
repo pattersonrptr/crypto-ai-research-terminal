@@ -18,6 +18,7 @@
 - [Running locally](#running-locally)
 - [Code Quality](#code-quality)
 - [Running CI checks locally](#running-ci-checks-locally)
+- [Opening a Pull Request](#opening-a-pull-request)
 - [Commit Convention](#commit-convention)
 - [Project Roadmap](#project-roadmap)
 
@@ -235,25 +236,26 @@ pytest
 
 ## Running CI checks locally
 
-**Always run this before pushing** to catch errors before they reach the remote CI pipeline.
+**Always run this before opening a PR** to catch errors before they reach GitHub.
 
 ### Option 1 — `ci-local.sh` script (recommended)
 
 ```bash
-./scripts/ci-local.sh
+./scripts/ci-local.sh          # check only
+./scripts/ci-local.sh --fix    # auto-fix ruff issues, then check
 ```
 
-This runs the exact same checks as the GitHub Actions pipeline, in order:
+This mirrors `.github/workflows/ci.yml` exactly, in the same order:
 
-| Step | Tool | What it checks |
-|---|---|---|
-| 1 | `ruff check` | Lint rules (unused imports, style, security patterns) |
-| 2 | `ruff format --check` | Code formatting |
-| 3 | `mypy` | Static type checking (strict mode) |
-| 4 | `bandit` | Security vulnerabilities |
-| 5 | `pytest` | Tests + coverage (≥ 50% required) |
+| Job | Step | Tool | What it checks |
+|---|---|---|---|
+| `quality` | 1/4 | `ruff check` | Lint rules (unused imports, style, security patterns) |
+| `quality` | 2/4 | `ruff format --check` | Code formatting |
+| `quality` | 3/4 | `mypy backend/app` | Static type checking (strict mode) |
+| `quality` | 4/4 | `bandit` | Security vulnerabilities |
+| `test` | 1/1 | `pytest` | Tests + coverage threshold |
 
-> **Note:** Activate the virtual environment first if not already active:
+> **Note:** Activate the virtual environment first:
 > `source .venv/bin/activate`
 
 ### Option 2 — run checks individually
@@ -261,33 +263,21 @@ This runs the exact same checks as the GitHub Actions pipeline, in order:
 ```bash
 source .venv/bin/activate
 
-# Lint (with auto-fix)
-ruff check backend/ --fix
-
-# Format (with auto-fix)
-ruff format backend/
-
-# Type check
-mypy backend/app
-
-# Security scan
-bandit -c pyproject.toml -r backend/app -q
-
-# Tests with coverage
-pytest backend/tests/ --tb=short -q
+ruff check backend/ --fix       # lint (with auto-fix)
+ruff format backend/            # format (with auto-fix)
+mypy backend/app                # type check
+bandit -c pyproject.toml -r backend/app -q   # security
+pytest backend/tests/ --tb=short -q          # tests + coverage
 ```
 
 ### Option 3 — `act` (full GitHub Actions simulation)
 
-[act](https://github.com/nektos/act) runs the complete `.github/workflows/ci.yml`
-pipeline locally inside Docker — identical to what runs on GitHub.
+[act](https://github.com/nektos/act) runs `.github/workflows/ci.yml` inside
+Docker — byte-for-byte identical to what runs on GitHub.
 
 ```bash
 # Install act (Arch Linux)
 yay -S act
-
-# Ubuntu / Debian
-curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
 
 # Run the full CI pipeline
 act push
@@ -296,8 +286,7 @@ act push
 act push -j quality
 ```
 
-> **Note:** act requires Docker. On the first run it downloads the `ubuntu-22.04`
-> runner image (~1.5 GB).
+> **Note:** act requires Docker. First run downloads the `ubuntu-22.04` image (~1.5 GB).
 
 ### Common Ruff errors and how to fix them
 
@@ -308,6 +297,48 @@ act push -j quality
 | `E501` | Line too long (> 100 chars) | Break the line |
 | `UP017` | Use `datetime.UTC` instead of `timezone.utc` | Replace `timezone.utc` → `UTC` |
 | `I001` | Unsorted imports | Run `ruff check --fix` |
+
+---
+
+## Opening a Pull Request
+
+**Never use `gh pr create` directly.** Use `create-pr.sh` instead — it runs
+`ci-local.sh` automatically and only opens the PR if all checks pass.
+
+```bash
+./scripts/create-pr.sh \
+  --title "feat(scope): short description" \
+  --body "What and why." \
+  --base main
+```
+
+### Options
+
+| Flag | Description |
+|---|---|
+| `--title` | **(required)** PR title — follow Conventional Commits |
+| `--body` | PR body as a string |
+| `--body-file` | PR body from a file (e.g. `pr-body.md`) |
+| `--base` | Target branch (default: `main`) |
+| `--skip-ci` | Skip local CI — **strongly discouraged** |
+
+### What the script does
+
+1. Verifies `gh` is installed and authenticated
+2. Runs `./scripts/ci-local.sh` — aborts if any check fails
+3. Pushes the current branch to `origin`
+4. Calls `gh pr create` with the provided arguments
+
+### PR checklist (enforced by `create-pr.sh`)
+
+- [x] `ruff check` — no lint errors
+- [x] `ruff format --check` — code is formatted
+- [x] `mypy backend/app` — no type errors (strict mode)
+- [x] `bandit` — no security issues
+- [x] `pytest` — all tests pass, coverage threshold met
+- [ ] `TODO.md` updated (manual check)
+- [ ] `CHANGELOG.md` updated (manual check)
+- [ ] PR title follows Conventional Commits (manual check)
 
 ---
 

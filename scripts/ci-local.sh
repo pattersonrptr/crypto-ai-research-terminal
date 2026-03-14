@@ -1,44 +1,72 @@
 #!/usr/bin/env bash
-# Run CI checks locally before pushing
-# Usage: ./scripts/ci-local.sh
+# Run CI checks locally — mirrors .github/workflows/ci.yml exactly.
+# Must pass before opening a PR.
+#
+# Usage:
+#   ./scripts/ci-local.sh          # run all checks
+#   ./scripts/ci-local.sh --fix    # run ruff with --fix before checking
+#
+# Exit code: 0 = all green, non-zero = at least one check failed.
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+FIX_MODE=0
+
+for arg in "$@"; do
+    [[ "$arg" == "--fix" ]] && FIX_MODE=1
+done
 
 cd "$PROJECT_ROOT"
 
 # Activate virtual environment if not already active
-if [[ -z "$VIRTUAL_ENV" ]]; then
+if [[ -z "${VIRTUAL_ENV:-}" ]]; then
     source .venv/bin/activate
 fi
 
-echo "🔍 Running CI checks locally..."
+echo "🔍 Running CI checks locally (mirrors GitHub Actions)..."
 echo ""
 
-echo "=== 1/5 RUFF (lint) ==="
-ruff check backend/
+# ---------------------------------------------------------------------------
+# job: quality
+# ---------------------------------------------------------------------------
+
+echo "=== [quality] 1/4 RUFF (lint) ==="
+if [[ $FIX_MODE -eq 1 ]]; then
+    ruff check backend/ --fix
+else
+    ruff check backend/
+fi
 echo "✅ Ruff lint passed"
 echo ""
 
-echo "=== 2/5 RUFF FORMAT ==="
-ruff format --check backend/
+echo "=== [quality] 2/4 RUFF FORMAT ==="
+if [[ $FIX_MODE -eq 1 ]]; then
+    ruff format backend/
+else
+    ruff format --check backend/
+fi
 echo "✅ Ruff format passed"
 echo ""
 
-echo "=== 3/5 MYPY (type check) ==="
-mypy backend/app
+echo "=== [quality] 3/4 MYPY (type check) ==="
+# Mirrors CI: checks backend/app only (scripts/ excluded from strict mypy)
+mypy backend/app --config-file=pyproject.toml
 echo "✅ Mypy passed"
 echo ""
 
-echo "=== 4/5 BANDIT (security) ==="
+echo "=== [quality] 4/4 BANDIT (security) ==="
 bandit -c pyproject.toml -r backend/app -q
 echo "✅ Bandit passed"
 echo ""
 
-echo "=== 5/5 PYTEST ==="
+# ---------------------------------------------------------------------------
+# job: test (needs: quality)
+# ---------------------------------------------------------------------------
+
+echo "=== [test] PYTEST (full suite + coverage) ==="
 pytest backend/tests/ --tb=short -q
 echo ""
 
-echo "🎉 All CI checks passed! Safe to push."
+echo "🎉 All CI checks passed! Safe to open a PR."

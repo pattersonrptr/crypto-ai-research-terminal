@@ -80,6 +80,7 @@ pre-commit = "^3.7.0"
 
 # Local CI runner
 # act is installed as a system binary — not a Python package
+aiosqlite = "^0.22.1"
 
 
 [tool.poetry.scripts]
