@@ -12,6 +12,23 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Added
 
+#### Phase 7 — Backtesting Engine
+- `backend/app/backtesting/data_loader.py` — `CycleLabel` enum (BULL/BEAR/ACCUMULATION
+  with pre-defined UTC date ranges); `HistoricalCandle` dataclass with `price_change_pct`
+  property; `DataLoader` with `load_symbol()`, `filter_by_date_range()`, `load_cycle()`,
+  `available_symbols()`, `candle_count()`.
+- `backend/app/backtesting/simulation_engine.py` — `SimulationConfig` (validated
+  buy/sell thresholds + initial capital); `TradeEvent` with `value` property;
+  `SimulationResult` with `return_pct` + `n_trades` properties; `SimulationEngine.run()`
+  and `run_cycle()` — momentum-based BUY/SELL strategy over OHLCV candles.
+- `backend/app/backtesting/performance_metrics.py` — `MetricsReport` dataclass
+  (total return, win rate, Sharpe ratio, max drawdown, avg trade return,
+  `is_profitable` property); `PerformanceMetrics.compute()` computes round-trip pairs,
+  win rate, Sharpe (mean/std), max drawdown from simulation results.
+- `backend/tests/backtesting/test_data_loader.py` — 14 TDD tests (Red→Green).
+- `backend/tests/backtesting/test_simulation_engine.py` — 19 TDD tests (Red→Green).
+- `backend/tests/backtesting/test_performance_metrics.py` — 14 TDD tests (Red→Green).
+
 #### Phase 7 — Graph Intelligence Layer
 - `backend/app/graph/graph_builder.py` — `NodeAttributes` and `EdgeData` dataclasses;
   `TokenGraph` wrapper around `networkx.Graph` with `node_count()`, `edge_count()`,
