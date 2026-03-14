@@ -155,16 +155,32 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 
 ---
 
-## Phase 6 — React Dashboard (target: ~2–3 weeks)
+## Phase 6 — React Dashboard (target: ~2–3 weeks) 🔄 IN PROGRESS
 
-- 🔲 `frontend/` setup: React 18 + TypeScript + Vite + shadcn/ui + TailwindCSS
-- 🔲 Home page — rankings table with filters
-- 🔲 Token Detail page — radar chart + metrics + AI summary
-- 🔲 Narratives page — narrative cards + momentum charts
-- 🔲 Alerts page — feed + configuration
-- 🔲 Connect all pages to FastAPI
+### Scaffold (PR #7 — merged ✅)
+- ✅ `frontend/` setup: React 18 + TypeScript + Vite + TailwindCSS (dark default, light/system toggle)
+- ✅ Architecture: Feature-Sliced Design — `features/`, `pages/`, `services/`, `store/`
+- ✅ Zustand stores: themeStore (dark/light/system + OS sync), sidebarStore (retractable), tableStore (13 configurable columns)
+- ✅ Axios service layer: `tokens.service.ts`, `alerts.service.ts`, `reports.service.ts`
+- ✅ Layout: AppShell, retractable Sidebar, TopBar with theme toggle, PageHeader
+- ✅ `TokenCard` component — TDD: 10/10 tests passing
+- ✅ `Home` page — 10 cards/page, pagination, skeleton loader
+- ✅ `TokenDetail` page — Recharts radar chart, score bars, market metrics, MD+PDF download
+- ✅ Stub pages: Alerts, Narratives
 
-**Deliverable:** Local visual dashboard.
+### Remaining — connect to FastAPI + more TDD
+- 🔲 MSW (Mock Service Worker) setup — `src/test/msw/handlers.ts` + server config
+- 🔲 `Home` page tests — loading, error, pagination (MSW mocks)
+- 🔲 `TokenDetail` page tests — renders radar, scores, download buttons (MSW mocks)
+- 🔲 `Sidebar` tests — renders nav links, toggle open/close, persists state
+- 🔲 `TopBar` tests — theme buttons change `<html>` class
+- 🔲 `ColumnPicker` component + tests — toggle columns on/off, reset
+- 🔲 `Alerts` page — full feed, acknowledge button, stats, wired to `GET /alerts`
+- 🔲 `Narratives` page — narrative cards + momentum chart, wired to backend
+- 🔲 End-to-end: start backend + frontend, verify full data flow
+- 🔲 `vitest run --coverage` → 80%+ on all frontend modules
+
+**Deliverable:** Local visual dashboard fully wired to FastAPI.
 
 ---
 
