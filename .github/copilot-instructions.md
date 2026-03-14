@@ -42,7 +42,7 @@ Follow the directory layout defined in `SCOPE.md` section 5. Do not invent new
 top-level directories without updating `SCOPE.md` and `TODO.md`.
 
 ## Development workflow — Test-Driven Development (TDD)
-This project follows strict TDD. This is mandatory, not optional.
+This project follows strict TDD on **both backend and frontend**. This is mandatory, not optional.
 
 **The cycle for every new unit of behaviour:**
 1. **Red** — Write a failing test that describes the expected behaviour. Run it and confirm it fails.
@@ -52,14 +52,18 @@ This project follows strict TDD. This is mandatory, not optional.
 
 **Rules:**
 - Never write production code before a failing test exists for it.
-- One behaviour per test. Name tests as `test_<unit>_<scenario>_<expected_outcome>`.
+- Backend: name tests as `test_<unit>_<scenario>_<expected_outcome>`.
+- Frontend: name tests as `renders <Component> when <condition>` or `calls <fn> when <event>`.
 - If implementing a feature would require changing an existing test, stop and reconsider the design.
 - Baby steps: each TDD cycle should be completable in a few minutes. If a cycle takes too long, break it down further.
 
 ## Testing policy
-- Every new module must have a corresponding test file under `backend/tests/`.
+- **Backend:** every new module must have a corresponding test file under `backend/tests/`.
+- **Frontend:** every component, hook, and service must have a co-located test file (`*.test.tsx` / `*.test.ts`).
+- **Frontend API mocking:** use **MSW** (Mock Service Worker) — never mock `axios` directly.
 - Minimum coverage target: **80%** per module (enforced progressively as modules are implemented).
 - Tests must pass locally before any commit is made (`pre-push` hook enforces this).
+- Frontend: `vitest run --coverage` must pass; Backend: `pytest --cov` must pass.
 
 ## Commit convention (Conventional Commits)
 See `README.md#commit-convention` for the full spec. Short form:
