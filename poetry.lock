@@ -3875,6 +3875,21 @@ files = [
 cli = ["click (>=5.0)"]
 
 [[package]]
+name = "python-louvain"
+version = "0.16"
+description = "Louvain algorithm for community detection"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "python-louvain-0.16.tar.gz", hash = "sha256:b7ba2df5002fd28d3ee789a49532baad11fe648e4f2117cf0798e7520a1da56b"},
+]
+
+[package.dependencies]
+networkx = "*"
+numpy = "*"
+
+[[package]]
 name = "pyyaml"
 version = "6.0.3"
 description = "YAML parser and emitter for Python"
@@ -5757,4 +5772,4 @@ test = ["pytest"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "a5ca93729cc60341d411e409802ea25747e211c11d4a1276b21189d204f8756d"
+content-hash = "791a5dbbbfa7e31849ebf461d5a47b710ca03558f2c1ea416d399600177e761e"
