@@ -144,6 +144,19 @@ docker compose -f infra/docker-compose.yml build backend frontend
 docker compose -f infra/docker-compose.yml up -d backend frontend
 ```
 
+### Populate the database (manual collection)
+
+Trigger the full collection → scoring → persistence pipeline on demand:
+
+```bash
+# Inside the backend container
+docker compose -f infra/docker-compose.yml exec backend python -m app.cli collect-now
+# Output: "Done — N tokens collected, scored and persisted."
+```
+
+> The scheduler also runs `daily_collection_job` automatically, but `collect-now`
+> lets you populate the DB immediately after a fresh deploy.
+
 ### Production deployment
 
 Use the production overlay to apply resource limits, remove host-exposed DB ports,
@@ -412,4 +425,4 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 | 7 | ML + Knowledge Graph + Backtesting | ✅ Complete |
 | 8 | Live Data + Production Hardening (CMC, DefiLlama, Twitter/X, scheduler) | ✅ Complete |
 
-**Current status:** 788 backend tests + 126 frontend tests passing
+**Current status:** 802 backend tests + 126 frontend tests passing

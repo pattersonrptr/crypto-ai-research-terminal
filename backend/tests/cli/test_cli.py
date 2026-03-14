@@ -1,6 +1,6 @@
-"""TDD tests for the CLI — `cryptoai top` and `cryptoai report`."""
+"""TDD tests for the CLI — `cryptoai top`, `cryptoai report`, `cryptoai collect-now`."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from click.testing import CliRunner
 
@@ -134,3 +134,48 @@ class TestCliReport:
             runner = CliRunner()
             result = runner.invoke(cli, ["report", "UNKNOWN"])
         assert "not found" in result.output.lower() or result.exit_code != 0
+
+
+# ---------------------------------------------------------------------------
+# cryptoai collect-now
+# ---------------------------------------------------------------------------
+
+
+class TestCliCollectNow:
+    """Tests for `cryptoai collect-now` command."""
+
+    def test_collect_now_exits_with_zero(self) -> None:
+        """cryptoai collect-now must exit 0 on success."""
+        with patch("app.cli.run_collection_job", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = 5
+            runner = CliRunner()
+            result = runner.invoke(cli, ["collect-now"])
+        assert result.exit_code == 0
+
+    def test_collect_now_calls_run_collection_job(self) -> None:
+        """cryptoai collect-now must call run_collection_job()."""
+        with patch("app.cli.run_collection_job", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = 3
+            runner = CliRunner()
+            runner.invoke(cli, ["collect-now"])
+        mock_run.assert_awaited_once()
+
+    def test_collect_now_prints_token_count(self) -> None:
+        """cryptoai collect-now must print how many tokens were collected."""
+        with patch("app.cli.run_collection_job", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = 42
+            runner = CliRunner()
+            result = runner.invoke(cli, ["collect-now"])
+        assert "42" in result.output
+
+    def test_collect_now_prints_error_on_failure(self) -> None:
+        """cryptoai collect-now must print error and exit 1 when pipeline fails."""
+        with patch(
+            "app.cli.run_collection_job",
+            new_callable=AsyncMock,
+            side_effect=Exception("CoinGecko down"),
+        ):
+            runner = CliRunner()
+            result = runner.invoke(cli, ["collect-now"])
+        assert result.exit_code != 0
+        assert "error" in result.output.lower() or "coingecko" in result.output.lower()

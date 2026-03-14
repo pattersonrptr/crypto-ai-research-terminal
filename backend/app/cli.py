@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import click
 import httpx
+import structlog
 
 _BASE_URL = "http://localhost:8000"
+logger = structlog.get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -115,3 +118,59 @@ def report(symbol: str) -> None:
     click.echo(f"  Fundamental     : {detail.fundamental_score:.2f}")
     click.echo(f"  Opportunity     : {detail.opportunity_score:.2f}")
     click.echo(f"{'=' * 50}\n")
+
+
+# ---------------------------------------------------------------------------
+# cryptoai collect-now  — trigger the collection pipeline immediately
+# ---------------------------------------------------------------------------
+
+
+async def run_collection_job() -> int:
+    """Run the full collection → score → persist pipeline once.
+
+    Returns:
+        Number of tokens successfully processed and persisted.
+    """
+    from app.collectors.coingecko_collector import CoinGeckoCollector  # noqa: PLC0415
+    from app.processors.market_processor import MarketProcessor  # noqa: PLC0415
+    from app.scheduler.jobs import _persist_results  # noqa: PLC0415
+    from app.scoring.fundamental_scorer import FundamentalScorer  # noqa: PLC0415
+    from app.scoring.opportunity_engine import OpportunityEngine  # noqa: PLC0415
+
+    async with CoinGeckoCollector() as collector:
+        raw_data = await collector.collect(symbols=[])
+
+    results: list[dict[str, object]] = []
+    for raw in raw_data:
+        try:
+            processed = MarketProcessor.process(raw)
+            fundamental = FundamentalScorer.score(processed)
+            opportunity = OpportunityEngine.composite_score(fundamental)
+            results.append(
+                {
+                    **processed,
+                    "fundamental_score": fundamental,
+                    "opportunity_score": opportunity,
+                }
+            )
+        except Exception:
+            logger.exception("collect_now.token_error", symbol=raw.get("symbol"))
+
+    await _persist_results(results)
+    return len(results)
+
+
+@cli.command("collect-now")
+def collect_now() -> None:
+    """Trigger the data collection pipeline immediately (manual run)."""
+    click.echo("Starting collection pipeline...")
+    try:
+        count = asyncio.run(run_collection_job())
+        click.echo(f"Done — {count} tokens collected, scored and persisted.")
+    except Exception as exc:
+        click.echo(f"Error: {exc}", err=True)
+        raise SystemExit(1) from exc
+
+
+if __name__ == "__main__":
+    cli()
