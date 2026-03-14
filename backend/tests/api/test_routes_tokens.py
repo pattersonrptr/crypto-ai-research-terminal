@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
+from app.models.score import TokenScore
 from app.models.token import Token
 
 # ---------------------------------------------------------------------------
@@ -32,11 +33,23 @@ def _make_token(
     return token
 
 
-def _mock_session(return_value: Any) -> AsyncMock:
-    """Return an AsyncMock behaving like AsyncSession returning *return_value* from execute."""
+def _make_score(id_: int, token_id: int, fundamental: float = 0.7, opportunity: float = 0.8) -> TokenScore:
+    """Construct a TokenScore ORM object without a DB session."""
+    score = TokenScore()
+    score.id = id_
+    score.token_id = token_id
+    score.fundamental_score = fundamental
+    score.opportunity_score = opportunity
+    score.scored_at = datetime(2024, 1, 2, tzinfo=UTC)
+    return score
+
+
+def _mock_session_rows(rows: Any) -> AsyncMock:
+    """Return an AsyncMock session whose execute().all() returns *rows* (for JOIN queries)."""
     result_mock = MagicMock()
-    result_mock.scalars.return_value.all.return_value = return_value
-    result_mock.scalar_one_or_none.return_value = return_value
+    result_mock.all.return_value = rows
+    # first() is used by GET /tokens/{symbol}
+    result_mock.first.return_value = rows[0] if rows else None
 
     session_mock = AsyncMock(spec=AsyncSession)
     session_mock.execute = AsyncMock(return_value=result_mock)
@@ -55,8 +68,8 @@ class TestGetTokensList:
         """GET /tokens must return HTTP 200."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        tokens = [_make_token(1, "BTC", "Bitcoin", "bitcoin")]
-        session = _mock_session(tokens)
+        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None)]
+        session = _mock_session_rows(rows)
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
             yield session
@@ -72,11 +85,11 @@ class TestGetTokensList:
         """GET /tokens must return a JSON array."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        tokens = [
-            _make_token(1, "BTC", "Bitcoin", "bitcoin"),
-            _make_token(2, "ETH", "Ethereum", "ethereum"),
+        rows = [
+            (_make_token(1, "BTC", "Bitcoin", "bitcoin"), None),
+            (_make_token(2, "ETH", "Ethereum", "ethereum"), None),
         ]
-        session = _mock_session(tokens)
+        session = _mock_session_rows(rows)
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
             yield session
@@ -94,8 +107,8 @@ class TestGetTokensList:
         """Each item in GET /tokens must contain id, symbol, name, coingecko_id."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        tokens = [_make_token(1, "BTC", "Bitcoin", "bitcoin")]
-        session = _mock_session(tokens)
+        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None)]
+        session = _mock_session_rows(rows)
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
             yield session
@@ -115,7 +128,7 @@ class TestGetTokensList:
         """GET /tokens must return [] when no tokens exist."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        session = _mock_session([])
+        session = _mock_session_rows([])
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
             yield session
@@ -127,6 +140,50 @@ class TestGetTokensList:
 
         assert response.status_code == 200
         assert response.json() == []
+
+    def test_get_tokens_item_has_extended_fields(self) -> None:
+        """Each item must contain the TokenWithScore extended fields."""
+        from app.api.routes.tokens import get_db  # noqa: PLC0415
+
+        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None)]
+        session = _mock_session_rows(rows)
+
+        async def _override() -> AsyncGenerator[AsyncSession, None]:
+            yield session
+
+        app.dependency_overrides[get_db] = _override
+        client = TestClient(app)
+        response = client.get("/tokens/")
+        app.dependency_overrides.clear()
+
+        item = response.json()[0]
+        assert "created_at" in item
+        assert "latest_score" in item
+        assert item["latest_score"] is None  # no score joined
+        assert "price_usd" in item
+        assert item["price_usd"] is None
+
+    def test_get_tokens_item_with_score_has_latest_score(self) -> None:
+        """When a token has a score, latest_score must be populated."""
+        from app.api.routes.tokens import get_db  # noqa: PLC0415
+
+        token = _make_token(1, "BTC", "Bitcoin", "bitcoin")
+        score = _make_score(10, 1, fundamental=0.75, opportunity=0.85)
+        rows = [(token, score)]
+        session = _mock_session_rows(rows)
+
+        async def _override() -> AsyncGenerator[AsyncSession, None]:
+            yield session
+
+        app.dependency_overrides[get_db] = _override
+        client = TestClient(app)
+        response = client.get("/tokens/")
+        app.dependency_overrides.clear()
+
+        item = response.json()[0]
+        assert item["latest_score"] is not None
+        assert item["latest_score"]["fundamental_score"] == 0.75
+        assert item["latest_score"]["opportunity_score"] == 0.85
 
 
 # ---------------------------------------------------------------------------
@@ -141,8 +198,8 @@ class TestGetTokenBySymbol:
         """GET /tokens/{symbol} must return 200 when token exists."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        token = _make_token(1, "BTC", "Bitcoin", "bitcoin")
-        session = _mock_session(token)
+        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None)]
+        session = _mock_session_rows(rows)
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
             yield session
@@ -158,8 +215,8 @@ class TestGetTokenBySymbol:
         """GET /tokens/{symbol} must return token data matching the symbol."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        token = _make_token(1, "BTC", "Bitcoin", "bitcoin")
-        session = _mock_session(token)
+        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None)]
+        session = _mock_session_rows(rows)
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
             yield session
@@ -178,7 +235,7 @@ class TestGetTokenBySymbol:
         """GET /tokens/{symbol} must return 404 when token does not exist."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        session = _mock_session(None)
+        session = _mock_session_rows([])
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
             yield session
@@ -194,7 +251,7 @@ class TestGetTokenBySymbol:
         """GET /tokens/{symbol} 404 response must include a 'detail' field."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        session = _mock_session(None)
+        session = _mock_session_rows([])
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
             yield session
@@ -205,3 +262,25 @@ class TestGetTokenBySymbol:
         app.dependency_overrides.clear()
 
         assert "detail" in response.json()
+
+    def test_get_token_by_symbol_with_score_returns_latest_score(self) -> None:
+        """GET /tokens/{symbol} must include latest_score when a score exists."""
+        from app.api.routes.tokens import get_db  # noqa: PLC0415
+
+        token = _make_token(1, "ETH", "Ethereum", "ethereum")
+        score = _make_score(5, 1, fundamental=0.65, opportunity=0.72)
+        rows = [(token, score)]
+        session = _mock_session_rows(rows)
+
+        async def _override() -> AsyncGenerator[AsyncSession, None]:
+            yield session
+
+        app.dependency_overrides[get_db] = _override
+        client = TestClient(app)
+        response = client.get("/tokens/ETH")
+        app.dependency_overrides.clear()
+
+        data = response.json()
+        assert data["latest_score"] is not None
+        assert data["latest_score"]["fundamental_score"] == 0.65
+        assert data["latest_score"]["opportunity_score"] == 0.72

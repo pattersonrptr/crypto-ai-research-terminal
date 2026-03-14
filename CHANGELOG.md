@@ -12,7 +12,89 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Added
 
-#### Frontend Scaffold (Phase 6)
+#### Phase 6 — API schema expansion (current session)
+- `backend/app/api/routes/rankings.py` — Expanded `GET /rankings/opportunities`
+  response from flat `OpportunityRankItem` to full `RankingOpportunitySchema`:
+  nested `token: TokenWithScoreSchema` (with `latest_score`, market-data fields,
+  `rank`), `signals: list[str]`, plus backwards-compat flat fields
+  (`symbol`, `name`, `fundamental_score`, `opportunity_score`)
+- `backend/app/api/routes/tokens.py` — Expanded `GET /tokens/` and
+  `GET /tokens/{symbol}` from minimal `TokenResponse` to `TokenWithScoreSchema`:
+  outerjoin with `token_scores`, returns `latest_score`, `created_at`, `updated_at`,
+  nullable market-data and metadata fields matching the frontend `TokenWithScore`
+  TypeScript interface
+- `backend/tests/api/test_routes_tokens.py` — Updated mock helper from
+  `scalars().all()` to `result.all()` / `result.first()` to match new JOIN queries;
+  added `test_get_tokens_item_has_extended_fields` and
+  `test_get_tokens_item_with_score_has_latest_score` and
+  `test_get_token_by_symbol_with_score_returns_latest_score`
+- `backend/tests/api/test_routes_rankings.py` — Added five new tests covering
+  `rank` field, `token` nested object, `signals` list, and `latest_score` inside token
+
+#### Phase 6 — Docker + infra (previous session)
+- `infra/Dockerfile.frontend` — Multi-stage build: Node 22 Alpine builder (`npm run
+  build:docker` → Vite SPA) + nginx 1.27 Alpine runner; copies `dist/` to nginx
+  html root and injects custom `nginx.conf`
+- `infra/nginx/nginx.conf` — nginx virtual host: serves React SPA with SPA fallback
+  (`try_files $uri $uri/ /index.html`); proxies `/api/` → `http://backend:8000/`;
+  gzip compression; 1-year cache headers for static assets
+- `frontend/package.json` — added `build:docker` script (`vite build` without
+  `tsc -b`) used by the Docker image to avoid project-references TypeScript errors
+  in CI/CD environments; `tsconfig.node.json` updated with `composite: true`
+- `README.md` — completely rewritten `Project Setup` section: Docker mode
+  (recommended, all services in one command) vs local dev mode (Vite dev server +
+  uvicorn + Docker infra); updated roadmap table and test count
+
+#### Phase 6 — Frontend TDD completion
+- `frontend/src/pages/Alerts.tsx` — Full implementation replacing stub: stats bar
+  (total + unacknowledged counts from `GET /alerts/stats`), type filter `<select>`,
+  alert feed with type badge + readable label, "Acknowledge" button (unacknowledged
+  only), optimistic cache update on acknowledge mutation, error state (`role="alert"`),
+  empty state, loading skeleton
+- `frontend/src/pages/Narratives.tsx` — Full implementation replacing stub:
+  narrative cluster cards with name, trend badge (accelerating/stable/declining),
+  momentum score bar, token chips, keyword pills, summary count, error/empty states
+- `frontend/src/services/narratives.service.ts` — `fetchNarratives()` → `GET /narratives`;
+  `NarrativeCluster` and `NarrativeTrend` TypeScript types
+- `frontend/src/features/tokens/components/ColumnPicker.tsx` — Dropdown component
+  to toggle ranking-table columns on/off; reset-to-defaults button; click-outside
+  close; full aria support (`aria-expanded`, `aria-haspopup`, `role="dialog"`)
+- `frontend/src/test/msw/handlers.ts` — Added `MOCK_NARRATIVES`, `narrativesHandler()`,
+  `narrativesErrorHandler()` factory; narratives handler added to default `handlers[]`
+- `frontend/src/test/setup.ts` — In-memory `localStorage` polyfill (Zustand persist
+  needs `storage.setItem` in jsdom); `window.matchMedia` no-op stub (themeStore
+  registers OS media-query listener at module load time)
+- `backend/app/api/routes/narratives.py` — Full `GET /narratives` endpoint replacing
+  stub: returns 5 seed `NarrativeResponse` items sorted by `momentum_score` desc;
+  Pydantic schema with `id`, `name`, `momentum_score`, `trend`, `tokens`, `keywords`,
+  `token_count`; Phase 7 will replace seeds with live `NarrativeDetector` pipeline
+
+### Fixed
+- `infra/Dockerfile.backend` — corrected `CMD` from `backend.app.main:app` to
+  `app.main:app` (Poetry installs the `app` package directly, not as `backend.app`);
+  removed `--reload` flag (not needed in production containers); removed stale
+  `volumes` bind-mount and `profiles: [full]` that prevented the service from
+  starting by default
+- `infra/docker-compose.yml` — replaced `wget`-based healthcheck (not available in
+  `python:3.13-slim`) with `python -c "import urllib.request; ..."` equivalent;
+  added `frontend` service; removed `profiles: [full]` from backend; added
+  `start_period: 10s` to backend healthcheck
+
+### Tests
+#### Frontend (Vitest + React Testing Library + MSW)
+- `frontend/src/components/layout/Sidebar.test.tsx` — 10/10 tests
+- `frontend/src/components/layout/TopBar.test.tsx` — 10/10 tests
+- `frontend/src/features/tokens/components/ColumnPicker.test.tsx` — 11/11 tests
+- `frontend/src/pages/Alerts.test.tsx` — 10/10 tests
+- `frontend/src/pages/Narratives.test.tsx` — 10/10 tests
+- `frontend/src/services/narratives.service.test.ts` — 5/5 tests
+- **Total frontend: 94 tests, 96.9% statement coverage, all modules ≥80%**
+
+#### Backend (pytest)
+- `backend/tests/api/routes/test_narratives.py` — 10/10 tests
+- **Total backend: 509 tests**
+
+
 - `frontend/package.json` — React 18 + TypeScript + Vite project with all Phase 6
   dependencies: `@tanstack/react-query` v5, `zustand` v5, `axios`, `recharts`,
   `react-router-dom` v7, `lucide-react`, `clsx`, `tailwind-merge`, `shadcn/ui`
