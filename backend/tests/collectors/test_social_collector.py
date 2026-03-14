@@ -1,11 +1,56 @@
-"""TDD tests for SocialCollector — Reddit social metrics."""
+"""TDD tests for SocialCollector — Reddit + Twitter/X social metrics."""
 
 import httpx
 import pytest
 import respx
 
-from app.collectors.social_collector import SocialCollector
+from app.collectors.social_collector import SocialCollector, TwitterCollector
 from app.exceptions import CollectorError
+
+# ---------------------------------------------------------------------------
+# Twitter/X mock data
+# ---------------------------------------------------------------------------
+
+TWITTER_BASE_URL = "https://api.twitter.com/2"
+
+TWITTER_SEARCH_RESPONSE: dict = {
+    "data": [
+        {
+            "id": "1001",
+            "text": "Solana is amazing! $SOL is going to the moon 🚀",
+            "public_metrics": {
+                "like_count": 150,
+                "retweet_count": 45,
+                "reply_count": 20,
+                "impression_count": 5000,
+            },
+            "created_at": "2025-01-01T12:00:00.000Z",
+        },
+        {
+            "id": "1002",
+            "text": "Just bought more $SOL, bullish on Solana",
+            "public_metrics": {
+                "like_count": 80,
+                "retweet_count": 22,
+                "reply_count": 10,
+                "impression_count": 2000,
+            },
+            "created_at": "2025-01-01T11:00:00.000Z",
+        },
+    ],
+    "meta": {
+        "newest_id": "1002",
+        "oldest_id": "1001",
+        "result_count": 2,
+        "next_token": None,
+    },
+}
+
+TWITTER_SEARCH_EMPTY_RESPONSE: dict = {
+    "meta": {
+        "result_count": 0,
+    }
+}
 
 
 class TestSocialCollectorInit:
@@ -191,3 +236,130 @@ class TestSocialCollectorCollectSingle:
         assert isinstance(result, dict)
         assert result["subreddit"] == "bitcoin"
         assert result["subscribers"] == 5000000
+
+
+# ---------------------------------------------------------------------------
+# TwitterCollector tests
+# ---------------------------------------------------------------------------
+
+
+class TestTwitterCollectorInit:
+    """TwitterCollector initialises with correct base URL and bearer token."""
+
+    def test_twitter_collector_init_sets_correct_base_url(self) -> None:
+        collector = TwitterCollector(bearer_token="test-token")
+        assert "api.twitter.com" in collector.base_url
+
+    def test_twitter_collector_init_stores_bearer_token(self) -> None:
+        collector = TwitterCollector(bearer_token="my-bearer-token")
+        assert collector.api_key == "my-bearer-token"
+
+    def test_twitter_collector_init_empty_token_by_default(self) -> None:
+        collector = TwitterCollector()
+        assert collector.api_key == ""
+
+
+class TestTwitterCollectorSearchMentions:
+    """TwitterCollector.search_mentions() fetches recent tweet mentions for a query."""
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_twitter_collector_search_mentions_returns_dict(self) -> None:
+        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(
+            return_value=httpx.Response(200, json=TWITTER_SEARCH_RESPONSE)
+        )
+        async with TwitterCollector(bearer_token="test-token") as collector:
+            result = await collector.search_mentions(query="$SOL Solana")
+        assert isinstance(result, dict)
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_twitter_collector_search_mentions_returns_tweet_count(self) -> None:
+        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(
+            return_value=httpx.Response(200, json=TWITTER_SEARCH_RESPONSE)
+        )
+        async with TwitterCollector(bearer_token="test-token") as collector:
+            result = await collector.search_mentions(query="$SOL Solana")
+        assert result["tweet_count"] == 2
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_twitter_collector_search_mentions_returns_total_engagement(
+        self,
+    ) -> None:
+        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(
+            return_value=httpx.Response(200, json=TWITTER_SEARCH_RESPONSE)
+        )
+        async with TwitterCollector(bearer_token="test-token") as collector:
+            result = await collector.search_mentions(query="$SOL Solana")
+        # likes + retweets: (150+45) + (80+22) = 297
+        assert result["total_engagement"] == 297
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_twitter_collector_search_mentions_returns_zero_on_empty_results(
+        self,
+    ) -> None:
+        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(
+            return_value=httpx.Response(200, json=TWITTER_SEARCH_EMPTY_RESPONSE)
+        )
+        async with TwitterCollector(bearer_token="test-token") as collector:
+            result = await collector.search_mentions(query="$UNKNOWNTOKEN")
+        assert result["tweet_count"] == 0
+        assert result["total_engagement"] == 0
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_twitter_collector_search_mentions_raises_on_unauthorized(
+        self,
+    ) -> None:
+        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(return_value=httpx.Response(401))
+        with pytest.raises(CollectorError, match="[Uu]nauthorized|[Ii]nvalid|401"):
+            async with TwitterCollector(bearer_token="bad-token") as collector:
+                await collector.search_mentions(query="$SOL")
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_twitter_collector_search_mentions_raises_on_rate_limit(
+        self,
+    ) -> None:
+        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(return_value=httpx.Response(429))
+        with pytest.raises(CollectorError, match="rate limit"):
+            async with TwitterCollector(bearer_token="test-token") as collector:
+                await collector.search_mentions(query="$SOL")
+
+
+class TestTwitterCollectorCollect:
+    """TwitterCollector.collect() fetches mention metrics for a list of symbols."""
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_twitter_collector_collect_returns_list(self) -> None:
+        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(
+            return_value=httpx.Response(200, json=TWITTER_SEARCH_RESPONSE)
+        )
+        async with TwitterCollector(bearer_token="test-token") as collector:
+            result = await collector.collect(symbols=["SOL"])
+        assert isinstance(result, list)
+        assert len(result) == 1
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_twitter_collector_collect_returns_symbol_field(self) -> None:
+        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(
+            return_value=httpx.Response(200, json=TWITTER_SEARCH_RESPONSE)
+        )
+        async with TwitterCollector(bearer_token="test-token") as collector:
+            result = await collector.collect(symbols=["SOL"])
+        assert result[0]["symbol"] == "SOL"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_twitter_collector_collect_single_returns_dict(self) -> None:
+        respx.get(f"{TWITTER_BASE_URL}/tweets/search/recent").mock(
+            return_value=httpx.Response(200, json=TWITTER_SEARCH_RESPONSE)
+        )
+        async with TwitterCollector(bearer_token="test-token") as collector:
+            result = await collector.collect_single(symbol="SOL")
+        assert isinstance(result, dict)
+        assert result["symbol"] == "SOL"

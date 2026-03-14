@@ -134,11 +134,13 @@ export function Alerts() {
   } = useQuery({
     queryKey: ["alerts"],
     queryFn: () => fetchAlerts(),
+    refetchInterval: 30_000,
   });
 
   const { data: stats } = useQuery({
     queryKey: ["alert-stats"],
     queryFn: fetchAlertStats,
+    refetchInterval: 30_000,
   });
 
   const { mutate: doAcknowledge } = useMutation<Alert, Error, number>({

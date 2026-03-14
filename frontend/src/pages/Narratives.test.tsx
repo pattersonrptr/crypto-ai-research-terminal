@@ -5,10 +5,11 @@
  * MSW intercepts GET /api/narratives.
  */
 
-import { describe, it, expect } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { http, HttpResponse } from "msw";
 import { server } from "@/test/msw/server";
 import {
   narrativesHandler,
@@ -39,6 +40,10 @@ function renderNarratives() {
 // ── tests ──────────────────────────────────────────────────────────────────
 
 describe("Narratives", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("renders_page_header_with_narratives_title", async () => {
     renderNarratives();
     await waitFor(() => {
@@ -93,7 +98,7 @@ describe("Narratives", () => {
   it("renders_token_count_for_each_narrative", async () => {
     renderNarratives();
     await waitFor(() => {
-      // MOCK_NARRATIVES[0].token_count = 3 — rendered as "3 tokens" or similar
+      // MOCK_NARRATIVES[0].token_count = 3 -- rendered as "3 tokens" or similar
       expect(screen.getAllByText(/3 token/i).length).toBeGreaterThan(0);
     });
   });
@@ -121,5 +126,28 @@ describe("Narratives", () => {
       // Some text that shows how many narratives are detected (e.g. "2 narratives")
       expect(screen.getByText(/narratives detected/i)).toBeInTheDocument();
     });
+  });
+
+  it("polls_narratives_api_every_30_seconds_via_refetch_interval", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    let requestCount = 0;
+    server.use(
+      http.get("/api/narratives", () => {
+        requestCount++;
+        return HttpResponse.json(MOCK_NARRATIVES);
+      }),
+    );
+
+    renderNarratives();
+
+    // Initial fetch
+    await waitFor(() => expect(requestCount).toBe(1));
+
+    // Advance 30 s -> refetchInterval triggers second fetch
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+    });
+    await waitFor(() => expect(requestCount).toBe(2));
   });
 });

@@ -1,4 +1,4 @@
-"""Reddit social metrics collector."""
+"""Reddit and Twitter/X social metrics collectors."""
 
 from typing import Any
 
@@ -117,3 +117,145 @@ class SocialCollector(BaseCollector):
                 raise CollectorError(f"Subreddit not found: r/{subreddit}") from e
             log.error("reddit.http_error", status=status)
             raise CollectorError(f"Reddit API error {status} for r/{subreddit}") from e
+
+
+# ---------------------------------------------------------------------------
+# TwitterCollector
+# ---------------------------------------------------------------------------
+
+_TWITTER_BASE_URL = "https://api.twitter.com/2"
+
+
+class TwitterCollector(BaseCollector):
+    """Collector for Twitter/X mention data.
+
+    Uses the Twitter API v2 ``/tweets/search/recent`` endpoint to count
+    recent mentions and compute engagement metrics for a given query.
+
+    Requires a valid ``bearer_token`` from a Twitter Developer App
+    (Basic plan or higher).
+    """
+
+    def __init__(self, bearer_token: str = "") -> None:  # nosec B107
+        """Initialise the collector.
+
+        Args:
+            bearer_token: Twitter/X API v2 bearer token.
+        """
+        super().__init__(base_url=_TWITTER_BASE_URL, api_key=bearer_token)
+
+    async def __aenter__(self) -> "TwitterCollector":
+        """Create HTTP client with Bearer token auth header."""
+        headers: dict[str, str] = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Accept": "application/json",
+        }
+        self._client = httpx.AsyncClient(base_url=self.base_url, timeout=30.0, headers=headers)
+        return self
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    async def collect(self, symbols: list[str]) -> list[dict[str, Any]]:
+        """Fetch Twitter mention metrics for a list of token symbols.
+
+        Args:
+            symbols: List of uppercase token symbols (e.g. ``["SOL", "ETH"]``).
+
+        Returns:
+            List of dicts, one per symbol, with keys: ``symbol``,
+            ``tweet_count``, ``total_engagement``.
+        """
+        results: list[dict[str, Any]] = []
+        for symbol in symbols:
+            query = f"${symbol} OR #{symbol}"
+            data = await self.search_mentions(query=query)
+            data["symbol"] = symbol
+            results.append(data)
+        return results
+
+    async def collect_single(self, symbol: str) -> dict[str, Any]:
+        """Fetch Twitter mention metrics for a single token symbol.
+
+        Args:
+            symbol: Uppercase token symbol (e.g. ``"SOL"``).
+
+        Returns:
+            Dict with keys: ``symbol``, ``tweet_count``, ``total_engagement``.
+        """
+        result = await self.collect(symbols=[symbol])
+        return result[0]
+
+    async def search_mentions(
+        self,
+        query: str,
+        max_results: int = 100,
+    ) -> dict[str, Any]:
+        """Search recent tweets matching *query* and return summary metrics.
+
+        Args:
+            query: Twitter search query string.
+            max_results: Number of tweets to retrieve (10–100, API limit).
+
+        Returns:
+            Dict with keys: ``tweet_count``, ``total_engagement``,
+            ``tweets`` (list of raw tweet dicts).
+
+        Raises:
+            CollectorError: On 401 Unauthorized, 429 rate limit, or other
+                HTTP errors.
+        """
+        log = logger.bind(query=query)
+        log.debug("twitter.search_mentions.start")
+
+        params: dict[str, Any] = {
+            "query": query,
+            "max_results": max(10, min(max_results, 100)),
+            "tweet.fields": "public_metrics,created_at",
+        }
+
+        try:
+            data: dict[str, Any] = await self._get("/tweets/search/recent", params=params)
+        except httpx.HTTPStatusError as exc:
+            self._handle_http_error(exc, context=f"search '{query}'")
+            raise  # unreachable
+
+        tweets: list[dict[str, Any]] = data.get("data", [])
+        tweet_count = len(tweets)
+        total_engagement = sum(
+            t.get("public_metrics", {}).get("like_count", 0)
+            + t.get("public_metrics", {}).get("retweet_count", 0)
+            for t in tweets
+        )
+
+        result: dict[str, Any] = {
+            "tweet_count": tweet_count,
+            "total_engagement": total_engagement,
+            "tweets": tweets,
+        }
+        log.debug(
+            "twitter.search_mentions.complete",
+            tweet_count=tweet_count,
+            engagement=total_engagement,
+        )
+        return result
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _handle_http_error(exc: httpx.HTTPStatusError, context: str) -> None:
+        """Translate HTTPStatusError into CollectorError and raise."""
+        status = exc.response.status_code
+        if status == 429:
+            logger.warning("twitter.rate_limit", context=context)
+            raise CollectorError(f"Twitter/X rate limit exceeded ({context})") from exc
+        if status == 401:
+            logger.warning("twitter.unauthorized", context=context)
+            raise CollectorError(
+                f"Unauthorized — Invalid Twitter bearer token ({context})"
+            ) from exc
+        logger.error("twitter.http_error", status=status, context=context)
+        raise CollectorError(f"Twitter/X HTTP {status} error ({context})") from exc

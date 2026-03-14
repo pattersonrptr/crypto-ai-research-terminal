@@ -17,6 +17,7 @@ export function Home() {
   const { data: opportunities = [], isLoading, isError } = useQuery({
     queryKey: ["rankings"],
     queryFn: () => fetchRankingOpportunities({ limit: 100 }),
+    refetchInterval: 30_000,
   });
 
   const totalPages = Math.max(1, Math.ceil(opportunities.length / PAGE_SIZE));

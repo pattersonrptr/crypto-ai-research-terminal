@@ -1,4 +1,4 @@
-"""TDD tests for scheduler/jobs.py — daily_collection_job."""
+"""TDD tests for scheduler/jobs.py — daily_collection_job + pipeline hardening."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -125,3 +125,99 @@ class TestDailyCollectionJob:
         assert call_args[0]["symbol"] == "BTC"
         assert call_args[0]["fundamental_score"] == 0.75
         assert call_args[0]["opportunity_score"] == 0.75
+
+
+# ---------------------------------------------------------------------------
+# Job health monitoring tests
+# ---------------------------------------------------------------------------
+
+
+class TestJobHealthMonitor:
+    """Tests for job health recording and dead-letter queue."""
+
+    @pytest.mark.asyncio
+    async def test_record_job_success_stores_status_in_redis(self) -> None:
+        """record_job_success() must store job status 'success' in Redis."""
+        from app.scheduler.jobs import record_job_success  # noqa: PLC0415
+
+        mock_redis = AsyncMock()
+        await record_job_success(redis=mock_redis, job_name="daily_collection_job")
+        mock_redis.hset.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_record_job_failure_stores_status_in_redis(self) -> None:
+        """record_job_failure() must store job status 'failure' and push to DLQ."""
+        from app.scheduler.jobs import record_job_failure  # noqa: PLC0415
+
+        mock_redis = AsyncMock()
+        await record_job_failure(
+            redis=mock_redis,
+            job_name="daily_collection_job",
+            error="Connection timeout",
+        )
+        mock_redis.hset.assert_awaited()
+        mock_redis.rpush.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_get_job_status_returns_dict(self) -> None:
+        """get_job_status() must return a dict with job health info from Redis."""
+        from app.scheduler.jobs import get_job_status  # noqa: PLC0415
+
+        mock_redis = AsyncMock()
+        mock_redis.hgetall.return_value = {
+            b"last_run": b"2025-01-01T06:00:00",
+            b"last_status": b"success",
+            b"error_count": b"0",
+        }
+        result = await get_job_status(redis=mock_redis, job_name="daily_collection_job")
+        assert isinstance(result, dict)
+        assert "last_run" in result
+        assert "last_status" in result
+
+    @pytest.mark.asyncio
+    async def test_get_job_status_returns_none_fields_when_job_never_ran(
+        self,
+    ) -> None:
+        """get_job_status() returns None fields when job has no Redis entry."""
+        from app.scheduler.jobs import get_job_status  # noqa: PLC0415
+
+        mock_redis = AsyncMock()
+        mock_redis.hgetall.return_value = {}
+        result = await get_job_status(redis=mock_redis, job_name="never_ran_job")
+        assert result["last_run"] is None
+        assert result["last_status"] is None
+
+    @pytest.mark.asyncio
+    async def test_daily_collection_job_records_success_on_completion(self) -> None:
+        """daily_collection_job must call record_job_success on successful run."""
+        from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
+
+        mock_redis = AsyncMock()
+        with (
+            patch("app.scheduler.jobs.CoinGeckoCollector") as mock_cg,
+            patch("app.scheduler.jobs.MarketProcessor"),
+            patch("app.scheduler.jobs.FundamentalScorer"),
+            patch("app.scheduler.jobs.OpportunityEngine"),
+            patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
+            patch("app.scheduler.jobs.record_job_success", new_callable=AsyncMock) as mock_rec,
+        ):
+            mock_cg.return_value.collect = AsyncMock(return_value=[_RAW])
+            await daily_collection_job(redis=mock_redis)
+
+        mock_rec.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_daily_collection_job_records_failure_on_exception(self) -> None:
+        """daily_collection_job must call record_job_failure when collect raises."""
+        from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
+
+        mock_redis = AsyncMock()
+        with (
+            patch("app.scheduler.jobs.CoinGeckoCollector") as mock_cg,
+            patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
+            patch("app.scheduler.jobs.record_job_failure", new_callable=AsyncMock) as mock_fail,
+        ):
+            mock_cg.return_value.collect = AsyncMock(side_effect=Exception("network error"))
+            await daily_collection_job(redis=mock_redis)
+
+        mock_fail.assert_awaited_once()
