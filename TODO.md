@@ -201,14 +201,63 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 
 ## Phase 7 — ML + Graph + Backtesting (target: ~3–4 weeks)
 
-- 🔲 `ml/feature_builder.py` + `ml/cycle_leader_model.py` (XGBoost)
-- 🔲 `ml/model_trainer.py` — training pipeline with historical data
-- 🔲 `graph/graph_builder.py` + `graph/community_detector.py` (Louvain)
-- 🔲 `graph/centrality_analyzer.py` (PageRank, betweenness)
-- 🔲 `graph/ecosystem_tracker.py`
-- 🔲 `backtesting/` — full backtesting engine
-- 🔲 Ecosystem Graph visual in frontend (D3.js / React Flow)
-- 🔲 Backtesting page in frontend
-- 🔲 `scripts/seed_historical_data.py`
+### Machine Learning
+- 🔲 `ml/feature_builder.py` — feature matrix from historical prices, dev activity, social, scores
+- 🔲 `ml/cycle_leader_model.py` — XGBoost model to predict "next Solana" cycle leaders
+- 🔲 `ml/model_trainer.py` — training pipeline: train, validate, serialise model
+- 🔲 Tests for all ML modules (TDD)
+
+### Graph Intelligence
+- 🔲 `graph/graph_builder.py` — builds token relationship graph (narratives, ecosystems, correlations)
+- 🔲 `graph/community_detector.py` — Louvain algorithm for related-project clusters
+- 🔲 `graph/centrality_analyzer.py` — PageRank + betweenness to find most influential tokens
+- 🔲 `graph/ecosystem_tracker.py` — tracks ecosystem evolution over time
+- 🔲 Tests for all graph modules (TDD)
+
+### Backtesting Engine
+- 🔲 `backtesting/data_loader.py` — loads historical data (2017, 2020–2021 cycles)
+- 🔲 `backtesting/simulation_engine.py` — simulates model on past cycles
+- 🔲 `backtesting/performance_metrics.py` — precision, recall, simulated ROI
+- 🔲 `scripts/seed_historical_data.py` — populate DB with historical data for backtesting
+- 🔲 Tests for backtesting engine (TDD)
+
+### Frontend — New Pages
+- 🔲 `frontend/src/pages/Ecosystems.tsx` — interactive ecosystem knowledge graph (React Flow or D3.js)
+- 🔲 `frontend/src/pages/Backtesting.tsx` — backtesting results and model validation metrics
+- 🔲 Wire new backend endpoints to the frontend + MSW tests
 
 **Deliverable:** "Next Solana" score. Validated backtesting. Visual Knowledge Graph.
+
+---
+
+## Phase 8 — Live Data + Production Hardening (target: ~2–3 weeks)
+
+> Goal: Replace all seed/stub data with live pipeline data. Activate real-time
+> social signals. Harden the system for long-running production use.
+
+### Live Data Collectors
+- 🔲 `collectors/coinmarketcap_collector.py` — CMC rank, tags, categories (key: `COINMARKETCAP_API_KEY`)
+- 🔲 `collectors/defillama_collector.py` — TVL, TVL evolution 30d/90d, chains, DEX volume, revenue
+- 🔲 `collectors/social_collector.py` — extend with Twitter/X real-time mentions + sentiment
+  (key: `TWITTER_BEARER_TOKEN` — Basic plan required ~$100/month)
+- 🔲 Wire live `NarrativeDetector` pipeline to replace seed data in `GET /narratives`
+- 🔲 Wire live `AlertRuleEngine` to scheduler so alerts fire automatically
+
+### Scheduler Hardening
+- 🔲 Wire `scheduler/jobs.py` full pipeline: collect → process → score → persist → alert
+- 🔲 Add job health monitoring + dead-letter queue for failed jobs (Redis)
+- 🔲 Add `/scheduler/status` API endpoint (last run, next run, errors)
+
+### Frontend — Live Data Pages
+- 🔲 `Narratives` page — replace seed data with live `NarrativeDetector` output
+- 🔲 `Alerts` page — real alerts from the rule engine (currently empty state)
+- 🔲 Dashboard refresh interval (polling or WebSocket) for real-time score updates
+
+### Production Infrastructure
+- 🔲 `infra/docker-compose.prod.yml` — production overrides (no bind mounts, resource limits)
+- 🔲 Nginx rate limiting + CORS hardening
+- 🔲 Log rotation + structured log export (optional: Loki/Grafana)
+- 🔲 `.env.example` updated with all new keys
+
+**Deliverable:** All pages show live data. Alerts fire to Telegram automatically.
+Scheduler runs full pipeline daily without manual intervention.
