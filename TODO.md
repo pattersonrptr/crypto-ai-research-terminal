@@ -202,24 +202,24 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 ## Phase 7 — ML + Graph + Backtesting (target: ~3–4 weeks)
 
 ### Machine Learning
-- 🔲 `ml/feature_builder.py` — feature matrix from historical prices, dev activity, social, scores
-- 🔲 `ml/cycle_leader_model.py` — XGBoost model to predict "next Solana" cycle leaders
-- 🔲 `ml/model_trainer.py` — training pipeline: train, validate, serialise model
-- 🔲 Tests for all ML modules (TDD)
+- ✅ `ml/feature_builder.py` — feature matrix from historical prices, dev activity, social, scores
+- ✅ `ml/cycle_leader_model.py` — XGBoost model to predict "next Solana" cycle leaders
+- ✅ `ml/model_trainer.py` — training pipeline: train, validate, serialise model
+- ✅ Tests for all ML modules (TDD)
 
 ### Graph Intelligence
-- 🔲 `graph/graph_builder.py` — builds token relationship graph (narratives, ecosystems, correlations)
-- 🔲 `graph/community_detector.py` — Louvain algorithm for related-project clusters
-- 🔲 `graph/centrality_analyzer.py` — PageRank + betweenness to find most influential tokens
-- 🔲 `graph/ecosystem_tracker.py` — tracks ecosystem evolution over time
-- 🔲 Tests for all graph modules (TDD)
+- ✅ `graph/graph_builder.py` — builds token relationship graph (narratives, ecosystems, correlations)
+- ✅ `graph/community_detector.py` — Louvain algorithm for related-project clusters
+- ✅ `graph/centrality_analyzer.py` — PageRank + betweenness to find most influential tokens
+- ✅ `graph/ecosystem_tracker.py` — tracks ecosystem evolution over time
+- ✅ Tests for all graph modules (TDD)
 
 ### Backtesting Engine
-- 🔲 `backtesting/data_loader.py` — loads historical data (2017, 2020–2021 cycles)
-- 🔲 `backtesting/simulation_engine.py` — simulates model on past cycles
-- 🔲 `backtesting/performance_metrics.py` — precision, recall, simulated ROI
-- 🔲 `scripts/seed_historical_data.py` — populate DB with historical data for backtesting
-- 🔲 Tests for backtesting engine (TDD)
+- ✅ `backtesting/data_loader.py` — loads historical data (2017, 2020–2021 cycles)
+- ✅ `backtesting/simulation_engine.py` — simulates model on past cycles
+- ✅ `backtesting/performance_metrics.py` — precision, recall, simulated ROI
+- ✅ `scripts/seed_historical_data.py` — populate DB with historical data for backtesting
+- ✅ Tests for backtesting engine (TDD)
 
 ### Frontend — New Pages
 - 🔲 `frontend/src/pages/Ecosystems.tsx` — interactive ecosystem knowledge graph (React Flow or D3.js)

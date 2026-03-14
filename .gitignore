@@ -60,3 +60,4 @@ logs/
 
 # act (local CI runner) artifacts
 .act/
+frontend/coverage/

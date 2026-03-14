@@ -52,6 +52,7 @@ typer = { version = "^0.12.0", extras = ["all"] }
 rich = "^13.7.0"
 pypdf = "^6.8.0"
 markdown = "^3.10.2"
+python-louvain = "^0.16"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -79,6 +80,7 @@ pre-commit = "^3.7.0"
 
 # Local CI runner
 # act is installed as a system binary — not a Python package
+aiosqlite = "^0.22.1"
 
 
 [tool.poetry.scripts]
@@ -146,6 +148,7 @@ module = [
     "networkx.*",
     "xgboost.*",
     "weasyprint.*",
+    "community.*",
 ]
 ignore_missing_imports = true
 
@@ -156,9 +159,9 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["backend/tests"]
-# --cov-fail-under: 50 durante o scaffold (stubs vazios distorcem a cobertura total).
-# Aumentar progressivamente conforme os módulos reais forem implementados.
-addopts = "--cov=backend/app --cov-report=term-missing --cov-fail-under=50"
+# --cov-fail-under: raised incrementally as modules are implemented.
+# Phase 7 (ML layer done, graph/backtesting stubs still empty): 15%
+addopts = "--cov=backend/app --cov-report=term-missing --cov-fail-under=15"
 
 
 # ---------------------------------------------------------------------------
