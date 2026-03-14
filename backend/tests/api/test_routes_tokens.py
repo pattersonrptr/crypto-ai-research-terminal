@@ -33,7 +33,9 @@ def _make_token(
     return token
 
 
-def _make_score(id_: int, token_id: int, fundamental: float = 0.7, opportunity: float = 0.8) -> TokenScore:
+def _make_score(
+    id_: int, token_id: int, fundamental: float = 0.7, opportunity: float = 0.8
+) -> TokenScore:
     """Construct a TokenScore ORM object without a DB session."""
     score = TokenScore()
     score.id = id_

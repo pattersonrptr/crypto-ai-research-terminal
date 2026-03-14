@@ -56,77 +56,138 @@
 
 ### Prerequisites
 
-- Python 3.11+
-- [Poetry](https://python-poetry.org/docs/#installation)
-- Docker + Docker Compose
+- Docker + Docker Compose (**recommended path — everything runs in containers**)
+- Python 3.11+ + [Poetry](https://python-poetry.org/docs/#installation) *(dev-only path)*
+- Node.js 22+ + npm *(dev-only path)*
 - (Optional) [act](https://github.com/nektos/act) — to run the CI pipeline locally
 
-### 1 — Clone and create virtual environment
+---
+
+## Running with Docker *(recommended)*
+
+This is the standard way to run the project. All services — PostgreSQL, Redis,
+FastAPI backend, and the React frontend (served by nginx) — start with a single
+command.
+
+### 1 — Clone and configure environment
 
 ```bash
 git clone https://github.com/pattersonrptr/crypto-ai-research-terminal.git
 cd crypto-ai-research-terminal
 
+cp .env.example .env
+# Edit .env — fill in API keys (CoinGecko, GitHub, Telegram, etc.)
+```
+
+### 2 — Start all services
+
+```bash
+# Build images and start in the background (first run takes ~2 min to build)
+docker compose -f infra/docker-compose.yml up -d postgres redis backend frontend
+
+# Check that all containers are healthy
+docker compose -f infra/docker-compose.yml ps
+```
+
+Expected output:
+
+```
+NAME                STATUS
+cryptoai_postgres   Up (healthy)
+cryptoai_redis      Up (healthy)
+cryptoai_backend    Up (healthy)
+cryptoai_frontend   Up
+```
+
+### 3 — Access the application
+
+| Service | URL |
+|---|---|
+| **Frontend (React dashboard)** | http://localhost:3000 |
+| **Backend API docs (Swagger)** | http://localhost:8000/docs |
+| **Backend health check** | http://localhost:8000/health |
+
+> The nginx container at port 3000 also proxies all `/api/*` requests to the
+> backend, so `http://localhost:3000/api/health` works too.
+
+### 4 — Run database migrations (first run only)
+
+```bash
+# Inside the backend container
+docker compose -f infra/docker-compose.yml exec backend alembic upgrade head
+```
+
+### 5 — (Optional) Start Ollama for local LLM
+
+```bash
+# Only needed if you have an NVIDIA GPU — remove the `deploy` block otherwise
+docker compose -f infra/docker-compose.yml up -d ollama
+
+# Pull a model (example: llama3.2)
+docker compose -f infra/docker-compose.yml exec ollama ollama pull llama3.2
+```
+
+### Stop everything
+
+```bash
+docker compose -f infra/docker-compose.yml down
+
+# Also remove volumes (wipes the database)
+docker compose -f infra/docker-compose.yml down -v
+```
+
+### Rebuild after code changes
+
+```bash
+docker compose -f infra/docker-compose.yml build backend frontend
+docker compose -f infra/docker-compose.yml up -d backend frontend
+```
+
+---
+
+## Running locally (dev mode, without Docker)
+
+Use this mode when iterating quickly on backend or frontend code.
+
+### Backend
+
+```bash
+# 1 — Start infrastructure only
+docker compose -f infra/docker-compose.yml up -d postgres redis
+
+# 2 — Create virtual environment and install dependencies
 python -m venv .venv
 source .venv/bin/activate
-```
-
-### 2 — Install dependencies
-
-```bash
-pip install poetry          # if not already installed globally
+pip install poetry
 poetry install --with dev
-```
 
-### 3 — Configure environment
-
-```bash
+# 3 — Configure environment
 cp .env.example .env
-# Edit .env and fill in your API keys
-```
+# Set DATABASE_URL=postgresql+asyncpg://cryptoai:cryptoai@localhost:5433/cryptoai
+# Set REDIS_URL=redis://localhost:6379
 
-### 4 — Install pre-commit hooks
+# 4 — Run migrations
+cd backend && alembic upgrade head && cd ..
 
-```bash
-pre-commit install --hook-type pre-push
-```
-
-### 5 — Start services with Docker Compose
-
-```bash
-docker compose -f infra/docker-compose.yml up -d postgres redis ollama
-```
-
-### 6 — Run database migrations
-
-```bash
-source .venv/bin/activate
-cd backend && alembic upgrade head
-```
-
-### 7 — Start the backend
-
-```bash
-source .venv/bin/activate
-uvicorn backend.app.main:app --reload
+# 5 — Start the backend (hot-reload)
+uvicorn app.main:app --reload
 # API docs: http://localhost:8000/docs
 ```
 
-### 8 — Start the frontend (Phase 6+)
+### Frontend
 
 ```bash
 cd frontend
-npm install       # first time only
-npm run dev       # http://localhost:3000
+npm install           # first time only
+npm run dev           # http://localhost:3000
+
+# The Vite dev server proxies /api → http://localhost:8000 automatically
 ```
 
-> The Vite dev server proxies `/api` → `http://localhost:8000`, so no CORS
-> configuration is needed for local development.
-
-#### Frontend environment variable
+#### Frontend environment variable (optional)
 
 ```bash
-# frontend/.env.local  (optional — only if backend runs on a non-default port)
+# frontend/.env.local — only needed if backend runs on a non-default port
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
@@ -134,29 +195,17 @@ VITE_API_BASE_URL=http://localhost:8000
 
 ```bash
 cd frontend
-npm test                   # single run
-npm run test:watch         # watch mode
-npm run test:coverage      # with coverage report (must reach 80%)
+npm test              # single run (94 tests)
+npm run test:watch    # watch mode
+npm run test:coverage # with coverage report (96.9% statements, all modules ≥80%)
 ```
 
----
-
-## Running locally
+#### Running backend tests
 
 ```bash
 source .venv/bin/activate
-
-# Full analysis scan
-cryptoai scan
-
-# Top 20 opportunities
-cryptoai top --n 20
-
-# Detailed report for a token
-cryptoai report SOL
-
-# Run backtesting
-cryptoai backtest --start 2019-01-01 --end 2021-01-01
+pytest                        # all 509 tests + coverage
+pytest backend/tests/ -q      # quiet mode
 ```
 
 ---
@@ -316,7 +365,7 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 | 3 | AI & Narratives (Ollama, Gemini, embeddings) | ✅ Complete |
 | 4 | Listing Radar + Risk detection | ✅ Complete |
 | 5 | Telegram alerts + Reports (MD/PDF) | ✅ Complete |
-| 6 | React Dashboard | 🔲 Not started |
+| 6 | React Dashboard — fully wired, Docker containers | ✅ Complete |
 | 7 | ML + Knowledge Graph + Backtesting | 🔲 Not started |
 
-**Current status:** 499 tests passing, 93% coverage
+**Current status:** 509 backend tests + 94 frontend tests passing; 96.9% frontend coverage

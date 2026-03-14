@@ -65,7 +65,9 @@ class TokenWithScoreSchema(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _build_token_schema(token: Token, score: TokenScore | None, rank: int | None = None) -> TokenWithScoreSchema:
+def _build_token_schema(
+    token: Token, score: TokenScore | None, rank: int | None = None
+) -> TokenWithScoreSchema:
     """Map ORM objects to the response schema."""
     return TokenWithScoreSchema(
         id=token.id,
