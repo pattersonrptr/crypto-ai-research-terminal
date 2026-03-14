@@ -23,17 +23,17 @@ const mockOpportunity: RankingOpportunity = {
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
     latest_score: {
-      fundamental_score: 8.5,
-      technology_score: 9.0,
-      tokenomics_score: 7.5,
-      adoption_score: 8.8,
-      dev_activity_score: 9.1,
-      narrative_score: 8.8,
-      growth_score: 9.1,
-      risk_score: 8.2,
-      listing_probability: 0.2,
+      fundamental_score: 0.85,
+      technology_score: 0.90,
+      tokenomics_score: 0.75,
+      adoption_score: 0.88,
+      dev_activity_score: 0.91,
+      narrative_score: 0.88,
+      growth_score: 0.91,
+      risk_score: 0.82,
+      listing_probability: 0.20,
       cycle_leader_prob: 0.71,
-      opportunity_score: 8.7,
+      opportunity_score: 0.87,
       snapshot_date: "2025-03-10",
     },
     price_usd: 185.42,
@@ -70,6 +70,7 @@ describe("TokenCard", () => {
 
   it("renders the opportunity score", () => {
     renderCard();
+    // API returns 0.87, display scales to 8.7
     expect(screen.getByText("8.7")).toBeInTheDocument();
   });
 

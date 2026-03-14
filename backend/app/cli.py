@@ -135,6 +135,7 @@ async def run_collection_job() -> int:
     from app.processors.market_processor import MarketProcessor  # noqa: PLC0415
     from app.scheduler.jobs import _persist_results  # noqa: PLC0415
     from app.scoring.fundamental_scorer import FundamentalScorer  # noqa: PLC0415
+    from app.scoring.heuristic_sub_scorer import HeuristicSubScorer  # noqa: PLC0415
     from app.scoring.opportunity_engine import OpportunityEngine  # noqa: PLC0415
 
     async with CoinGeckoCollector() as collector:
@@ -145,12 +146,21 @@ async def run_collection_job() -> int:
         try:
             processed = MarketProcessor.process(raw)
             fundamental = FundamentalScorer.score(processed)
-            opportunity = OpportunityEngine.composite_score(fundamental)
+            sub_scores = HeuristicSubScorer.score(processed)
+            opportunity = OpportunityEngine.full_composite_score(
+                fundamental=fundamental,
+                growth=sub_scores.growth_score,
+                narrative=sub_scores.narrative_score,
+                listing=sub_scores.listing_probability,
+                risk=sub_scores.risk_score,
+                cycle_leader_prob=sub_scores.cycle_leader_prob,
+            )
             results.append(
                 {
                     **processed,
                     "fundamental_score": fundamental,
                     "opportunity_score": opportunity,
+                    **sub_scores.to_dict(),
                 }
             )
         except Exception:

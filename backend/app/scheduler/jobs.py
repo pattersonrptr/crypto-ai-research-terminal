@@ -17,6 +17,7 @@ from app.models.score import TokenScore
 from app.models.token import Token
 from app.processors.market_processor import MarketProcessor
 from app.scoring.fundamental_scorer import FundamentalScorer
+from app.scoring.heuristic_sub_scorer import HeuristicSubScorer
 from app.scoring.opportunity_engine import OpportunityEngine
 
 if TYPE_CHECKING:
@@ -165,12 +166,21 @@ async def daily_collection_job(
             try:
                 processed = MarketProcessor.process(raw)
                 fundamental_score = FundamentalScorer.score(processed)
-                opportunity_score = OpportunityEngine.composite_score(fundamental_score)
+                sub_scores = HeuristicSubScorer.score(processed)
+                opportunity_score = OpportunityEngine.full_composite_score(
+                    fundamental=fundamental_score,
+                    growth=sub_scores.growth_score,
+                    narrative=sub_scores.narrative_score,
+                    listing=sub_scores.listing_probability,
+                    risk=sub_scores.risk_score,
+                    cycle_leader_prob=sub_scores.cycle_leader_prob,
+                )
                 results.append(
                     {
                         **processed,
                         "fundamental_score": fundamental_score,
                         "opportunity_score": opportunity_score,
+                        **sub_scores.to_dict(),
                     }
                 )
             except Exception:
@@ -259,6 +269,15 @@ async def _persist_results(
                 token_id=token.id,
                 fundamental_score=float(item.get("fundamental_score", 0.0)),
                 opportunity_score=float(item.get("opportunity_score", 0.0)),
+                technology_score=float(item.get("technology_score", 0.0)),
+                tokenomics_score=float(item.get("tokenomics_score", 0.0)),
+                adoption_score=float(item.get("adoption_score", 0.0)),
+                dev_activity_score=float(item.get("dev_activity_score", 0.0)),
+                narrative_score=float(item.get("narrative_score", 0.0)),
+                growth_score=float(item.get("growth_score", 0.0)),
+                risk_score=float(item.get("risk_score", 0.0)),
+                listing_probability=float(item.get("listing_probability", 0.0)),
+                cycle_leader_prob=float(item.get("cycle_leader_prob", 0.0)),
             )
             session.add(score)
 

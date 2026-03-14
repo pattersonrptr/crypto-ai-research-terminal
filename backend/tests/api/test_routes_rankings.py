@@ -25,8 +25,8 @@ def _make_score(
     name: str,
     fundamental_score: float,
     opportunity_score: float,
-) -> tuple[Token, TokenScore]:
-    """Construct a (Token, TokenScore) tuple matching a SQLAlchemy join Row."""
+) -> tuple[Token, TokenScore, None]:
+    """Construct a (Token, TokenScore, MarketData) tuple matching a SQLAlchemy join Row."""
     token = Token()
     token.id = token_id
     token.symbol = symbol
@@ -39,9 +39,18 @@ def _make_score(
     score.token_id = token_id
     score.fundamental_score = fundamental_score
     score.opportunity_score = opportunity_score
+    score.technology_score = 0.0
+    score.tokenomics_score = 0.0
+    score.adoption_score = 0.0
+    score.dev_activity_score = 0.0
+    score.narrative_score = 0.0
+    score.growth_score = 0.0
+    score.risk_score = 0.0
+    score.listing_probability = 0.0
+    score.cycle_leader_prob = 0.0
     score.scored_at = datetime(2024, 1, 2, tzinfo=UTC)
 
-    return token, score
+    return token, score, None
 
 
 def _mock_session_rows(rows: Any) -> AsyncMock:

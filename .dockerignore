@@ -1,0 +1,33 @@
+# Virtual environments
+.venv/
+venv/
+
+# Git
+.git/
+.gitignore
+
+# Node
+frontend/node_modules/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Docker / infra (avoid sending compose into context — keep Dockerfiles)
+infra/docker-compose.yml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Coverage / test artifacts
+htmlcov/
+.coverage
+coverage.xml

@@ -42,6 +42,15 @@ def _make_score(
     score.token_id = token_id
     score.fundamental_score = fundamental
     score.opportunity_score = opportunity
+    score.technology_score = 0.0
+    score.tokenomics_score = 0.0
+    score.adoption_score = 0.0
+    score.dev_activity_score = 0.0
+    score.narrative_score = 0.0
+    score.growth_score = 0.0
+    score.risk_score = 0.0
+    score.listing_probability = 0.0
+    score.cycle_leader_prob = 0.0
     score.scored_at = datetime(2024, 1, 2, tzinfo=UTC)
     return score
 
@@ -70,7 +79,7 @@ class TestGetTokensList:
         """GET /tokens must return HTTP 200."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None)]
+        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None, None)]
         session = _mock_session_rows(rows)
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
@@ -88,8 +97,8 @@ class TestGetTokensList:
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
         rows = [
-            (_make_token(1, "BTC", "Bitcoin", "bitcoin"), None),
-            (_make_token(2, "ETH", "Ethereum", "ethereum"), None),
+            (_make_token(1, "BTC", "Bitcoin", "bitcoin"), None, None),
+            (_make_token(2, "ETH", "Ethereum", "ethereum"), None, None),
         ]
         session = _mock_session_rows(rows)
 
@@ -109,7 +118,7 @@ class TestGetTokensList:
         """Each item in GET /tokens must contain id, symbol, name, coingecko_id."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None)]
+        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None, None)]
         session = _mock_session_rows(rows)
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
@@ -147,7 +156,7 @@ class TestGetTokensList:
         """Each item must contain the TokenWithScore extended fields."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None)]
+        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None, None)]
         session = _mock_session_rows(rows)
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
@@ -171,7 +180,7 @@ class TestGetTokensList:
 
         token = _make_token(1, "BTC", "Bitcoin", "bitcoin")
         score = _make_score(10, 1, fundamental=0.75, opportunity=0.85)
-        rows = [(token, score)]
+        rows = [(token, score, None)]
         session = _mock_session_rows(rows)
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
@@ -200,7 +209,7 @@ class TestGetTokenBySymbol:
         """GET /tokens/{symbol} must return 200 when token exists."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None)]
+        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None, None)]
         session = _mock_session_rows(rows)
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
@@ -217,7 +226,7 @@ class TestGetTokenBySymbol:
         """GET /tokens/{symbol} must return token data matching the symbol."""
         from app.api.routes.tokens import get_db  # noqa: PLC0415
 
-        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None)]
+        rows = [(_make_token(1, "BTC", "Bitcoin", "bitcoin"), None, None)]
         session = _mock_session_rows(rows)
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:
@@ -271,7 +280,7 @@ class TestGetTokenBySymbol:
 
         token = _make_token(1, "ETH", "Ethereum", "ethereum")
         score = _make_score(5, 1, fundamental=0.65, opportunity=0.72)
-        rows = [(token, score)]
+        rows = [(token, score, None)]
         session = _mock_session_rows(rows)
 
         async def _override() -> AsyncGenerator[AsyncSession, None]:

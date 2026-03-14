@@ -26,17 +26,17 @@ import type {
 
 export function makeMockScore(overrides: Partial<TokenScore> = {}): TokenScore {
   return {
-    fundamental_score: 72,
-    technology_score: 80,
-    tokenomics_score: 65,
-    adoption_score: 70,
-    dev_activity_score: 75,
-    narrative_score: 68,
-    growth_score: 60,
-    risk_score: 30,
+    fundamental_score: 0.72,
+    technology_score: 0.80,
+    tokenomics_score: 0.65,
+    adoption_score: 0.70,
+    dev_activity_score: 0.75,
+    narrative_score: 0.68,
+    growth_score: 0.60,
+    risk_score: 0.30,
     listing_probability: 0.55,
-    cycle_leader_prob: 0.4,
-    opportunity_score: 71,
+    cycle_leader_prob: 0.40,
+    opportunity_score: 0.71,
     snapshot_date: "2025-01-15T00:00:00Z",
     ...overrides,
   };

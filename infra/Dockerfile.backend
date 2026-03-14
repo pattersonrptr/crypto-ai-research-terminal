@@ -17,6 +17,10 @@ COPY pyproject.toml poetry.lock README.md alembic.ini ./
 COPY backend/ ./backend/
 COPY infra/entrypoint.sh ./entrypoint.sh
 
+# Increase installer timeout for large packages (torch, CUDA libs)
+ENV POETRY_INSTALLER_MAX_WORKERS=4
+ENV PIP_DEFAULT_TIMEOUT=300
+
 RUN pip install --no-cache-dir poetry==2.3.2 \
     && poetry config virtualenvs.create false \
     && poetry install --only main --no-interaction --no-ansi \

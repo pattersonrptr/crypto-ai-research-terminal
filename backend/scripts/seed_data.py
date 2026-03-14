@@ -59,19 +59,181 @@ SAMPLE_MARKET_DATA = {
     "OP": {"price": 2.45, "market_cap": 2600000000, "volume_24h": 280000000, "change_24h": 4.1},
 }
 
-# Sample scores (opportunity scores)
+# Sample scores — all 11 sub-scores populated
 SAMPLE_SCORES = {
-    "BTC": {"fundamental": 0.92, "growth": 0.65, "opportunity": 0.78, "risk": 0.15},
-    "ETH": {"fundamental": 0.95, "growth": 0.72, "opportunity": 0.82, "risk": 0.12},
-    "SOL": {"fundamental": 0.78, "growth": 0.88, "opportunity": 0.85, "risk": 0.28},
-    "AVAX": {"fundamental": 0.72, "growth": 0.75, "opportunity": 0.74, "risk": 0.32},
-    "MATIC": {"fundamental": 0.70, "growth": 0.55, "opportunity": 0.62, "risk": 0.35},
-    "LINK": {"fundamental": 0.85, "growth": 0.68, "opportunity": 0.76, "risk": 0.22},
-    "UNI": {"fundamental": 0.75, "growth": 0.52, "opportunity": 0.64, "risk": 0.30},
-    "AAVE": {"fundamental": 0.82, "growth": 0.78, "opportunity": 0.80, "risk": 0.25},
-    "ARB": {"fundamental": 0.68, "growth": 0.92, "opportunity": 0.88, "risk": 0.38},
-    "OP": {"fundamental": 0.65, "growth": 0.85, "opportunity": 0.82, "risk": 0.40},
+    "BTC": {
+        "fundamental": 0.92,
+        "opportunity": 0.78,
+        "technology": 0.85,
+        "tokenomics": 0.90,
+        "adoption": 0.95,
+        "dev_activity": 0.80,
+        "narrative": 0.75,
+        "growth": 0.65,
+        "risk": 0.85,
+        "listing": 0.10,
+        "cycle_leader": 0.30,
+    },
+    "ETH": {
+        "fundamental": 0.95,
+        "opportunity": 0.82,
+        "technology": 0.92,
+        "tokenomics": 0.88,
+        "adoption": 0.93,
+        "dev_activity": 0.95,
+        "narrative": 0.80,
+        "growth": 0.72,
+        "risk": 0.88,
+        "listing": 0.08,
+        "cycle_leader": 0.25,
+    },
+    "SOL": {
+        "fundamental": 0.78,
+        "opportunity": 0.85,
+        "technology": 0.80,
+        "tokenomics": 0.72,
+        "adoption": 0.75,
+        "dev_activity": 0.82,
+        "narrative": 0.85,
+        "growth": 0.88,
+        "risk": 0.72,
+        "listing": 0.15,
+        "cycle_leader": 0.45,
+    },
+    "AVAX": {
+        "fundamental": 0.72,
+        "opportunity": 0.74,
+        "technology": 0.75,
+        "tokenomics": 0.68,
+        "adoption": 0.65,
+        "dev_activity": 0.70,
+        "narrative": 0.60,
+        "growth": 0.75,
+        "risk": 0.68,
+        "listing": 0.20,
+        "cycle_leader": 0.35,
+    },
+    "MATIC": {
+        "fundamental": 0.70,
+        "opportunity": 0.62,
+        "technology": 0.72,
+        "tokenomics": 0.65,
+        "adoption": 0.68,
+        "dev_activity": 0.60,
+        "narrative": 0.50,
+        "growth": 0.55,
+        "risk": 0.65,
+        "listing": 0.12,
+        "cycle_leader": 0.20,
+    },
+    "LINK": {
+        "fundamental": 0.85,
+        "opportunity": 0.76,
+        "technology": 0.78,
+        "tokenomics": 0.80,
+        "adoption": 0.82,
+        "dev_activity": 0.75,
+        "narrative": 0.70,
+        "growth": 0.68,
+        "risk": 0.78,
+        "listing": 0.10,
+        "cycle_leader": 0.28,
+    },
+    "UNI": {
+        "fundamental": 0.75,
+        "opportunity": 0.64,
+        "technology": 0.70,
+        "tokenomics": 0.72,
+        "adoption": 0.70,
+        "dev_activity": 0.65,
+        "narrative": 0.55,
+        "growth": 0.52,
+        "risk": 0.70,
+        "listing": 0.08,
+        "cycle_leader": 0.18,
+    },
+    "AAVE": {
+        "fundamental": 0.82,
+        "opportunity": 0.80,
+        "technology": 0.80,
+        "tokenomics": 0.78,
+        "adoption": 0.72,
+        "dev_activity": 0.85,
+        "narrative": 0.72,
+        "growth": 0.78,
+        "risk": 0.75,
+        "listing": 0.18,
+        "cycle_leader": 0.40,
+    },
+    "ARB": {
+        "fundamental": 0.68,
+        "opportunity": 0.88,
+        "technology": 0.72,
+        "tokenomics": 0.60,
+        "adoption": 0.58,
+        "dev_activity": 0.75,
+        "narrative": 0.82,
+        "growth": 0.92,
+        "risk": 0.62,
+        "listing": 0.45,
+        "cycle_leader": 0.55,
+    },
+    "OP": {
+        "fundamental": 0.65,
+        "opportunity": 0.82,
+        "technology": 0.70,
+        "tokenomics": 0.58,
+        "adoption": 0.55,
+        "dev_activity": 0.72,
+        "narrative": 0.78,
+        "growth": 0.85,
+        "risk": 0.60,
+        "listing": 0.42,
+        "cycle_leader": 0.50,
+    },
 }
+
+
+async def _backfill_sub_scores(session: AsyncSession) -> None:
+    """Update existing seed scores that have zeroed sub-scores."""
+    # Build a symbol->token_id map
+    result = await session.execute(text("SELECT id, symbol FROM tokens"))
+    token_map = {row[1]: row[0] for row in result}
+
+    for symbol, scores in SAMPLE_SCORES.items():
+        token_id = token_map.get(symbol)
+        if token_id is None:
+            continue
+        await session.execute(
+            text("""
+                UPDATE token_scores SET
+                    technology_score = :technology,
+                    tokenomics_score = :tokenomics,
+                    adoption_score = :adoption,
+                    dev_activity_score = :dev_activity,
+                    narrative_score = :narrative,
+                    growth_score = :growth,
+                    risk_score = :risk,
+                    listing_probability = :listing,
+                    cycle_leader_prob = :cycle_leader
+                WHERE token_id = :tid
+                  AND technology_score = 0
+                  AND tokenomics_score = 0
+            """),
+            {
+                "technology": scores["technology"],
+                "tokenomics": scores["tokenomics"],
+                "adoption": scores["adoption"],
+                "dev_activity": scores["dev_activity"],
+                "narrative": scores["narrative"],
+                "growth": scores["growth"],
+                "risk": scores["risk"],
+                "listing": scores["listing"],
+                "cycle_leader": scores["cycle_leader"],
+                "tid": token_id,
+            },
+        )
+    print(f"  ✓ Backfilled sub-scores for {len(SAMPLE_SCORES)} tokens")
 
 
 async def seed_database(database_url: str) -> None:
@@ -84,7 +246,21 @@ async def seed_database(database_url: str) -> None:
         result = await session.execute(text("SELECT COUNT(*) FROM tokens"))
         count = result.scalar()
         if count and count > 0:
-            print(f"Database already has {count} tokens. Skipping seed.")
+            # Check if sub-scores need backfilling (old seed without sub-scores)
+            result = await session.execute(
+                text(
+                    "SELECT COUNT(*) FROM token_scores"
+                    " WHERE technology_score = 0 AND tokenomics_score = 0"
+                )
+            )
+            zeroed = result.scalar()
+            if zeroed and zeroed > 0:
+                print(f"Database has {count} tokens but {zeroed} scores need sub-score backfill...")
+                await _backfill_sub_scores(session)
+                await session.commit()
+                print("✅ Sub-scores backfilled successfully!")
+            else:
+                print(f"Database already has {count} tokens with complete scores. Skipping seed.")
             return
 
         print("Seeding database with sample data...")
@@ -120,6 +296,15 @@ async def seed_database(database_url: str) -> None:
                     token_id=tokens[symbol].id,
                     fundamental_score=scores["fundamental"],
                     opportunity_score=scores["opportunity"],
+                    technology_score=scores["technology"],
+                    tokenomics_score=scores["tokenomics"],
+                    adoption_score=scores["adoption"],
+                    dev_activity_score=scores["dev_activity"],
+                    narrative_score=scores["narrative"],
+                    growth_score=scores["growth"],
+                    risk_score=scores["risk"],
+                    listing_probability=scores["listing"],
+                    cycle_leader_prob=scores["cycle_leader"],
                     scored_at=now,
                 )
                 session.add(score)

@@ -10,19 +10,63 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Added (Phase 9 — Full Scoring Pipeline)
+
+- **HeuristicSubScorer** (`backend/app/scoring/heuristic_sub_scorer.py`):
+  Derives all 9 sub-scores from CoinGecko market data using heuristics
+  (rank, market cap, volume ratio, price velocity, ATH distance)
+- **TokenScore model**: 9 new Float columns — `technology_score`, `tokenomics_score`,
+  `adoption_score`, `dev_activity_score`, `narrative_score`, `growth_score`,
+  `risk_score`, `listing_probability`, `cycle_leader_prob`
+- **Alembic migration** `b2c3d4e5f6a7`: adds 9 sub-score columns to `token_scores`
+- **OpportunityEngine.full_composite_score()**: 5-pillar weighted formula
+  `0.30×fundamental + 0.25×growth + 0.20×narrative + 0.15×listing + 0.10×risk`
+  with up to 10% cycle-leader boost, clamped to [0, 1]
+- **Pipeline wiring**: `collect → process → fundamental → heuristic sub-scores →
+  full composite → persist all 11 scores`
+- **Token Detail API**: JOIN `MarketData`, returns all 11 sub-scores + market metrics
+  (price, market_cap, volume, rank)
+- **Rankings API**: JOIN `MarketData`, richer signals for growth/risk/narrative/listing
+- **Frontend scaling**: API returns 0–1 scores; display layer multiplies by 10 for
+  0–10 user-facing values (TokenDetail radar chart, TokenCard score bars)
+- **Latest-only queries**: Rankings (`/rankings/opportunities`) and Tokens
+  (`/tokens/`, `/tokens/{symbol}`) endpoints now use `MAX(id)` subqueries to
+  return only the most recent `TokenScore` and `MarketData` per token, preventing
+  duplicate rows after successive collection runs
+- **CLI `collect-now` pipeline fix**: Uses `HeuristicSubScorer` +
+  `OpportunityEngine.full_composite_score()` (was using old 2-score pipeline)
+- **Docker dev volume mount**: `docker-compose.yml` mounts `../backend:/app/backend:ro`
+  so code changes are picked up without rebuilding the image
+- **`.dockerignore`**: Excludes `.venv/`, `node_modules/`, `.git/`, `__pycache__/`,
+  reducing Docker build context from >1 GB to ~1 MB
+- **`Dockerfile.backend`**: `PIP_DEFAULT_TIMEOUT=300` and
+  `POETRY_INSTALLER_MAX_WORKERS=4` to prevent timeouts on large packages
+- **`entrypoint.sh`**: Runs `seed_data.py` after Alembic migration on every start
+  (auto-seeds fresh DB, backfills zeroed sub-scores on existing DB)
+- **Seed data**: All 11 sub-scores in `SAMPLE_SCORES`, `_backfill_sub_scores()`
+  function for upgrading old seeds
+- **34 new backend tests** (836 total, 93% coverage); 126 frontend tests passing
+
+### Known Limitations (Phase 9)
+
+- **Volume-driven memecoins rank disproportionately high**: Tokens with abnormally
+  high `volume/market_cap` ratios (e.g. TRUMP at 77% vol/mcap) score very well in
+  growth, adoption, narrative and cycle-leader because all four heuristics treat high
+  trading volume as a positive signal. In reality, speculative volume ≠ real adoption.
+  Real adoption requires on-chain data, TVL, developer activity and news signals that
+  are not yet integrated. This will be addressed in Phases 10–12.
+- **Risk weight too low**: At 10% of the composite formula, the risk pillar has
+  limited influence. A memecoin with risk=0.43 is barely penalised compared to
+  BTC with risk=0.91. Weight rebalancing is deferred to Phase 12 backtesting.
+
 ### Planned
 
-#### Phase 9 — Full Scoring Pipeline (target: ~2–3 weeks)
+#### Phase 9 — Full Scoring Pipeline (remaining)
 
-**Problem:** Only `fundamental_score` and `opportunity_score` are populated.
-The other 9 sub-scores (`technology_score`, `tokenomics_score`, `adoption_score`,
-`dev_activity_score`, `narrative_score`, `growth_score`, `risk_score`,
-`listing_probability`, `cycle_leader_prob`) are all 0.0. The `FundamentalScorer`
-uses only 4 market metrics; the `OpportunityEngine` runs in Phase 1 fallback mode.
-Rankings are meaningless. Radar chart is empty. Token Detail page is useless.
+**Done:** HeuristicSubScorer populates all 11 sub-scores from CoinGecko data.
+Full 5-pillar formula active. Radar chart and rankings functional.
 
-**Goal:** All 11 sub-scores populated with real data. Full 5-pillar formula from
-SCOPE.md Section 9. Radar charts and rankings become actionable.
+**Remaining (optional enhancements):**
 
 - Wire `GrowthScorer` into pipeline (uses existing GitHub + Reddit data)
 - Wire `RiskScorer` into pipeline (uses existing risk detector modules)
@@ -30,9 +74,7 @@ SCOPE.md Section 9. Radar charts and rankings become actionable.
 - Wire `ListingScorer` into pipeline (uses existing exchange monitor data)
 - Upgrade `FundamentalScorer` from 4-metric → 5-sub-pillar model
   (technology, tokenomics, adoption, dev_activity, narrative_fit)
-- Upgrade `OpportunityEngine` to full 5-pillar formula with ML boost
 - Wire `CycleLeaderModel` probability into composite score
-- Fix Token Detail API: join `market_data` → fill radar chart + market metrics
 - Add AI-generated token summary via Ollama/Gemini → cache in `ai_analyses` table
 
 #### Phase 10 — Live Narratives + Cycle Detection (target: ~2 weeks)

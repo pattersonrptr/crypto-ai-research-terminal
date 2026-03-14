@@ -71,19 +71,23 @@ export function TokenCard({ opportunity }: TokenCardProps) {
             ["Narr.",  score?.narrative_score     ?? null],
             ["Risk",   score?.risk_score          ?? null],
           ] as [string, number | null][]
-        ).map(([label, value]) => (
+        ).map(([label, value]) => {
+          // API returns 0-1; scale to 0-10 for display
+          const scaled = value !== null ? value * 10 : null;
+          return (
           <div key={label} className="flex flex-col items-center">
             <span className="text-[10px] text-muted-foreground">{label}</span>
             <span
               className={cn(
                 "font-numeric text-sm font-semibold",
-                value !== null ? scoreColour(value) : "text-muted-foreground",
+                scaled !== null ? scoreColour(scaled) : "text-muted-foreground",
               )}
             >
-              {value !== null ? formatScore(value) : "N/A"}
+              {scaled !== null ? formatScore(scaled) : "N/A"}
             </span>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ── Row 3: market stats ─────────────────────────────────────── */}
