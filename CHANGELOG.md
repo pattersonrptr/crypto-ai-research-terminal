@@ -10,6 +10,70 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Planned
+
+#### Phase 9 — Full Scoring Pipeline (target: ~2–3 weeks)
+
+**Problem:** Only `fundamental_score` and `opportunity_score` are populated.
+The other 9 sub-scores (`technology_score`, `tokenomics_score`, `adoption_score`,
+`dev_activity_score`, `narrative_score`, `growth_score`, `risk_score`,
+`listing_probability`, `cycle_leader_prob`) are all 0.0. The `FundamentalScorer`
+uses only 4 market metrics; the `OpportunityEngine` runs in Phase 1 fallback mode.
+Rankings are meaningless. Radar chart is empty. Token Detail page is useless.
+
+**Goal:** All 11 sub-scores populated with real data. Full 5-pillar formula from
+SCOPE.md Section 9. Radar charts and rankings become actionable.
+
+- Wire `GrowthScorer` into pipeline (uses existing GitHub + Reddit data)
+- Wire `RiskScorer` into pipeline (uses existing risk detector modules)
+- Wire `NarrativeScorer` into pipeline (uses narrative clusters)
+- Wire `ListingScorer` into pipeline (uses existing exchange monitor data)
+- Upgrade `FundamentalScorer` from 4-metric → 5-sub-pillar model
+  (technology, tokenomics, adoption, dev_activity, narrative_fit)
+- Upgrade `OpportunityEngine` to full 5-pillar formula with ML boost
+- Wire `CycleLeaderModel` probability into composite score
+- Fix Token Detail API: join `market_data` → fill radar chart + market metrics
+- Add AI-generated token summary via Ollama/Gemini → cache in `ai_analyses` table
+
+#### Phase 10 — Live Narratives + Cycle Detection (target: ~2 weeks)
+
+**Problem:** Narratives page shows hardcoded `_SEED_NARRATIVES`. Ecosystems page
+uses hardcoded 15-node graph. App does not know the current market cycle.
+
+**Goal:** Narratives and ecosystems derived from real data. Cycle awareness.
+
+- Run `NarrativeDetector` on real social data → persist to `narratives` table
+- Add cycle detection: BTC dominance trend, total market cap, Fear & Greed index
+- Expose cycle phase in API (`accumulation`, `bull`, `distribution`, `bear`)
+- Narrative trend comparison (current vs 30d ago → accelerating/declining)
+- Build real ecosystem graph from token relationships (narratives, correlations, chains)
+
+#### Phase 11 — Alert Generation (target: ~1–2 weeks)
+
+**Problem:** Alerts page is always empty. `AlertRuleEngine` and 7 rules exist
+but the pipeline never calls them. No alerts are ever generated.
+
+**Goal:** Real alerts fired from scoring thresholds. Telegram notifications.
+
+- Wire `AlertRuleEngine.evaluate()` into scheduler pipeline (after scoring)
+- Generate alerts: `LISTING_CANDIDATE`, `WHALE_ACCUMULATION`, `NARRATIVE_EMERGING`,
+  `RUGPULL_RISK`, `TOKEN_UNLOCK_SOON`, `MANIPULATION_DETECTED`
+- Persist alerts to DB + send to Telegram
+- Daily digest alert (top 10 movers, new alerts summary)
+
+#### Phase 12 — Backtesting Validation (target: ~2–3 weeks)
+
+**Problem:** Backtesting runs on synthetic/seed data only. Cannot validate
+whether the scoring model would have predicted real cycle winners.
+
+**Goal:** Backtest on 2019-2021 cycle with real data. Precision@10, recall.
+
+- Collect real historical data (CoinGecko historical endpoint)
+- Run full scoring pipeline on historical snapshots ("as if Jan 2020")
+- Compare top picks vs actual 10x+ performers in 2021 bull run
+- Display precision@K, recall@K, hit rate in backtesting UI
+- Use results to tune scorer weights
+
 ### Added
 
 #### Phase 8 — Live Data Pipeline + Production Hardening (COMPLETE)
@@ -120,6 +184,24 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
     `heavy_limit` zone (burst 10) with 180 s read timeout.
 - `.env.example` — updated comments for `COINMARKETCAP_API_KEY` and
   `TWITTER_BEARER_TOKEN` to reflect Phase 8 requirements.
+
+### Known Limitations (as of Phase 8)
+- **Rankings are superficial:** Only `fundamental_score` (4 market metrics) and
+  `opportunity_score` (copy of fundamental) are populated. 9 other sub-scores = 0.0.
+- **Token Detail radar chart is empty:** All sub-pillar scores are 0.0.
+- **Market metrics not joined:** Token Detail API does not return `price_usd`,
+  `market_cap`, `volume_24h` from the `market_data` table.
+- **Narratives are seed data:** `_SEED_NARRATIVES` hardcoded; `NarrativeDetector`
+  never runs in the pipeline.
+- **Ecosystems are seed data:** 15-node hardcoded graph, not derived from real data.
+- **Backtesting uses synthetic data:** `SimulationEngine` runs on sinusoidal candles,
+  not real historical prices.
+- **Alerts are never generated:** `AlertRuleEngine` exists but is never called by the
+  scheduler pipeline.
+- **No cycle detection:** App does not know the current market phase.
+- **No predictive capability:** The system cannot yet predict emerging opportunities.
+
+These limitations are addressed in Phases 9–12.
 
 ### Changed
 - `backend/tests/` — total tests: **802** (+80 vs Phase 7).

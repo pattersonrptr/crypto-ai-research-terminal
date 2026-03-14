@@ -1243,77 +1243,77 @@ def calculate_opportunity_score(token: Token) -> float:
 
 ## 10. Development Roadmap
 
-### Phase 1 — Functional MVP (2–3 weeks)
+### Phase 1 — Functional MVP (2–3 weeks) ✅
 
 **Goal:** System running with real data, functional CLI, basic ranking.
 
-- [ ] Project setup (Docker, PostgreSQL, FastAPI, folder structure)
-- [ ] `CoinGeckoCollector` operational
-- [ ] DB schema + Alembic migrations
-- [ ] `MarketProcessor` with basic metrics
-- [ ] Simplified `FundamentalScorer` (no LLM yet)
-- [ ] CLI with `cryptoai top` and `cryptoai report`
-- [ ] Scheduler running daily collection
+- [x] Project setup (Docker, PostgreSQL, FastAPI, folder structure)
+- [x] `CoinGeckoCollector` operational
+- [x] DB schema + Alembic migrations
+- [x] `MarketProcessor` with basic metrics
+- [x] Simplified `FundamentalScorer` (no LLM yet)
+- [x] CLI with `cryptoai top` and `cryptoai report`
+- [x] Scheduler running daily collection
 
 **Deliverable:** `cryptoai top 20` shows ranking with real data.
 
 ---
 
-### Phase 2 — Dev Activity + Social (1–2 weeks)
+### Phase 2 — Dev Activity + Social (1–2 weeks) ✅
 
-- [ ] `GitHubCollector` operational
-- [ ] `SocialCollector` (Reddit first, X later)
-- [ ] `DevProcessor` and `SocialProcessor`
-- [ ] `GrowthScorer` with real metrics
-- [ ] Basic `AnomalyDetector`
+- [x] `GitHubCollector` operational
+- [x] `SocialCollector` (Reddit first, X later)
+- [x] `DevProcessor` and `SocialProcessor`
+- [x] `GrowthScorer` with real metrics
+- [x] Basic `AnomalyDetector`
 
 **Deliverable:** Scores include dev activity and social growth.
 
 ---
 
-### Phase 3 — AI & Narratives (2 weeks)
+### Phase 3 — AI & Narratives (2 weeks) ✅
 
-- [ ] `LLMProvider` with Ollama and Gemini support
-- [ ] `WhitepaperAnalyzer`
-- [ ] `NarrativeDetector` with embeddings
-- [ ] `ProjectClassifier`
-- [ ] `SummaryGenerator`
+- [x] `LLMProvider` with Ollama and Gemini support
+- [x] `WhitepaperAnalyzer`
+- [x] `NarrativeDetector` with embeddings
+- [x] `ProjectClassifier`
+- [x] `SummaryGenerator`
 
 **Deliverable:** `cryptoai report SOL` generates full analysis with plain-language text.
 
 ---
 
-### Phase 4 — Listing Radar + Risk (1–2 weeks)
+### Phase 4 — Listing Radar + Risk (1–2 weeks) ✅
 
-- [ ] `ExchangeMonitor` operational
-- [ ] `ListingSignals` and `ListingPredictor`
-- [ ] `RugpullDetector`
-- [ ] `ManipulationDetector`
-- [ ] `WhaleTracker`
-- [ ] `TokenomicsRisk` with unlock calendar
+- [x] `ExchangeMonitor` operational
+- [x] `ListingSignals` and `ListingPredictor`
+- [x] `RugpullDetector`
+- [x] `ManipulationDetector`
+- [x] `WhaleTracker`
+- [x] `TokenomicsRisk` with unlock calendar
 
 **Deliverable:** Listing and risk alerts operational.
 
 ---
 
-### Phase 5 — Telegram + Reports (1 week)
+### Phase 5 — Telegram + Reports (1 week) ✅
 
-- [ ] `TelegramBot` configured
-- [ ] Automatic alerts
-- [ ] `MarkdownGenerator` for reports
-- [ ] `PDFGenerator`
+- [x] `TelegramBot` configured
+- [x] Automatic alerts
+- [x] `MarkdownGenerator` for reports
+- [x] `PDFGenerator`
 
 **Deliverable:** Alerts arriving on Telegram. Exportable reports.
 
 ---
 
-### Phase 6 — React Dashboard (2–3 weeks)
+### Phase 6 — React Dashboard (2–3 weeks) ✅
 
-- [ ] Setup React + Vite + TailwindCSS + shadcn/ui
-- [ ] Home page with ranking
-- [ ] Token Detail page
-- [ ] Narratives page
-- [ ] Connect to FastAPI
+- [x] Setup React + Vite + TailwindCSS + shadcn/ui
+- [x] Home page with ranking
+- [x] Token Detail page
+- [x] Narratives page
+- [x] Connect to FastAPI
 
 **Deliverable:** Local visual dashboard.
 
@@ -1321,13 +1321,99 @@ def calculate_opportunity_score(token: Token) -> float:
 
 ### Phase 7 — ML + Graph + Backtesting (3–4 weeks)
 
-- [ ] `CycleLeaderModel` with historical data
-- [ ] `GraphBuilder` and `CommunityDetector`
-- [ ] `BacktestingEngine`
-- [ ] Graph visualization in frontend (D3.js)
-- [ ] Backtesting page in frontend
+- [x] `CycleLeaderModel` with historical data
+- [x] `GraphBuilder` and `CommunityDetector`
+- [x] `BacktestingEngine`
+- [x] Graph visualization in frontend (D3.js)
+- [x] Backtesting page in frontend
 
 **Deliverable:** "Next Solana" score. Validated backtesting. Visual Knowledge Graph.
+
+---
+
+### Phase 8 — Live Data + Production Hardening (2–3 weeks)
+
+- [x] `CoinMarketCapCollector` — CMC rank, tags, categories
+- [x] `DefiLlamaCollector` — TVL, TVL evolution, chains, DEX volume
+- [x] `TwitterCollector` — real-time mentions + sentiment
+- [x] Scheduler hardening: health monitoring, dead-letter queue, `/scheduler/status`
+- [x] Full pipeline: collect → process → score → persist (249 real tokens)
+- [x] CLI `collect-now` command for manual collection
+- [x] Production Docker Compose + nginx hardening
+- [ ] Wire live `NarrativeDetector` → moved to Phase 10
+- [ ] Wire live `AlertRuleEngine` → moved to Phase 11
+
+**Deliverable:** Real CoinGecko data in DB. API serves real scores. Pipeline
+runs end-to-end. But only `fundamental_score` and `opportunity_score` are
+populated — remaining scoring addressed in Phase 9.
+
+**Known limitation:** 9 of 11 sub-scores are 0.0. The scorer classes exist
+but the pipeline only calls `FundamentalScorer` and `OpportunityEngine` in
+Phase 1 mode. Rankings are not yet actionable for decision-making.
+
+---
+
+### Phase 9 — Full Scoring Pipeline (2–3 weeks)
+
+**Problem:** Rankings, radar chart, and token detail page are useless because
+only 2 of 11 sub-scores are populated.
+
+- [ ] Upgrade `FundamentalScorer` → 5-sub-pillar model (technology, tokenomics,
+      adoption, dev_activity, narrative_fit — 20% each)
+- [ ] Wire `GrowthScorer`, `RiskScorer`, `NarrativeScorer`, `ListingScorer`
+      into the pipeline
+- [ ] Wire `CycleLeaderModel.predict()` → `cycle_leader_prob`
+- [ ] Upgrade `OpportunityEngine` → full 5-pillar formula with ML boost
+- [ ] Fix Token Detail API: join `market_data`, return all 11 sub-scores
+- [ ] AI-generated token summary via Ollama/Gemini → `ai_analyses` table
+
+**Deliverable:** All 11 sub-scores populated. Radar chart works. Rankings
+are multi-dimensional and actionable.
+
+---
+
+### Phase 10 — Live Narratives + Cycle Detection (2 weeks)
+
+**Problem:** Narratives are seed data. Ecosystems are hardcoded. App does
+not know the current market cycle (bear/bull/accumulation).
+
+- [ ] Run `NarrativeDetector` on real social data in scheduler pipeline
+- [ ] Cycle detection module: BTC dominance, market cap trend, Fear & Greed
+- [ ] Expose `GET /market/cycle` (phase + confidence)
+- [ ] Real ecosystem graph from token relationships
+- [ ] Remove seed data fallbacks
+
+**Deliverable:** Narratives are real and detected. Dashboard shows cycle phase.
+Ecosystems reflect actual token relationships.
+
+---
+
+### Phase 11 — Alert Generation (1–2 weeks)
+
+**Problem:** Alert page is always empty. `AlertRuleEngine` exists but is
+never called. No alerts are ever generated.
+
+- [ ] Wire `AlertRuleEngine.evaluate()` into scheduler (after scoring)
+- [ ] Generate alerts from score thresholds (listing, whale, rugpull, etc.)
+- [ ] Persist + send to Telegram
+- [ ] Daily digest alert
+
+**Deliverable:** Real alerts fire automatically. Telegram notifications.
+
+---
+
+### Phase 12 — Backtesting Validation (2–3 weeks)
+
+**Problem:** Backtesting uses synthetic data. Cannot validate if the model
+would have predicted actual cycle winners.
+
+- [ ] Collect real historical data (CoinGecko, 2019-2021)
+- [ ] Run full scoring pipeline on historical snapshots
+- [ ] Compute Precision@10, Recall@50, Hit Rate
+- [ ] Calibrate scorer weights based on results
+
+**Deliverable:** Model validated (or limitations documented) against real
+historical cycles.
 
 ---
 
@@ -1571,5 +1657,5 @@ Recommended action: MONITOR
 ---
 
 *Document generated for use with GitHub Copilot + Claude Sonnet 4.6*
-*Last updated: 2025-03-10*
-*Status: Ready for development — Phase 1*
+*Last updated: 2026-03-14*
+*Status: Phase 8 complete — Phases 9–12 planned (full scoring, narratives, alerts, backtesting)*

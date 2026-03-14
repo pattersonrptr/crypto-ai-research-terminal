@@ -240,28 +240,253 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 > social signals. Harden the system for long-running production use.
 
 ### Live Data Collectors
-- 🔲 `collectors/coinmarketcap_collector.py` — CMC rank, tags, categories (key: `COINMARKETCAP_API_KEY`)
-- 🔲 `collectors/defillama_collector.py` — TVL, TVL evolution 30d/90d, chains, DEX volume, revenue
-- 🔲 `collectors/social_collector.py` — extend with Twitter/X real-time mentions + sentiment
+- ✅ `collectors/coinmarketcap_collector.py` — CMC rank, tags, categories (key: `COINMARKETCAP_API_KEY`)
+- ✅ `collectors/defillama_collector.py` — TVL, TVL evolution 30d/90d, chains, DEX volume, revenue
+- ✅ `collectors/social_collector.py` — extend with Twitter/X real-time mentions + sentiment
   (key: `TWITTER_BEARER_TOKEN` — Basic plan required ~$100/month)
 - 🔲 Wire live `NarrativeDetector` pipeline to replace seed data in `GET /narratives`
+  → **Moved to Phase 10** (requires real social data + cycle detection first)
 - 🔲 Wire live `AlertRuleEngine` to scheduler so alerts fire automatically
+  → **Moved to Phase 11** (requires full scoring pipeline first)
 
 ### Scheduler Hardening
-- 🔲 Wire `scheduler/jobs.py` full pipeline: collect → process → score → persist → alert
-- 🔲 Add job health monitoring + dead-letter queue for failed jobs (Redis)
-- 🔲 Add `/scheduler/status` API endpoint (last run, next run, errors)
+- ✅ Wire `scheduler/jobs.py` full pipeline: collect → process → score → persist → alert
+- ✅ Add job health monitoring + dead-letter queue for failed jobs (Redis)
+- ✅ Add `/scheduler/status` API endpoint (last run, next run, errors)
+
+### Pipeline Persistence
+- ✅ `_persist_results()` — real DB writes: Token + TokenScore + MarketData
+- ✅ Duplicate-symbol handling (CoinGecko returns tokens with same symbol)
+- ✅ Collector used as async context manager
+
+### CLI
+- ✅ `collect-now` command for manual pipeline trigger
+- ✅ Entry point fixed: `cryptoai = "app.cli:cli"`
 
 ### Frontend — Live Data Pages
+- ✅ Dashboard refresh interval (polling 30s) for real-time score updates
 - 🔲 `Narratives` page — replace seed data with live `NarrativeDetector` output
+  → **Moved to Phase 10**
 - 🔲 `Alerts` page — real alerts from the rule engine (currently empty state)
-- 🔲 Dashboard refresh interval (polling or WebSocket) for real-time score updates
+  → **Moved to Phase 11**
 
 ### Production Infrastructure
-- 🔲 `infra/docker-compose.prod.yml` — production overrides (no bind mounts, resource limits)
-- 🔲 Nginx rate limiting + CORS hardening
-- 🔲 Log rotation + structured log export (optional: Loki/Grafana)
-- 🔲 `.env.example` updated with all new keys
+- ✅ `infra/docker-compose.prod.yml` — production overrides (no bind mounts, resource limits)
+- ✅ Nginx rate limiting + CORS hardening
+- 🔲 Log rotation + structured log export (optional: Loki/Grafana) → **Deferred**
+- ✅ `.env.example` updated with all new keys
 
-**Deliverable:** All pages show live data. Alerts fire to Telegram automatically.
-Scheduler runs full pipeline daily without manual intervention.
+**Status:** Pipeline works end-to-end (249 real tokens from CoinGecko). But only
+`fundamental_score` and `opportunity_score` are populated — all other sub-scores
+are 0.0. The remaining Phase 8 items (live narratives, alerts) depend on the full
+scoring pipeline and are moved to Phases 10–11.
+
+**Deliverable:** `collect-now` collects real data. API serves real scores.
+Remaining scoring and prediction features addressed in Phases 9–12.
+
+---
+
+## Phase 9 — Full Scoring Pipeline (target: ~2–3 weeks)
+
+> Goal: All 11 sub-scores populated with real data. Full 5-pillar opportunity
+> formula from SCOPE.md Section 9. Rankings are actionable. Radar chart works.
+> Token Detail page becomes useful for decision-making.
+
+### Problem statement
+The `FundamentalScorer` uses only 4 market metrics (`volume_mcap_ratio`,
+`price_velocity`, `ath_distance_pct`, `market_cap_usd`). The `OpportunityEngine`
+runs in Phase 1 fallback mode (returns `fundamental_score` directly). All other
+scorer classes (`GrowthScorer`, `RiskScorer`, `NarrativeScorer`, `ListingScorer`)
+exist but are never called by the pipeline. 9 of 11 sub-scores in `token_scores`
+are 0.0. The radar chart, rankings, and token detail page are useless.
+
+### Upgrade FundamentalScorer
+- 🔲 Expand `FundamentalScorer` from 4-metric → 5-sub-pillar model per SCOPE.md §6.8:
+  - Technology (20%): use LLM analysis of whitepaper (via `WhitepaperAnalyzer`)
+  - Tokenomics (20%): supply metrics, inflation rate, distribution, unlocks
+  - Adoption (20%): TVL, volume trends, integrations
+  - Dev Activity (20%): commits, contributors, releases (via `DevProcessor`)
+  - Narrative Fit (20%): alignment with dominant narrative cluster
+- 🔲 Persist each sub-pillar score individually in `token_scores` table:
+  `technology_score`, `tokenomics_score`, `adoption_score`, `dev_activity_score`
+
+### Wire existing scorers into pipeline
+- 🔲 Wire `GrowthScorer.score()` — inputs from `DevProcessor` + `SocialProcessor`
+  → persist `growth_score` in `token_scores`
+- 🔲 Wire `RiskScorer.score()` — inputs from `RugpullDetector`, `ManipulationDetector`,
+  `WhaleTracker`, `TokenomicsRisk` → persist `risk_score` in `token_scores`
+- 🔲 Wire `NarrativeScorer.score()` — inputs from `NarrativeDetector` cluster matching
+  → persist `narrative_score` in `token_scores`
+- 🔲 Wire `ListingScorer.score()` — inputs from `ExchangeMonitor`, `ListingSignals`
+  → persist `listing_probability` in `token_scores`
+- 🔲 Wire `CycleLeaderModel.predict()` → persist `cycle_leader_prob` in `token_scores`
+
+### Upgrade OpportunityEngine
+- 🔲 Implement full 5-pillar composite formula from SCOPE.md §9:
+  ```
+  opportunity = (
+    0.30 × fundamental +
+    0.25 × growth +
+    0.20 × narrative +
+    0.15 × listing +
+    0.10 × risk_adjustment
+  ) × cycle_leader_boost
+  ```
+- 🔲 Replace Phase 1 fallback mode with real multi-pillar calculation
+- 🔲 Graceful degradation: if a sub-score is unavailable, redistribute its weight
+
+### Fix Token Detail API
+- 🔲 Join `market_data` table in `GET /tokens/{symbol}` → return `price_usd`,
+  `market_cap`, `volume_24h`, `ath`, `ath_change_pct`, `circulating_supply`
+- 🔲 Return all 11 sub-scores in token response (not just fundamental + opportunity)
+- 🔲 Radar chart data: `{technology, tokenomics, adoption, dev_activity, narrative_fit}`
+  all non-zero
+
+### AI-generated token analysis
+- 🔲 Call `SummaryGenerator.generate()` via Ollama/Gemini for each scored token
+- 🔲 Cache AI summaries in `ai_analyses` table (avoid re-generating daily)
+- 🔲 Return AI summary in `GET /tokens/{symbol}` response
+- 🔲 Include AI summary in PDF reports
+
+### Tests (TDD)
+- 🔲 Tests for upgraded `FundamentalScorer` (5-sub-pillar model)
+- 🔲 Tests for upgraded `OpportunityEngine` (5-pillar formula)
+- 🔲 Tests for pipeline integration (all scorers wired correctly)
+- 🔲 Tests for Token Detail API with market data + all sub-scores
+- 🔲 Frontend tests for populated radar chart + market metrics
+
+**Deliverable:** Rankings show multi-dimensional scores. Radar chart is filled.
+Token Detail page is actionable. PDF reports include AI analysis.
+
+---
+
+## Phase 10 — Live Narratives + Cycle Detection (target: ~2 weeks)
+
+> Goal: Narratives page shows real detected clusters from social data.
+> App knows the current market cycle. Ecosystems derived from real data.
+> The system can identify what's gaining momentum NOW.
+
+### Problem statement
+Narratives page shows hardcoded `_SEED_NARRATIVES` (10 fake items). Ecosystems
+page uses a hardcoded 15-node graph. The app has no cycle awareness — it doesn't
+know we're in a bear market in 2026. Without cycle context, no prediction is
+possible.
+
+### Live narrative detection
+- 🔲 Run `NarrativeDetector.detect()` on real social data (Twitter + Reddit mentions)
+  as part of the scheduler pipeline
+- 🔲 Persist detected narrative clusters to `narratives` table (replace seed fallback)
+- 🔲 Compare current narratives vs 30d-ago snapshot → compute trend
+  (`accelerating`, `growing`, `stable`, `declining`)
+- 🔲 Remove `_SEED_NARRATIVES` fallback from `GET /narratives` once live data flows
+
+### Cycle detection
+- 🔲 New module: `app/analysis/cycle_detector.py`
+  - BTC dominance trend (rising = risk-off, falling = altseason)
+  - Total crypto market cap trend vs 200-day moving average
+  - Fear & Greed index integration (Alternative.me API, free)
+  - Market phase classification: `accumulation`, `bull`, `distribution`, `bear`
+- 🔲 Expose `GET /market/cycle` API endpoint with current phase + confidence
+- 🔲 Factor cycle phase into `OpportunityEngine` scoring (bear market = lower scores,
+  bull market = boost for momentum tokens)
+- 🔲 Display cycle phase indicator in frontend dashboard header
+
+### Real ecosystem graph
+- 🔲 Build graph from real token relationships:
+  - Shared narrative clusters (tokens in same narrative = edge)
+  - Price correlation matrix (corr > 0.7 = edge)
+  - Shared blockchain ecosystem (same chain = edge)
+- 🔲 Replace hardcoded seed graph in `GET /graph/communities`
+- 🔲 Detect growing ecosystems (compare community sizes over time)
+
+### Tests (TDD)
+- 🔲 Tests for `CycleDetector` (phase classification, edge cases)
+- 🔲 Tests for live narrative persistence
+- 🔲 Tests for real ecosystem graph building
+- 🔲 Frontend tests for cycle indicator
+
+**Deliverable:** Narratives page shows real emerging trends. Dashboard shows
+current market cycle. Ecosystems reflect real token relationships.
+
+---
+
+## Phase 11 — Alert Generation (target: ~1–2 weeks)
+
+> Goal: Alerts page shows real fired alerts. Telegram notifications working.
+> The system proactively warns about opportunities and risks.
+
+### Problem statement
+`AlertRuleEngine` and 7 concrete alert rules exist in code but are never called.
+The scheduler pipeline ends at `_persist_results`. No alerts are ever generated.
+The Alerts page is always empty.
+
+### Wire alert generation into pipeline
+- 🔲 Call `AlertRuleEngine.evaluate()` after scoring in `daily_collection_job`
+- 🔲 Persist fired alerts to `alerts` table with full metadata
+- 🔲 Send high-urgency alerts to Telegram via `TelegramBot`
+
+### Alert rules (threshold-based, from scores)
+- 🔲 `LISTING_CANDIDATE`: `listing_probability > 0.70`
+- 🔲 `WHALE_ACCUMULATION`: whale tracker detects accumulation pattern
+- 🔲 `NARRATIVE_EMERGING`: new narrative cluster with `momentum_score > threshold`
+- 🔲 `RUGPULL_RISK`: `risk_score < 0.30` (dangerous zone)
+- 🔲 `TOKEN_UNLOCK_SOON`: tokenomics risk detects >5% unlock in 30 days
+- 🔲 `MANIPULATION_DETECTED`: manipulation detector flags wash trading / pump-dump
+- 🔲 `MEMECOIN_HYPE_DETECTED`: social growth > 500% in 48h
+
+### Daily digest
+- 🔲 Generate `DAILY_REPORT` alert with top 10 movers, new alerts summary
+- 🔲 Send daily digest to Telegram at configured hour
+
+### Tests (TDD)
+- 🔲 Tests for alert generation from real scores
+- 🔲 Tests for Telegram delivery
+- 🔲 Tests for daily digest formatting
+
+**Deliverable:** Alerts fire automatically from real data. Telegram receives
+notifications. User sees actionable alerts in the dashboard.
+
+---
+
+## Phase 12 — Backtesting Validation (target: ~2–3 weeks)
+
+> Goal: Validate the scoring model against real historical cycles.
+> Prove (or disprove) that the system can predict winners.
+
+### Problem statement
+Backtesting runs on synthetic sinusoidal data from `seed_historical_data.py`.
+There's no way to know if the scoring model would have predicted the tokens
+that actually did 10x+ in past bull runs. Without validation, the model is
+just noise.
+
+### Historical data collection
+- 🔲 Collect real historical data from CoinGecko `/coins/{id}/market_chart/range`
+  for 2019-01 to 2021-12 (pre-bull → peak → post-peak)
+- 🔲 Collect historical dev activity snapshots (GitHub API, if available)
+- 🔲 Store as `historical_snapshots` in DB (full serialized state per date)
+
+### Historical scoring pipeline
+- 🔲 Run the full scoring pipeline on historical snapshots
+  ("What would the model have scored in January 2020?")
+- 🔲 Generate a ranked list per snapshot date
+- 🔲 Identify actual 10x+ performers from the subsequent bull cycle
+
+### Validation metrics
+- 🔲 `Precision@10`: of the top 10 recommended, how many did 5x+?
+- 🔲 `Recall@50`: of the 50 that did 5x+, how many were in our top 50?
+- 🔲 `Hit rate`: % of recommended tokens that outperformed the market
+- 🔲 Display metrics in backtesting UI with per-token breakdown
+
+### Weight calibration
+- 🔲 If precision < 50%, run parameter sweep on pillar weights
+- 🔲 If a specific sub-score has no predictive power, consider removing it
+- 🔲 Document calibration results for future cycles
+
+### Tests (TDD)
+- 🔲 Tests for historical data loading
+- 🔲 Tests for historical scoring pipeline
+- 🔲 Tests for validation metrics computation
+
+**Deliverable:** "If we had run this model in January 2020, it would have
+recommended SOL, AVAX, MATIC... with 60% precision@10." Model is calibrated
+and trustworthy (or known limitations are documented).
