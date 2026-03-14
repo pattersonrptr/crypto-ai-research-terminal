@@ -71,7 +71,7 @@ class TestGetNarratives:
         response = client.get("/narratives/")
         items = response.json()
         for item in items:
-            assert isinstance(item["momentum_score"], (int, float))
+            assert isinstance(item["momentum_score"], int | float)
 
     def test_get_narratives_trend_is_valid_string(self, client: TestClient) -> None:
         """trend field should be one of the valid trend values."""
@@ -81,9 +81,7 @@ class TestGetNarratives:
         for item in items:
             assert item["trend"] in valid_trends
 
-    def test_get_narratives_token_count_matches_tokens_length(
-        self, client: TestClient
-    ) -> None:
+    def test_get_narratives_token_count_matches_tokens_length(self, client: TestClient) -> None:
         """token_count should equal len(tokens)."""
         response = client.get("/narratives/")
         items = response.json()
