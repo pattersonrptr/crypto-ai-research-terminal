@@ -136,7 +136,7 @@ class TwitterCollector(BaseCollector):
     (Basic plan or higher).
     """
 
-    def __init__(self, bearer_token: str = "") -> None:
+    def __init__(self, bearer_token: str = "") -> None:  # nosec B107
         """Initialise the collector.
 
         Args:
