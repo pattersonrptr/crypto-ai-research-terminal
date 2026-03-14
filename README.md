@@ -144,6 +144,18 @@ docker compose -f infra/docker-compose.yml build backend frontend
 docker compose -f infra/docker-compose.yml up -d backend frontend
 ```
 
+### Production deployment
+
+Use the production overlay to apply resource limits, remove host-exposed DB ports,
+and enforce `restart: always`:
+
+```bash
+docker compose \
+  -f infra/docker-compose.yml \
+  -f infra/docker-compose.prod.yml \
+  up -d
+```
+
 ---
 
 ## Running locally (dev mode, without Docker)
@@ -397,7 +409,7 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 | 4 | Listing Radar + Risk detection | ✅ Complete |
 | 5 | Telegram alerts + Reports (MD/PDF) | ✅ Complete |
 | 6 | React Dashboard — fully wired, Docker containers | ✅ Complete |
-| 7 | ML + Knowledge Graph + Backtesting | 🔲 Not started |
-| 8 | Live Data + Production Hardening (CMC, DefiLlama, Twitter/X, scheduler) | 🔲 Not started |
+| 7 | ML + Knowledge Graph + Backtesting | ✅ Complete |
+| 8 | Live Data + Production Hardening (CMC, DefiLlama, Twitter/X, scheduler) | ✅ Complete |
 
-**Current status:** 509 backend tests + 94 frontend tests passing; 96.9% frontend coverage
+**Current status:** 788 backend tests + 126 frontend tests passing

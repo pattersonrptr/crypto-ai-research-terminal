@@ -5,18 +5,18 @@
  * MSW intercepts GET /api/alerts and GET /api/alerts/stats.
  */
 
-import { describe, it, expect } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { http, HttpResponse } from "msw";
 import { server } from "@/test/msw/server";
 import {
   alertsHandler,
   acknowledgeAlertHandler,
   MOCK_ALERTS,
 } from "@/test/msw/handlers";
-import { http, HttpResponse } from "msw";
 import { Alerts } from "./Alerts";
 
 // ── helpers ───────────────────────────────────────────────────────────────
@@ -41,6 +41,10 @@ function renderAlerts() {
 // ── page structure ────────────────────────────────────────────────────────
 
 describe("Alerts", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("renders_page_header_with_alerts_title", async () => {
     renderAlerts();
     await waitFor(() => {
@@ -82,7 +86,7 @@ describe("Alerts", () => {
   it("renders_acknowledge_button_for_unacknowledged_alerts", async () => {
     renderAlerts();
     await waitFor(() => {
-      // MOCK_ALERTS[0] is unacknowledged → should have a button
+      // MOCK_ALERTS[0] is unacknowledged -> should have a button
       const buttons = screen.getAllByRole("button", { name: /acknowledge/i });
       expect(buttons.length).toBeGreaterThan(0);
     });
@@ -93,7 +97,7 @@ describe("Alerts", () => {
     await waitFor(() => {
       expect(screen.getByText(MOCK_ALERTS[1].message)).toBeInTheDocument();
     });
-    // MOCK_ALERTS[1] is acknowledged — should show "Acknowledged" badge, not button
+    // MOCK_ALERTS[1] is acknowledged - should show "Acknowledged" badge, not button
     // There's only 1 unacknowledged alert in the mock data
     const buttons = screen.getAllByRole("button", { name: /acknowledge/i });
     expect(buttons).toHaveLength(1);
@@ -127,7 +131,7 @@ describe("Alerts", () => {
   it("renders_filter_select_or_buttons_for_alert_types", async () => {
     renderAlerts();
     await waitFor(() => {
-      // Filter control — look for a combobox (select) or "All" button
+      // Filter control - look for a combobox (select) or "All" button
       const filterEl =
         screen.queryByRole("combobox", { name: /filter/i }) ??
         screen.queryByRole("button", { name: /all/i });
@@ -161,5 +165,30 @@ describe("Alerts", () => {
     await waitFor(() => {
       expect(screen.getByText(/no alerts/i)).toBeInTheDocument();
     });
+  });
+
+  // ── polling ───────────────────────────────────────────────────────────────
+
+  it("polls_alerts_api_every_30_seconds_via_refetch_interval", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    let requestCount = 0;
+    server.use(
+      http.get("/api/alerts", () => {
+        requestCount++;
+        return HttpResponse.json(MOCK_ALERTS);
+      }),
+    );
+
+    renderAlerts();
+
+    // Initial fetch
+    await waitFor(() => expect(requestCount).toBe(1));
+
+    // Advance 30 s -> refetchInterval triggers second fetch
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+    });
+    await waitFor(() => expect(requestCount).toBe(2));
   });
 });

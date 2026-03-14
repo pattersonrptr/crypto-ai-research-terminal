@@ -5,6 +5,8 @@ TDD RED phase: tests written before implementation.
 Naming: test_<unit>_<scenario>_<expected_outcome>
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -101,3 +103,59 @@ class TestGetNarratives:
         for item in items:
             assert isinstance(item["id"], int)
             assert item["id"] > 0
+
+
+class TestGetNarrativesLiveData:
+    """GET /narratives returns live DB data when available, falls back to seed."""
+
+    @pytest.mark.asyncio
+    async def test_get_narratives_uses_live_data_when_db_returns_narratives(
+        self,
+    ) -> None:
+        """When fetch_latest_narratives returns data the endpoint must use it."""
+        from httpx import AsyncClient  # noqa: PLC0415
+
+        from app.main import app as main_app  # noqa: PLC0415
+
+        live_narratives = [
+            {
+                "id": 99,
+                "name": "Live Narrative",
+                "momentum_score": 9.5,
+                "trend": "accelerating",
+                "tokens": ["XYZ", "ABC"],
+                "keywords": ["live", "test"],
+                "token_count": 2,
+            }
+        ]
+        with patch(
+            "app.api.routes.narratives.fetch_latest_narratives",
+            new_callable=AsyncMock,
+            return_value=live_narratives,
+        ):
+            async with AsyncClient(app=main_app, base_url="http://test") as client:
+                response = await client.get("/narratives/")
+        assert response.status_code == 200
+        data = response.json()
+        assert data[0]["name"] == "Live Narrative"
+
+    @pytest.mark.asyncio
+    async def test_get_narratives_falls_back_to_seed_when_db_returns_empty(
+        self,
+    ) -> None:
+        """When fetch_latest_narratives returns empty list the endpoint uses seed data."""
+        from httpx import AsyncClient  # noqa: PLC0415
+
+        from app.main import app as main_app  # noqa: PLC0415
+
+        with patch(
+            "app.api.routes.narratives.fetch_latest_narratives",
+            new_callable=AsyncMock,
+            return_value=[],
+        ):
+            async with AsyncClient(app=main_app, base_url="http://test") as client:
+                response = await client.get("/narratives/")
+        assert response.status_code == 200
+        data = response.json()
+        # Falls back to seed data which has >= 1 item
+        assert len(data) >= 1

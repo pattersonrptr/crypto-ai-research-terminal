@@ -12,7 +12,99 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Added
 
-#### Phase 7 — Graph + Backtesting API Endpoints + Frontend Pages (COMPLETE)
+#### Phase 8 — Live Data Pipeline + Production Hardening (COMPLETE)
+
+##### Backend — New Collectors
+- `backend/app/collectors/coinmarketcap_collector.py` — `CoinMarketCapCollector`:
+  - `collect(symbols?)` → `GET /cryptocurrency/listings/latest` (CMC Pro API v1).
+  - `collect_single(symbol)` — single-symbol convenience wrapper.
+  - `fetch_token_info(symbol)` → `GET /cryptocurrency/info` — category, tags, description.
+  - Fields: `symbol`, `name`, `cmc_id`, `cmc_rank`, `tags`, `category`, `price_usd`,
+    `volume_24h_usd`, `market_cap_usd`, `percent_change_24h`, `percent_change_7d`.
+  - `CollectorError` on HTTP 401 / 429; auth via `X-CMC_PRO_API_KEY` header.
+  - 18 TDD tests in `backend/tests/collectors/test_coinmarketcap_collector.py`.
+- `backend/app/collectors/defillama_collector.py` — `DefiLlamaCollector`:
+  - `collect(symbols?)` → `GET /protocols` (api.llama.fi — no API key required).
+  - `collect_single(symbol)` — single-symbol convenience wrapper.
+  - `fetch_protocol_detail(slug)` → `GET /protocol/{slug}` — TVL history.
+  - `fetch_dex_volumes()` → `GET /overview/dexs` — 24h / 7d / 30d volumes.
+  - `fetch_fees_revenue()` → `GET /overview/fees` — 24h / 7d / 30d revenue.
+  - Fields: `symbol`, `name`, `slug`, `tvl_usd`, `chains`, `category`,
+    `tvl_change_1d/7d/30d_pct`, `volume_24h/7d/30d_usd`, `revenue_24h/7d/30d_usd`.
+  - `CollectorError` on HTTP 404 / 5xx.
+  - 20 TDD tests in `backend/tests/collectors/test_defillama_collector.py`.
+- `backend/app/collectors/social_collector.py` — added `TwitterCollector` class:
+  - `search_mentions(query, max_results=100)` → Twitter API v2
+    `GET /tweets/search/recent` with `tweet.fields=public_metrics,created_at`.
+  - Returns `{tweet_count, total_engagement, tweets}` (engagement = likes + retweets).
+  - `collect(symbols)` → calls `search_mentions("$SYM OR #SYM")` per symbol.
+  - Auth via `Authorization: Bearer {TWITTER_BEARER_TOKEN}` header.
+  - `CollectorError` on HTTP 401 / 429.
+  - 13 new TDD tests added to `backend/tests/collectors/test_social_collector.py`
+    (20 total — 7 Reddit + 13 Twitter).
+
+##### Backend — Scheduler Hardening
+- `backend/app/scheduler/jobs.py` — fully rewritten with Redis health monitoring:
+  - `record_job_success(redis, job_name, metadata?)` — writes `last_run`,
+    `last_status=success`, resets `error_count` to 0.
+  - `record_job_failure(redis, job_name, error)` — writes failure metadata + pushes
+    error payload to dead-letter queue key `scheduler:dlq:{job_name}`.
+  - `get_job_status(redis, job_name)` → dict with `job_name`, `last_run`,
+    `last_status`, `error_count`, `last_error` (all `None` when never ran).
+  - `daily_collection_job(redis=None)` — accepts optional Redis client; records
+    success/failure; skips health recording when `redis=None` (dev mode).
+  - 6 new TDD tests in `backend/tests/scheduler/test_jobs.py` (11 total).
+
+##### Backend — New API Endpoints
+- `backend/app/api/routes/scheduler.py` — scheduler health API:
+  - `GET /scheduler/status` — returns status of the primary `daily_collection_job`.
+  - `GET /scheduler/status/all` — returns status for all registered jobs.
+  - `JobStatusResponse` Pydantic schema: `job_name`, `last_run`, `last_status`,
+    `error_count`, `last_error` (nullable fields).
+  - Patchable `get_job_status()` helper for isolated unit testing.
+  - 8 TDD tests in `backend/tests/api/routes/test_scheduler.py`.
+- `backend/app/api/routes/narratives.py` — upgraded from seed-only to live data:
+  - `fetch_latest_narratives()` — queries `narratives` table (latest `snapshot_date`,
+    sorted by `momentum_score DESC`, LIMIT 20); graceful fallback to `_SEED_NARRATIVES`
+    on any DB exception.
+  - 2 new TDD tests added to `backend/tests/api/routes/test_narratives.py` (12 total).
+- `backend/app/main.py` — wired `scheduler.router` at prefix `/scheduler`.
+
+##### Frontend — Live Data Polling
+- `frontend/src/pages/Narratives.tsx` — added `refetchInterval: 30_000` (30 s
+  auto-refresh) to `useQuery`.
+- `frontend/src/pages/Alerts.tsx` — added `refetchInterval: 30_000` to both
+  `fetchAlerts` and `fetchAlertStats` queries.
+- `frontend/src/pages/Home.tsx` — added `refetchInterval: 30_000` to rankings query.
+- 3 new TDD polling tests (one per page) using MSW request-count + fake timers:
+  - `Narratives.test.tsx` — `polls_narratives_api_every_30_seconds_via_refetch_interval`
+  - `Alerts.test.tsx` — `polls_alerts_api_every_30_seconds_via_refetch_interval`
+  - `Home.test.tsx` — `polls_rankings_api_every_30_seconds_via_refetch_interval`
+
+##### Infrastructure
+- `infra/docker-compose.prod.yml` — production compose overrides:
+  - No bind-mounted source code volumes.
+  - `restart: always` for all long-running services.
+  - Host ports removed for `postgres` and `redis` (internal network only).
+  - Memory/CPU resource limits: backend 1 G / 1 CPU, postgres 512 M, redis 256 M,
+    frontend 128 M, ollama 8 G.
+- `infra/nginx/nginx.conf` — hardened for production:
+  - `limit_req_zone` + `limit_req`: general API 30 req/s, heavy AI paths 5 req/s.
+  - Security headers: `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`,
+    `Referrer-Policy`.
+  - CORS defence-in-depth: `Access-Control-Allow-Origin` restricted to localhost origins
+    at the Nginx layer (backend CORS middleware is primary enforcement).
+  - CORS pre-flight (`OPTIONS`) handled with `204 No Content`.
+  - Separate `location` block for `/api/reports/` and `/api/graph/` using the stricter
+    `heavy_limit` zone (burst 10) with 180 s read timeout.
+- `.env.example` — updated comments for `COINMARKETCAP_API_KEY` and
+  `TWITTER_BEARER_TOKEN` to reflect Phase 8 requirements.
+
+### Changed
+- `backend/tests/` — total tests: **788** (+66 vs Phase 7).
+- `frontend/src/` — total tests: **126** (+3 vs Phase 7).
+
+
 - `backend/app/api/routes/graph.py` — three new endpoints:
   - `GET /graph/communities` — returns Louvain-detected token communities from the seed
     `TokenGraph`; each item contains `id`, `members`, `size`.

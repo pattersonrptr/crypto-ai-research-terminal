@@ -2,15 +2,15 @@
  * TDD tests for the Home page.
  *
  * Naming convention: test_<unit>_<scenario>_<expected_outcome>
- * MSW intercepts all `/api/rankings/opportunities` requests — see
- * `src/test/msw/handlers.ts` for the default handler and factory overrides.
+ * MSW intercepts all `/api/rankings/opportunities` requests.
  */
 
-import { describe, it, expect } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, waitFor, within, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { http, HttpResponse } from "msw";
 import { server } from "@/test/msw/server";
 import {
   rankingsErrorHandler,
@@ -25,7 +25,7 @@ function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        // No retries in tests — fail fast so error states render immediately
+        // No retries in tests -- fail fast so error states render immediately
         retry: false,
         gcTime: 0,
       },
@@ -47,6 +47,10 @@ function renderHome() {
 // ── Loading state ─────────────────────────────────────────────────────────
 
 describe("Home", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("renders_loading_skeletons_while_fetching", async () => {
     renderHome();
     // Skeletons are aria-hidden pulse divs rendered during loading
@@ -81,11 +85,11 @@ describe("Home", () => {
   it("renders_token_symbols_for_first_page_items", async () => {
     renderHome();
     await waitFor(() => {
-      // First 10 of 15 mock tokens are TKN1 … TKN10
+      // First 10 of 15 mock tokens are TKN1 ... TKN10
       expect(screen.getByText("TKN1")).toBeInTheDocument();
       expect(screen.getByText("TKN10")).toBeInTheDocument();
     });
-    // TKN11 … TKN15 should NOT be visible on page 1
+    // TKN11 ... TKN15 should NOT be visible on page 1
     expect(screen.queryByText("TKN11")).not.toBeInTheDocument();
   });
 
@@ -98,7 +102,7 @@ describe("Home", () => {
         screen.getByRole("navigation", { name: /rankings pagination/i }),
       ).toBeInTheDocument();
     });
-    // Should have "← Prev" and "→ Next" buttons
+    // Should have "Prev" and "Next" buttons
     expect(screen.getByRole("button", { name: /previous page/i })).toBeInTheDocument();
   });
 
@@ -131,7 +135,7 @@ describe("Home", () => {
   });
 
   it("does_not_render_pagination_when_results_fit_on_one_page", async () => {
-    // Override: return only 5 opportunities — fits on one page
+    // Override: return only 5 opportunities -- fits on one page
     server.use(
       rankingsHandler(MOCK_OPPORTUNITIES.slice(0, 5)),
     );
@@ -173,5 +177,30 @@ describe("Home", () => {
     expect(
       screen.queryByRole("navigation", { name: /rankings pagination/i }),
     ).not.toBeInTheDocument();
+  });
+
+  // ── Polling ─────────────────────────────────────────────────────────────
+
+  it("polls_rankings_api_every_30_seconds_via_refetch_interval", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    let requestCount = 0;
+    server.use(
+      http.get("/api/rankings/opportunities", () => {
+        requestCount++;
+        return HttpResponse.json(MOCK_OPPORTUNITIES);
+      }),
+    );
+
+    renderHome();
+
+    // Initial fetch
+    await waitFor(() => expect(requestCount).toBe(1));
+
+    // Advance 30 s -> refetchInterval triggers second fetch
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+    });
+    await waitFor(() => expect(requestCount).toBe(2));
   });
 });

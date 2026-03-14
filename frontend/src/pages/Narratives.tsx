@@ -123,6 +123,7 @@ export function Narratives() {
   } = useQuery({
     queryKey: ["narratives"],
     queryFn: fetchNarratives,
+    refetchInterval: 30_000,
   });
 
   return (
