@@ -367,5 +367,6 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 | 5 | Telegram alerts + Reports (MD/PDF) | ✅ Complete |
 | 6 | React Dashboard — fully wired, Docker containers | ✅ Complete |
 | 7 | ML + Knowledge Graph + Backtesting | 🔲 Not started |
+| 8 | Live Data + Production Hardening (CMC, DefiLlama, Twitter/X, scheduler) | 🔲 Not started |
 
 **Current status:** 509 backend tests + 94 frontend tests passing; 96.9% frontend coverage
