@@ -6,7 +6,7 @@ Phase 8: full pipeline with job health monitoring and Redis dead-letter queue.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -32,7 +32,7 @@ _JOB_DLQ_KEY = "scheduler:dlq:{job_name}"
 
 
 async def record_job_success(
-    redis: "aioredis.Redis",
+    redis: aioredis.Redis,
     job_name: str,
     metadata: dict[str, Any] | None = None,
 ) -> None:
@@ -43,7 +43,7 @@ async def record_job_success(
         job_name: Scheduler job identifier.
         metadata: Optional extra data to store (e.g. count of processed tokens).
     """
-    now = datetime.now(tz=timezone.utc).isoformat()
+    now = datetime.now(tz=UTC).isoformat()
     payload: dict[str, str] = {
         "last_run": now,
         "last_status": "success",
@@ -57,7 +57,7 @@ async def record_job_success(
 
 
 async def record_job_failure(
-    redis: "aioredis.Redis",
+    redis: aioredis.Redis,
     job_name: str,
     error: str,
 ) -> None:
@@ -68,7 +68,7 @@ async def record_job_failure(
         job_name: Scheduler job identifier.
         error: Error message/description.
     """
-    now = datetime.now(tz=timezone.utc).isoformat()
+    now = datetime.now(tz=UTC).isoformat()
     key = _JOB_HASH_KEY.format(job_name=job_name)
 
     # Increment error count atomically
@@ -88,7 +88,7 @@ async def record_job_failure(
 
 
 async def get_job_status(
-    redis: "aioredis.Redis",
+    redis: aioredis.Redis,
     job_name: str,
 ) -> dict[str, Any]:
     """Retrieve job health status from Redis.
@@ -137,7 +137,7 @@ _JOB_NAME = "daily_collection_job"
 
 
 async def daily_collection_job(
-    redis: "aioredis.Redis | None" = None,
+    redis: aioredis.Redis | None = None,
 ) -> None:
     """Collect market data, process, score, persist, and record health status.
 

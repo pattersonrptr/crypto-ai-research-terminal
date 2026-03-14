@@ -98,7 +98,7 @@ async def fetch_latest_narratives() -> list[dict[str, Any]]:
         List of narrative dicts compatible with ``NarrativeResponse``.
     """
     try:
-        from sqlalchemy import select, text  # noqa: PLC0415
+        from sqlalchemy import text  # noqa: PLC0415
         from sqlalchemy.ext.asyncio import create_async_engine  # noqa: PLC0415
 
         from app.config import settings  # noqa: PLC0415
@@ -121,7 +121,7 @@ async def fetch_latest_narratives() -> list[dict[str, Any]]:
             return []
 
         narratives: list[dict[str, Any]] = []
-        for i, row in enumerate(rows, start=1):
+        for row in rows:
             keywords = row.keywords if isinstance(row.keywords, list) else []
             tokens = row.token_symbols if isinstance(row.token_symbols, list) else []
             narratives.append(

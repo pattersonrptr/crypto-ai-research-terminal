@@ -2,7 +2,16 @@
 
 from fastapi import FastAPI
 
-from app.api.routes import alerts, backtesting, graph, narratives, rankings, reports, scheduler, tokens
+from app.api.routes import (
+    alerts,
+    backtesting,
+    graph,
+    narratives,
+    rankings,
+    reports,
+    scheduler,
+    tokens,
+)
 
 app = FastAPI(
     title="Crypto AI Research Terminal",
