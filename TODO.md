@@ -218,7 +218,7 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 - ✅ `backtesting/data_loader.py` — loads historical data (2017, 2020–2021 cycles)
 - ✅ `backtesting/simulation_engine.py` — simulates model on past cycles
 - ✅ `backtesting/performance_metrics.py` — precision, recall, simulated ROI
-- 🔲 `scripts/seed_historical_data.py` — populate DB with historical data for backtesting
+- ✅ `scripts/seed_historical_data.py` — populate DB with historical data for backtesting
 - ✅ Tests for backtesting engine (TDD)
 
 ### Frontend — New Pages

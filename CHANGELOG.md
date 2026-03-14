@@ -12,6 +12,24 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Added
 
+#### Phase 7 — Seed Historical Data
+- `backend/app/models/historical_candle.py` — `HistoricalCandle` SQLAlchemy 2.x async
+  ORM model (`historical_candles` table) with `symbol`, `timestamp`, `open`, `high`,
+  `low`, `close`, `volume_usd`, `market_cap_usd`, `collected_at`; composite
+  `UNIQUE(symbol, timestamp)` constraint ensures idempotent inserts.
+- `backend/migrations/versions/a1b2c3d4e5f6_add_historical_candles_table.py` — Alembic
+  migration creating `historical_candles` with indexes on `symbol` and `timestamp`.
+- `backend/scripts/seed_historical_data.py` — async script that fetches daily OHLCV
+  candles from CoinGecko `/coins/{id}/market_chart/range` for BTC, ETH, SOL, BNB, AVAX,
+  MATIC, LINK, UNI, AAVE, ARB across all three `CycleLabel` ranges (BULL 2017-01,
+  BEAR 2018-2020, ACCUMULATION 2020-2021); `parse_market_chart_response()` converts raw
+  API payload to candle dicts; `insert_candles()` uses `INSERT OR IGNORE` (SQLite) /
+  `ON CONFLICT DO NOTHING` (PostgreSQL) for idempotency; `seed_symbol()` catches and
+  logs HTTP errors without aborting the run; `main()` iterates all tokens × all cycles.
+- `backend/tests/scripts/test_seed_historical_data.py` — 21 TDD tests (Red→Green)
+  covering model structure, `parse_market_chart_response()`, `fetch_ohlcv()` (respx
+  mocks), `insert_candles()` (in-memory SQLite async), and `seed_symbol()` orchestration.
+
 #### Phase 7 — Backtesting Engine
 - `backend/app/backtesting/data_loader.py` — `CycleLabel` enum (BULL/BEAR/ACCUMULATION
   with pre-defined UTC date ranges); `HistoricalCandle` dataclass with `price_change_pct`
