@@ -10,9 +10,25 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+#### Phase 6 — Trailing slash redirect bug
+- `frontend/src/services/narratives.service.ts` — changed `/narratives` → `/narratives/`
+- `frontend/src/services/alerts.service.ts` — changed `/alerts` → `/alerts/`
+- `frontend/src/services/tokens.service.ts` — changed `/tokens` → `/tokens/` and
+  `/rankings/opportunities` → `/rankings/opportunities/`
+- `frontend/src/test/msw/handlers.ts` — updated all MSW handler paths to match
+  new trailing-slash URLs so the 94 frontend tests remain green
+
+  **Root cause:** FastAPI responds to requests without trailing slash with a
+  `307 Temporary Redirect → http://localhost/<path>/`. The nginx proxy strips
+  the `/api/` prefix from the `Location` header, so the axios redirect lands on
+  `http://localhost/<path>/` — a path nginx serves as the SPA, not the API.
+  Fixing the request paths at the source eliminates the redirect entirely.
+
 ### Added
 
-#### Phase 6 — API schema expansion (current session)
+#### Phase 6 — API schema expansion
 - `backend/app/api/routes/rankings.py` — Expanded `GET /rankings/opportunities`
   response from flat `OpportunityRankItem` to full `RankingOpportunitySchema`:
   nested `token: TokenWithScoreSchema` (with `latest_score`, market-data fields,

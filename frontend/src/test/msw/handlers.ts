@@ -15,6 +15,7 @@ import type {
   RankingOpportunity,
 } from "@/services/tokens.service";
 import type { Alert, AlertStats } from "@/services/alerts.service";
+import type { NarrativeCluster } from "@/services/narratives.service";
 
 // ── Shared mock data factories ─────────────────────────────────────────────
 
@@ -123,24 +124,45 @@ export const MOCK_ALERT_STATS: AlertStats = {
   unacknowledged: 15,
 };
 
+export const MOCK_NARRATIVES: NarrativeCluster[] = [
+  {
+    id: 1,
+    name: "AI & Machine Learning",
+    momentum_score: 9.2,
+    trend: "accelerating",
+    tokens: ["FET", "RNDR", "TAO"],
+    keywords: ["AI agents", "GPU compute"],
+    token_count: 3,
+  },
+  {
+    id: 2,
+    name: "Layer 2 Scaling",
+    momentum_score: 7.8,
+    trend: "stable",
+    tokens: ["ARB", "OP", "MATIC"],
+    keywords: ["rollups", "gas fees"],
+    token_count: 3,
+  },
+];
+
 // ── Handler factories (for per-test overrides) ────────────────────────────
 
 export function rankingsHandler(
   data: RankingOpportunity[] = MOCK_OPPORTUNITIES,
 ) {
-  return http.get("/api/rankings/opportunities", () =>
+  return http.get("/api/rankings/opportunities/", () =>
     HttpResponse.json(data),
   );
 }
 
 export function rankingsErrorHandler() {
-  return http.get("/api/rankings/opportunities", () =>
+  return http.get("/api/rankings/opportunities/", () =>
     HttpResponse.json({ detail: "Internal server error" }, { status: 500 }),
   );
 }
 
 export function tokensHandler(data: TokenWithScore[] = [MOCK_TOKEN_BTC]) {
-  return http.get("/api/tokens", () => HttpResponse.json(data));
+  return http.get("/api/tokens/", () => HttpResponse.json(data));
 }
 
 export function tokenDetailHandler(data: TokenWithScore = MOCK_TOKEN_BTC) {
@@ -154,7 +176,7 @@ export function tokenDetailErrorHandler() {
 }
 
 export function alertsHandler(data: Alert[] = MOCK_ALERTS) {
-  return http.get("/api/alerts", () => HttpResponse.json(data));
+  return http.get("/api/alerts/", () => HttpResponse.json(data));
 }
 
 export function alertStatsHandler(data: AlertStats = MOCK_ALERT_STATS) {
@@ -172,6 +194,16 @@ export function acknowledgeAlertHandler() {
 export function testAlertHandler() {
   return http.post("/api/alerts/test", () =>
     HttpResponse.json({ status: "ok" }),
+  );
+}
+
+export function narrativesHandler(data: NarrativeCluster[] = MOCK_NARRATIVES) {
+  return http.get("/api/narratives/", () => HttpResponse.json(data));
+}
+
+export function narrativesErrorHandler() {
+  return http.get("/api/narratives/", () =>
+    HttpResponse.json({ detail: "Internal server error" }, { status: 500 }),
   );
 }
 
@@ -202,6 +234,7 @@ export const handlers = [
   alertStatsHandler(),
   acknowledgeAlertHandler(),
   testAlertHandler(),
+  narrativesHandler(),
   tokenReportHandler(),
   marketReportHandler(),
 ];

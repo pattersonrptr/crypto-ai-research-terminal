@@ -62,7 +62,7 @@ export interface RankingsParams {
 export async function fetchTokens(
   params: TokensListParams = {},
 ): Promise<TokenWithScore[]> {
-  const res: AxiosResponse<TokenWithScore[]> = await apiClient.get("/tokens", {
+  const res: AxiosResponse<TokenWithScore[]> = await apiClient.get("/tokens/", {
     params,
   });
   return res.data;
@@ -79,7 +79,7 @@ export async function fetchRankingOpportunities(
   params: RankingsParams = {},
 ): Promise<RankingOpportunity[]> {
   const res: AxiosResponse<RankingOpportunity[]> = await apiClient.get(
-    "/rankings/opportunities",
+    "/rankings/opportunities/",
     { params },
   );
   return res.data;
