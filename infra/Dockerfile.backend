@@ -13,11 +13,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy manifest files and backend source for poetry install
-COPY pyproject.toml poetry.lock README.md ./
+COPY pyproject.toml poetry.lock README.md alembic.ini ./
 COPY backend/ ./backend/
+COPY infra/entrypoint.sh ./entrypoint.sh
 
 RUN pip install --no-cache-dir poetry==2.3.2 \
     && poetry config virtualenvs.create false \
-    && poetry install --only main --no-interaction --no-ansi
+    && poetry install --only main --no-interaction --no-ansi \
+    && chmod +x /app/entrypoint.sh
 
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["/app/entrypoint.sh"]

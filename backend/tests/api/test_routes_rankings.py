@@ -178,3 +178,85 @@ class TestGetRankingsOpportunities:
 
         assert response.status_code == 200
         assert response.json() == []
+
+    def test_get_opportunities_item_has_rank_field(self) -> None:
+        """Each ranking item must contain a 'rank' integer starting at 1."""
+        from app.api.routes.rankings import get_db  # noqa: PLC0415
+
+        rows = [
+            _make_score(1, 1, "BTC", "Bitcoin", 0.8, 0.9),
+            _make_score(2, 2, "ETH", "Ethereum", 0.7, 0.7),
+        ]
+        session = _mock_session_rows(rows)
+
+        async def _override() -> AsyncGenerator[AsyncSession, None]:
+            yield session
+
+        app.dependency_overrides[get_db] = _override
+        client = TestClient(app)
+        response = client.get("/rankings/opportunities")
+        app.dependency_overrides.clear()
+
+        data = response.json()
+        assert data[0]["rank"] == 1
+        assert data[1]["rank"] == 2
+
+    def test_get_opportunities_item_has_token_nested_object(self) -> None:
+        """Each ranking item must contain a 'token' nested object with id, symbol, name."""
+        from app.api.routes.rankings import get_db  # noqa: PLC0415
+
+        rows = [_make_score(1, 42, "BTC", "Bitcoin", 0.8, 0.9)]
+        session = _mock_session_rows(rows)
+
+        async def _override() -> AsyncGenerator[AsyncSession, None]:
+            yield session
+
+        app.dependency_overrides[get_db] = _override
+        client = TestClient(app)
+        response = client.get("/rankings/opportunities")
+        app.dependency_overrides.clear()
+
+        item = response.json()[0]
+        assert "token" in item
+        assert item["token"]["id"] == 42
+        assert item["token"]["symbol"] == "BTC"
+        assert item["token"]["name"] == "Bitcoin"
+
+    def test_get_opportunities_item_has_signals_list(self) -> None:
+        """Each ranking item must contain a 'signals' list."""
+        from app.api.routes.rankings import get_db  # noqa: PLC0415
+
+        rows = [_make_score(1, 1, "BTC", "Bitcoin", 0.8, 0.9)]
+        session = _mock_session_rows(rows)
+
+        async def _override() -> AsyncGenerator[AsyncSession, None]:
+            yield session
+
+        app.dependency_overrides[get_db] = _override
+        client = TestClient(app)
+        response = client.get("/rankings/opportunities")
+        app.dependency_overrides.clear()
+
+        item = response.json()[0]
+        assert "signals" in item
+        assert isinstance(item["signals"], list)
+
+    def test_get_opportunities_token_has_latest_score(self) -> None:
+        """The nested token must expose latest_score with fundamental and opportunity scores."""
+        from app.api.routes.rankings import get_db  # noqa: PLC0415
+
+        rows = [_make_score(1, 1, "BTC", "Bitcoin", 0.75, 0.85)]
+        session = _mock_session_rows(rows)
+
+        async def _override() -> AsyncGenerator[AsyncSession, None]:
+            yield session
+
+        app.dependency_overrides[get_db] = _override
+        client = TestClient(app)
+        response = client.get("/rankings/opportunities")
+        app.dependency_overrides.clear()
+
+        token = response.json()[0]["token"]
+        assert token["latest_score"] is not None
+        assert token["latest_score"]["fundamental_score"] == pytest.approx(0.75)
+        assert token["latest_score"]["opportunity_score"] == pytest.approx(0.85)
