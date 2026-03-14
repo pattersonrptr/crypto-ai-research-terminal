@@ -32,7 +32,7 @@ _JOB_DLQ_KEY = "scheduler:dlq:{job_name}"
 
 
 async def record_job_success(
-    redis: aioredis.Redis,
+    redis: aioredis.Redis[bytes],
     job_name: str,
     metadata: dict[str, Any] | None = None,
 ) -> None:
@@ -44,7 +44,7 @@ async def record_job_success(
         metadata: Optional extra data to store (e.g. count of processed tokens).
     """
     now = datetime.now(tz=UTC).isoformat()
-    payload: dict[str, str] = {
+    payload: dict[str | bytes, str | bytes] = {
         "last_run": now,
         "last_status": "success",
         "error_count": "0",
@@ -57,7 +57,7 @@ async def record_job_success(
 
 
 async def record_job_failure(
-    redis: aioredis.Redis,
+    redis: aioredis.Redis[bytes],
     job_name: str,
     error: str,
 ) -> None:
@@ -76,9 +76,9 @@ async def record_job_failure(
     await redis.hset(
         key,
         mapping={
-            "last_run": now,
-            "last_status": "failure",
-            "last_error": error,
+            b"last_run": now.encode(),
+            b"last_status": b"failure",
+            b"last_error": error.encode(),
         },
     )
     # Push to dead-letter queue for inspection
@@ -88,7 +88,7 @@ async def record_job_failure(
 
 
 async def get_job_status(
-    redis: aioredis.Redis,
+    redis: aioredis.Redis[bytes],
     job_name: str,
 ) -> dict[str, Any]:
     """Retrieve job health status from Redis.
@@ -113,10 +113,10 @@ async def get_job_status(
         }
 
     def _decode(field: str) -> str | None:
-        val = raw.get(field.encode()) or raw.get(field)  # type: ignore[arg-type]
+        val: bytes | None = raw.get(field.encode())
         if val is None:
             return None
-        return val.decode() if isinstance(val, bytes) else val  # type: ignore[return-value]
+        return val.decode()
 
     return {
         "job_name": job_name,
@@ -135,7 +135,7 @@ _JOB_NAME = "daily_collection_job"
 
 
 async def daily_collection_job(
-    redis: aioredis.Redis | None = None,
+    redis: aioredis.Redis[bytes] | None = None,
 ) -> None:
     """Collect market data, process, score, persist, and record health status.
 
