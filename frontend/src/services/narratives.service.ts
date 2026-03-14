@@ -27,7 +27,7 @@ export interface NarrativeCluster {
  */
 export async function fetchNarratives(): Promise<NarrativeCluster[]> {
   const res: AxiosResponse<NarrativeCluster[]> = await apiClient.get(
-    "/narratives/",
+    "/narratives",
   );
   return res.data;
 }

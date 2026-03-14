@@ -150,19 +150,19 @@ export const MOCK_NARRATIVES: NarrativeCluster[] = [
 export function rankingsHandler(
   data: RankingOpportunity[] = MOCK_OPPORTUNITIES,
 ) {
-  return http.get("/api/rankings/opportunities/", () =>
+  return http.get("/api/rankings/opportunities", () =>
     HttpResponse.json(data),
   );
 }
 
 export function rankingsErrorHandler() {
-  return http.get("/api/rankings/opportunities/", () =>
+  return http.get("/api/rankings/opportunities", () =>
     HttpResponse.json({ detail: "Internal server error" }, { status: 500 }),
   );
 }
 
 export function tokensHandler(data: TokenWithScore[] = [MOCK_TOKEN_BTC]) {
-  return http.get("/api/tokens/", () => HttpResponse.json(data));
+  return http.get("/api/tokens", () => HttpResponse.json(data));
 }
 
 export function tokenDetailHandler(data: TokenWithScore = MOCK_TOKEN_BTC) {
@@ -176,7 +176,7 @@ export function tokenDetailErrorHandler() {
 }
 
 export function alertsHandler(data: Alert[] = MOCK_ALERTS) {
-  return http.get("/api/alerts/", () => HttpResponse.json(data));
+  return http.get("/api/alerts", () => HttpResponse.json(data));
 }
 
 export function alertStatsHandler(data: AlertStats = MOCK_ALERT_STATS) {
@@ -198,11 +198,11 @@ export function testAlertHandler() {
 }
 
 export function narrativesHandler(data: NarrativeCluster[] = MOCK_NARRATIVES) {
-  return http.get("/api/narratives/", () => HttpResponse.json(data));
+  return http.get("/api/narratives", () => HttpResponse.json(data));
 }
 
 export function narrativesErrorHandler() {
-  return http.get("/api/narratives/", () =>
+  return http.get("/api/narratives", () =>
     HttpResponse.json({ detail: "Internal server error" }, { status: 500 }),
   );
 }

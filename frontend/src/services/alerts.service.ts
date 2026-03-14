@@ -41,7 +41,7 @@ export interface AlertsListParams {
 export async function fetchAlerts(
   params: AlertsListParams = {},
 ): Promise<Alert[]> {
-  const res: AxiosResponse<Alert[]> = await apiClient.get("/alerts/", {
+  const res: AxiosResponse<Alert[]> = await apiClient.get("/alerts", {
     params,
   });
   return res.data;
