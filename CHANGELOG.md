@@ -12,7 +12,74 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Added
 
-#### Alerts System (Phase 5)
+#### Frontend Scaffold (Phase 6)
+- `frontend/package.json` — React 18 + TypeScript + Vite project with all Phase 6
+  dependencies: `@tanstack/react-query` v5, `zustand` v5, `axios`, `recharts`,
+  `react-router-dom` v7, `lucide-react`, `clsx`, `tailwind-merge`, `shadcn/ui`
+  Radix primitives; dev deps: `vitest`, `@testing-library/react`, `msw`,
+  `@vitest/coverage-v8`, `typescript`, `eslint`
+- `frontend/vite.config.ts` — Vite config with `@` path alias and `/api` proxy
+  to FastAPI backend
+- `frontend/vitest.config.ts` — Vitest config with jsdom environment, 80%
+  coverage thresholds, `src/test/setup.ts` global setup
+- `frontend/tailwind.config.ts` — class-based dark mode, full design-token
+  colour system (dark default) with crypto semantic tokens: `score-high/mid/low`,
+  `risk-low/medium/high`
+- `frontend/src/index.css` — Tailwind base layers + CSS custom properties for
+  dark (default) and light themes; all colours defined as HSL components
+- `frontend/src/App.tsx` — Root component: `QueryClientProvider` + `ThemeProvider`
+  + `BrowserRouter` + `Routes` (/, /tokens/:symbol, /alerts, /narratives)
+- `frontend/src/lib/utils.ts` — `cn()` (clsx + tailwind-merge), `formatUsd`,
+  `formatScore`, `formatPct`, `scoreColour`, `riskColour` helpers
+- `frontend/src/store/themeStore.ts` — Zustand store (persisted): `dark` | `light`
+  | `system` modes; OS media-query listener; applies class to `<html>`
+- `frontend/src/store/sidebarStore.ts` — Zustand store (persisted): sidebar
+  open/closed state with `toggle()`, `open()`, `close()` actions
+- `frontend/src/store/tableStore.ts` — Zustand store (persisted): 13 configurable
+  column definitions with `toggleColumn()` and `resetColumns()`; custom
+  localStorage serialiser for `Set<ColumnId>`
+- `frontend/src/services/api.ts` — Central Axios instance with timeout and
+  response error interceptor; reads `VITE_API_BASE_URL`
+- `frontend/src/services/tokens.service.ts` — `fetchTokens`, `fetchToken`,
+  `fetchRankingOpportunities` with typed `TokenWithScore`, `RankingOpportunity`
+  interfaces mirroring backend Pydantic schemas
+- `frontend/src/services/alerts.service.ts` — `fetchAlerts`, `fetchAlertStats`,
+  `acknowledgeAlert`, `sendTestAlert` with full `Alert` and `AlertStats` types
+- `frontend/src/services/reports.service.ts` — `fetchTokenReport`,
+  `fetchMarketReport` (markdown or PDF blob), `downloadPdf` browser helper
+- `frontend/src/components/layout/ThemeProvider.tsx` — Applies stored theme on
+  mount; syncs `<html>` class on mode changes
+- `frontend/src/components/layout/AppShell.tsx` — Root layout: sidebar + topbar
+  + scrollable main content area
+- `frontend/src/components/layout/Sidebar.tsx` — Retractable vertical nav;
+  collapse state persisted to localStorage; full keyboard/aria support
+- `frontend/src/components/layout/TopBar.tsx` — Fixed header with light/dark/
+  system theme toggle buttons (`aria-pressed`)
+- `frontend/src/components/layout/PageHeader.tsx` — Reusable page heading with
+  optional description and actions slot
+- `frontend/src/features/tokens/components/TokenCard.tsx` — Airy token card:
+  rank, symbol, name, category badge, 5 score pillars, market metrics, signal
+  chips; links to `/tokens/:symbol`; aria-label on the link
+- `frontend/src/pages/Home.tsx` — Rankings page: 10 cards per page,
+  animated skeleton loaders, numbered pagination nav, error state
+- `frontend/src/pages/TokenDetail.tsx` — Token detail: Recharts `RadarChart`
+  (5 pillars), score progress bars, market metrics grid, MD + PDF download buttons
+- `frontend/src/pages/Alerts.tsx` — Stub page (Phase 6 wiring pending)
+- `frontend/src/pages/Narratives.tsx` — Stub page (Phase 6 wiring pending)
+- `.github/instructions/react-frontend.instructions.md` — Expanded Testing
+  section: full TDD Red→Green→Refactor cycle, MSW for API mocking, 80% coverage
+  requirement, co-located test naming conventions
+- `.github/copilot-instructions.md` — TDD section now explicitly covers both
+  backend and frontend; testing policy split into backend/frontend bullets with
+  MSW called out; `vitest run --coverage` added as commit gate
+
+### Tests
+- `frontend/src/features/tokens/components/TokenCard.test.tsx` — 10 Vitest +
+  React Testing Library tests (TDD cycle: RED → GREEN → REFACTOR); covers symbol,
+  name, rank, score, category, signals, detail link, market cap, 7d change,
+  null-score placeholder; **10/10 passing**
+
+
 - `app/alerts/alert_formatter.py` — `AlertFormatter`: formats alerts for Telegram
   delivery; `AlertType` enum (8 types: LISTING_CANDIDATE, WHALE_ACCUMULATION,
   RUGPULL_RISK, MANIPULATION_DETECTED, TOKEN_UNLOCK_SOON, NARRATIVE_EMERGING,

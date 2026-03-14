@@ -112,6 +112,33 @@ uvicorn backend.app.main:app --reload
 # API docs: http://localhost:8000/docs
 ```
 
+### 8 — Start the frontend (Phase 6+)
+
+```bash
+cd frontend
+npm install       # first time only
+npm run dev       # http://localhost:3000
+```
+
+> The Vite dev server proxies `/api` → `http://localhost:8000`, so no CORS
+> configuration is needed for local development.
+
+#### Frontend environment variable
+
+```bash
+# frontend/.env.local  (optional — only if backend runs on a non-default port)
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+#### Running frontend tests
+
+```bash
+cd frontend
+npm test                   # single run
+npm run test:watch         # watch mode
+npm run test:coverage      # with coverage report (must reach 80%)
+```
+
 ---
 
 ## Running locally
