@@ -28,6 +28,12 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Added
 
+#### Phase 6 — Docker seed service
+- `infra/docker-compose.yml` — added `db-seed` service: reuses `Dockerfile.backend`
+  image, runs `python /app/backend/scripts/seed_data.py` on every `docker compose up`,
+  `restart: "no"` so it exits after seeding; idempotent (skips if tokens already exist);
+  depends on `postgres: healthy` + `backend: healthy`
+
 #### Phase 6 — API schema expansion
 - `backend/app/api/routes/rankings.py` — Expanded `GET /rankings/opportunities`
   response from flat `OpportunityRankItem` to full `RankingOpportunitySchema`:

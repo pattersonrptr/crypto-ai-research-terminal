@@ -155,7 +155,7 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 
 ---
 
-## Phase 6 — React Dashboard (target: ~2–3 weeks) 🔄 IN PROGRESS
+## Phase 6 — React Dashboard (target: ~2–3 weeks) ✅ COMPLETE
 
 ### Scaffold (PR #7 — merged ✅)
 - ✅ `frontend/` setup: React 18 + TypeScript + Vite + TailwindCSS (dark default, light/system toggle)
@@ -168,19 +168,34 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 - ✅ `TokenDetail` page — Recharts radar chart, score bars, market metrics, MD+PDF download
 - ✅ Stub pages: Alerts, Narratives
 
-### Remaining — connect to FastAPI + more TDD
-- 🔲 MSW (Mock Service Worker) setup — `src/test/msw/handlers.ts` + server config
-- 🔲 `Home` page tests — loading, error, pagination (MSW mocks)
-- 🔲 `TokenDetail` page tests — renders radar, scores, download buttons (MSW mocks)
-- 🔲 `Sidebar` tests — renders nav links, toggle open/close, persists state
-- 🔲 `TopBar` tests — theme buttons change `<html>` class
-- 🔲 `ColumnPicker` component + tests — toggle columns on/off, reset
-- 🔲 `Alerts` page — full feed, acknowledge button, stats, wired to `GET /alerts`
-- 🔲 `Narratives` page — narrative cards + momentum chart, wired to backend
-- 🔲 End-to-end: start backend + frontend, verify full data flow
-- 🔲 `vitest run --coverage` → 80%+ on all frontend modules
+### TDD + wiring (current session) ✅
+- ✅ MSW (Mock Service Worker) setup — `src/test/msw/handlers.ts` + server config
+- ✅ `Home` page tests — 10/10 (loading, error, pagination with MSW mocks)
+- ✅ `TokenDetail` page tests — 13/13 (radar, scores, download buttons with MSW mocks)
+- ✅ `Sidebar` tests — 10/10 (nav links, toggle open/close, persists state via localStorage polyfill)
+- ✅ `TopBar` tests — 10/10 (theme buttons change `<html>` class, matchMedia polyfill)
+- ✅ `ColumnPicker` component + tests — 11/11 (toggle columns, reset, click-outside close)
+- ✅ `Alerts` page — full feed, acknowledge button, stats bar, filter, wired to `GET /alerts` — 10/10 tests
+- ✅ `Narratives` page — narrative cards with trend/momentum/tokens/keywords, wired to `GET /narratives` — 10/10 tests
+- ✅ `narratives.service.ts` — `fetchNarratives()` — 5/5 tests
+- ✅ Backend `GET /narratives` — 10 seed narratives, 10/10 tests
+- ✅ `vitest run --coverage` → 96.9% statements, all modules ≥80% (94 tests total)
 
-**Deliverable:** Local visual dashboard fully wired to FastAPI.
+### Docker + infra ✅
+- ✅ `infra/Dockerfile.frontend` — multi-stage: Node 22 builder + nginx 1.27 runner
+- ✅ `infra/nginx/nginx.conf` — SPA fallback + `/api` proxy to backend container
+- ✅ `infra/docker-compose.yml` — added `frontend` service; fixed backend healthcheck
+  (`python urllib` instead of `wget`); fixed backend `CMD` (`app.main:app`); removed
+  `profiles: [full]` so backend starts by default
+- ✅ `infra/docker-compose.yml` — added `db-seed` service: runs `seed_data.py` once on
+  every `docker compose up`, idempotent (skips if data already exists), `restart: "no"`
+- ✅ `frontend/package.json` — added `build:docker` script (Vite only, no `tsc -b`)
+- ✅ Fixed trailing-slash redirect bug: all `apiClient` paths now include trailing `/`
+  so FastAPI's 307 redirect is never triggered through the nginx proxy
+- ✅ Verified: `docker compose up -d` → all services healthy, tokens/rankings/narratives
+  render in browser, alerts page shows empty state (no data yet — expected)
+
+**Deliverable:** Full stack running in containers — `docker compose up` is all that is needed.
 
 ---
 
