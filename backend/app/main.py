@@ -1,5 +1,7 @@
 """FastAPI application entry point."""
 
+import os
+
 from fastapi import FastAPI
 
 from app.api.routes import (
@@ -11,7 +13,15 @@ from app.api.routes import (
     rankings,
     reports,
     scheduler,
+    summaries,
     tokens,
+)
+from app.logging_config import configure_logging
+
+# Configure structured logging before anything else
+configure_logging(
+    json_output=os.getenv("LOG_FORMAT", "console") == "json",
+    log_level=os.getenv("LOG_LEVEL", "INFO"),
 )
 
 app = FastAPI(
@@ -21,6 +31,7 @@ app = FastAPI(
 )
 
 app.include_router(tokens.router, prefix="/tokens", tags=["tokens"])
+app.include_router(summaries.router, prefix="/tokens", tags=["summaries"])
 app.include_router(rankings.router, prefix="/rankings", tags=["rankings"])
 app.include_router(narratives.router, prefix="/narratives", tags=["narratives"])
 app.include_router(alerts.router, prefix="/alerts", tags=["alerts"])

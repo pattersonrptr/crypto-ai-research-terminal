@@ -10,6 +10,56 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Added (Optional Enhancements — All Deferred Items Completed)
+
+- **PipelineScorer** (`backend/app/scoring/pipeline_scorer.py`):
+  Central orchestrator that wires real scorers (`GrowthScorer`, `RiskScorer`,
+  `ListingScorer`) with heuristic fallbacks based on data availability.
+  `PipelineScorerResult` dataclass holds 9 sub-scores + source tracking.
+  Category-based `NarrativeScorer` (no LLM required). `CycleLeaderModel`
+  integration loads XGBoost model from pickle when available.
+  31 tests in `test_pipeline_scorer.py`.
+- **FundamentalScorer 5-pillar upgrade** (`backend/app/scoring/fundamental_scorer.py`):
+  New `sub_pillar_score()` static method — 5 equally-weighted pillars
+  (technology, tokenomics, adoption, dev_activity, narrative) at 20% each.
+  Original `score()` preserved for backward compatibility. 7 new tests.
+- **AI summary cache** (`backend/app/models/ai_analysis.py`,
+  `backend/app/ai/summary_cache_service.py`, `backend/app/api/routes/summaries.py`):
+  `AiAnalysis` ORM model for `ai_analyses` table. `SummaryCacheService` with
+  TTL-based freshness check, serialisation, and parse. `GET /tokens/{symbol}/summary`
+  endpoint serves cached AI summaries. Alembic migration `f5a6b7c8d9e0`.
+  13 tests across model, service, and API route.
+- **PriceCorrelationBuilder** (`backend/app/graph/price_correlation.py`):
+  Computes pairwise Pearson correlation from price time-series. Creates graph
+  edges where correlation exceeds configurable threshold (default 0.7). Supports
+  absolute-value mode for anti-correlated pairs. 9 tests.
+- **Ecosystem growth tracking** (`backend/app/graph/ecosystem_tracker.py`):
+  New `growth_summary()` method compares two graph snapshots — reports
+  total tokens, net growth, community count changes, and trend classification
+  (growing/shrinking/stable). 5 new tests (22 total for ecosystem_tracker).
+- **Structured logging** (`backend/app/logging_config.py`):
+  `configure_logging()` with JSON/console output modes, configurable log level.
+  Wired into `main.py` at startup via `LOG_FORMAT` and `LOG_LEVEL` env vars.
+  Docker log rotation in `docker-compose.prod.yml` (json-file driver, 50 MB × 5).
+  5 tests.
+
+### Changed
+
+- **Scheduler pipeline** (`backend/app/scheduler/jobs.py`):
+  `daily_collection_job` now uses `PipelineScorer.score()` before
+  `FundamentalScorer.sub_pillar_score()` (was `FundamentalScorer.score()` +
+  `HeuristicSubScorer.score()`). Sub-scores from real scorers feed into the
+  5-pillar fundamental model.
+- **Docker production config** (`infra/docker-compose.prod.yml`):
+  Added `LOG_FORMAT: json` environment variable and `logging:` driver config
+  (json-file, max-size 50 MB, max-file 5) to backend service.
+
+### Tests
+
+- **70 new backend tests** (1109 total, up from 1039). All passing.
+- **144 frontend tests** — unchanged, all passing.
+- Quality checks clean: ruff, mypy, bandit.
+
 ### Added (Phase 12 — Backtesting Validation)
 
 - **HistoricalSnapshot model** (`backend/app/models/historical_snapshot.py`):

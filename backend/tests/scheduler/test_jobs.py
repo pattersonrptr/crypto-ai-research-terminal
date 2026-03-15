@@ -87,30 +87,31 @@ class TestDailyCollectionJob:
 
     @pytest.mark.asyncio
     async def test_daily_collection_job_calls_fundamental_scorer(self) -> None:
-        """daily_collection_job must call FundamentalScorer.score() for each token."""
+        """daily_collection_job must call FundamentalScorer.sub_pillar_score() for each token."""
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
 
         cls_mock, _ = _make_collector_mock()
         with (
             patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs.MarketProcessor") as mock_processor,
+            patch("app.scheduler.jobs.PipelineScorer"),
             patch("app.scheduler.jobs.FundamentalScorer") as mock_scorer,
             patch("app.scheduler.jobs.OpportunityEngine"),
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
         ):
             mock_processor.process = MagicMock(return_value=_PROCESSED)
-            mock_scorer.score = MagicMock(return_value=0.75)
+            mock_scorer.sub_pillar_score = MagicMock(return_value=0.75)
             await daily_collection_job()
 
-        mock_scorer.score.assert_called_once()
+        mock_scorer.sub_pillar_score.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_daily_collection_job_calls_opportunity_engine(self) -> None:
         """daily_collection_job must call full_composite_score for each token."""
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
-        from app.scoring.heuristic_sub_scorer import SubScoreResult
+        from app.scoring.pipeline_scorer import PipelineScorerResult
 
-        sub = SubScoreResult(
+        sub = PipelineScorerResult(
             technology_score=0.5,
             tokenomics_score=0.5,
             adoption_score=0.5,
@@ -125,14 +126,14 @@ class TestDailyCollectionJob:
         with (
             patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs.MarketProcessor") as mock_processor,
+            patch("app.scheduler.jobs.PipelineScorer") as mock_pipeline,
             patch("app.scheduler.jobs.FundamentalScorer") as mock_scorer,
-            patch("app.scheduler.jobs.HeuristicSubScorer") as mock_sub,
             patch("app.scheduler.jobs.OpportunityEngine") as mock_engine,
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
         ):
             mock_processor.process = MagicMock(return_value=_PROCESSED)
-            mock_scorer.score = MagicMock(return_value=0.75)
-            mock_sub.score = MagicMock(return_value=sub)
+            mock_pipeline.score = MagicMock(return_value=sub)
+            mock_scorer.sub_pillar_score = MagicMock(return_value=0.75)
             mock_engine.full_composite_score = MagicMock(return_value=0.75)
             await daily_collection_job()
 
@@ -149,9 +150,9 @@ class TestDailyCollectionJob:
     async def test_daily_collection_job_calls_persist(self) -> None:
         """daily_collection_job must call _persist_results with the scored results."""
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
-        from app.scoring.heuristic_sub_scorer import SubScoreResult
+        from app.scoring.pipeline_scorer import PipelineScorerResult
 
-        sub = SubScoreResult(
+        sub = PipelineScorerResult(
             technology_score=0.5,
             tokenomics_score=0.5,
             adoption_score=0.5,
@@ -166,14 +167,14 @@ class TestDailyCollectionJob:
         with (
             patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs.MarketProcessor") as mock_processor,
+            patch("app.scheduler.jobs.PipelineScorer") as mock_pipeline,
             patch("app.scheduler.jobs.FundamentalScorer") as mock_scorer,
-            patch("app.scheduler.jobs.HeuristicSubScorer") as mock_sub,
             patch("app.scheduler.jobs.OpportunityEngine") as mock_engine,
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock) as mock_persist,
         ):
             mock_processor.process = MagicMock(return_value=_PROCESSED)
-            mock_scorer.score = MagicMock(return_value=0.75)
-            mock_sub.score = MagicMock(return_value=sub)
+            mock_pipeline.score = MagicMock(return_value=sub)
+            mock_scorer.sub_pillar_score = MagicMock(return_value=0.75)
             mock_engine.full_composite_score = MagicMock(return_value=0.82)
             await daily_collection_job()
 

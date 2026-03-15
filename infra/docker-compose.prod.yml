@@ -41,9 +41,15 @@ services:
     restart: always
     environment:
       LOG_LEVEL: info
+      LOG_FORMAT: json
       ENVIRONMENT: production
     # No bind mounts — image already contains the code
     volumes: []
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     deploy:
       resources:
         limits:

@@ -1,7 +1,10 @@
-"""FundamentalScorer — static-weight fundamental score for Phase 1.
+"""FundamentalScorer — static-weight fundamental score.
 
-No LLM involved at this phase. Weights will be tuned in later phases once
-historical data is available for calibration.
+Phase 1: 4-metric market-data scorer (``score()``).
+Phase 9: 5-sub-pillar model (``sub_pillar_score()``): technology, tokenomics,
+         adoption, dev_activity, narrative — each weighted 20%.
+
+No LLM involved. Weights can be tuned via Phase 12 backtesting.
 """
 
 from typing import Any
@@ -9,13 +12,16 @@ from typing import Any
 from app.exceptions import ScoringError
 from app.processors.normalizer import clamp, min_max_normalize
 
-# Static weights that sum to 1.0
+# Phase 1 — static weights that sum to 1.0
 _WEIGHTS = {
     "volume_mcap_ratio": 0.30,
     "price_velocity": 0.25,
     "ath_distance_pct": 0.25,
     "market_cap_usd": 0.20,
 }
+
+# Phase 9 — 5-sub-pillar equal weights (sum to 1.0)
+_SUB_PILLAR_WEIGHT = 0.20
 
 # Rough upper bounds used for normalisation (percentile-based heuristics)
 _VOLUME_MCAP_MAX = 1.0  # ratio: 100 % turnover is the ceiling
@@ -65,4 +71,48 @@ class FundamentalScorer:
             + _WEIGHTS["ath_distance_pct"] * ath_norm
             + _WEIGHTS["market_cap_usd"] * mcap_norm
         )
+        return clamp(composite, 0.0, 1.0)
+
+    @staticmethod
+    def sub_pillar_score(
+        *,
+        technology: float,
+        tokenomics: float,
+        adoption: float,
+        dev_activity: float,
+        narrative: float,
+    ) -> float:
+        """Return a fundamental score from 5 sub-pillars, each weighted 20%.
+
+        This is the Phase 9 upgrade to the original 4-metric model.
+        The sub-pillar scores typically come from ``PipelineScorer`` (which
+        delegates to ``HeuristicSubScorer`` or real scorers).
+
+        Args:
+            technology:  Technology quality score in [0, 1].
+            tokenomics:  Tokenomics health score in [0, 1].
+            adoption:    Adoption / usage score in [0, 1].
+            dev_activity: Developer activity score in [0, 1].
+            narrative:   Narrative / trend alignment score in [0, 1].
+
+        Returns:
+            Weighted composite in [0, 1].
+
+        Raises:
+            ScoringError: If any input is outside [0, 1].
+        """
+        pillars = {
+            "technology": technology,
+            "tokenomics": tokenomics,
+            "adoption": adoption,
+            "dev_activity": dev_activity,
+            "narrative": narrative,
+        }
+        for name, value in pillars.items():
+            if not 0.0 <= value <= 1.0:
+                raise ScoringError(
+                    f"FundamentalScorer.sub_pillar_score: {name} must be in [0, 1], got {value}"
+                )
+
+        composite = sum(v * _SUB_PILLAR_WEIGHT for v in pillars.values())
         return clamp(composite, 0.0, 1.0)
