@@ -311,6 +311,88 @@ export function backtestRunErrorHandler() {
   );
 }
 
+// ── Validation mock data ──────────────────────────────────────────────────
+
+export interface TokenBreakdownItem {
+  symbol: string;
+  model_rank: number;
+  model_score: number;
+  actual_multiplier: number;
+  is_winner: boolean;
+}
+
+export interface ValidateResult {
+  precision_at_k: number;
+  recall_at_k: number;
+  hit_rate: number;
+  k: number;
+  winner_threshold: number;
+  n_total_tokens: number;
+  n_winners: number;
+  model_is_useful: boolean;
+  token_breakdown: TokenBreakdownItem[];
+}
+
+export const MOCK_VALIDATE_RESULT: ValidateResult = {
+  precision_at_k: 0.8,
+  recall_at_k: 0.6,
+  hit_rate: 0.7,
+  k: 10,
+  winner_threshold: 5.0,
+  n_total_tokens: 15,
+  n_winners: 12,
+  model_is_useful: true,
+  token_breakdown: [
+    { symbol: "SOL", model_rank: 1, model_score: 0.88, actual_multiplier: 320.0, is_winner: true },
+    { symbol: "AVAX", model_rank: 2, model_score: 0.85, actual_multiplier: 55.0, is_winner: true },
+    { symbol: "MATIC", model_rank: 3, model_score: 0.82, actual_multiplier: 95.0, is_winner: true },
+    { symbol: "LINK", model_rank: 4, model_score: 0.78, actual_multiplier: 12.0, is_winner: true },
+    { symbol: "UNI", model_rank: 5, model_score: 0.75, actual_multiplier: 18.0, is_winner: true },
+  ],
+};
+
+export interface CalibrateResult {
+  best_weights: {
+    fundamental: number;
+    growth: number;
+    narrative: number;
+    listing: number;
+    risk: number;
+  };
+  best_precision_at_k: number;
+  n_combinations_tested: number;
+  improved: boolean;
+}
+
+export const MOCK_CALIBRATE_RESULT: CalibrateResult = {
+  best_weights: {
+    fundamental: 0.40,
+    growth: 0.20,
+    narrative: 0.20,
+    listing: 0.10,
+    risk: 0.10,
+  },
+  best_precision_at_k: 0.85,
+  n_combinations_tested: 56,
+  improved: true,
+};
+
+// ── Validation handler factories ──────────────────────────────────────────
+
+export function backtestValidateHandler(data: ValidateResult = MOCK_VALIDATE_RESULT) {
+  return http.post("/api/backtesting/validate", () => HttpResponse.json(data));
+}
+
+export function backtestValidateErrorHandler() {
+  return http.post("/api/backtesting/validate", () =>
+    HttpResponse.json({ detail: "Validation failed" }, { status: 500 }),
+  );
+}
+
+export function backtestCalibrateHandler(data: CalibrateResult = MOCK_CALIBRATE_RESULT) {
+  return http.post("/api/backtesting/calibrate", () => HttpResponse.json(data));
+}
+
 // ── Market cycle mock data ────────────────────────────────────────────────
 
 export const MOCK_MARKET_CYCLE: MarketCycleResponse = {
@@ -356,5 +438,7 @@ export const handlers = [
   graphCentralityHandler(),
   graphEcosystemHandler(),
   backtestRunHandler(),
+  backtestValidateHandler(),
+  backtestCalibrateHandler(),
   marketCycleHandler(),
 ];

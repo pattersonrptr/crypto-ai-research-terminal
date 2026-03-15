@@ -3,6 +3,7 @@
 from app.models.alert import Alert
 from app.models.dev_activity import DevActivity
 from app.models.historical_candle import HistoricalCandle
+from app.models.historical_snapshot import HistoricalSnapshot
 from app.models.market_data import MarketData
 from app.models.narrative import NarrativeCluster
 from app.models.score import TokenScore
@@ -14,6 +15,7 @@ __all__ = [
     "Alert",
     "DevActivity",
     "HistoricalCandle",
+    "HistoricalSnapshot",
     "MarketData",
     "NarrativeCluster",
     "TokenScore",
