@@ -10,6 +10,53 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Added (Phase 11 — Alert Generation)
+
+- **AlertEvaluator** (`backend/app/alerts/alert_evaluator.py`):
+  Bridges scored pipeline data → `AlertRuleEngine` → `Alert` ORM objects.
+  Maps pipeline keys to rule keys with scale conversion
+  (`listing_probability` 0–1 → `listing_score` 0–100, etc.).
+  `evaluate_batch()` processes all pipeline results in one call.
+- **Alert model upgrade** (`backend/app/models/alert.py`):
+  New columns — `alert_metadata` (JSONB, Python attr mapped to `metadata` DB col
+  to avoid SQLAlchemy reserved name conflict), `sent_telegram` (Boolean),
+  `acknowledged` (Boolean), `acknowledged_at` (DateTime tz), `token_symbol`
+  (String20). `token_id` made nullable for system-level alerts.
+- **Alembic migration** `d4e5f6a7b8c9`: ALTER `token_id` nullable, ADD
+  `token_symbol`, `metadata` (JSONB), `sent_telegram`, `acknowledged`,
+  `acknowledged_at`, CREATE INDEX `ix_alerts_alert_type`
+- **Alerts API rewrite** (`backend/app/api/routes/alerts.py`):
+  Replaced in-memory `_alerts_store` with full DB-backed async routes.
+  `AlertResponse` schema maps `alert_metadata` → `metadata` and
+  `triggered_at` → `created_at` for frontend compatibility.
+  Endpoints: `GET /` (list with limit/type/acknowledged filters),
+  `GET /stats`, `GET /{alert_id}`, `POST /test`, `PUT /{alert_id}/acknowledge`
+- **Pipeline alert wiring** (`backend/app/scheduler/jobs.py`):
+  `evaluate_and_persist_alerts()` called after scoring in `daily_collection_job`.
+  Failure isolated — alert errors do not break the collection pipeline.
+- **Pipeline narrative wiring** (`backend/app/scheduler/jobs.py`):
+  Added narrative build+persist step to `daily_collection_job` via
+  `build_narrative_snapshot_from_categories()`. Failure isolated.
+- **Daily digest** (`backend/app/scheduler/digest.py`):
+  `build_digest()` summarises fired alerts into a DAILY_REPORT alert with
+  type breakdown in `alert_metadata`. `send_daily_digest()` formats via
+  `AlertFormatter` and sends via `TelegramBot`.
+- **34 new backend tests** (958 total, 93.5% coverage); **133 frontend tests**
+  (unchanged, all passing)
+
+### Removed (Phase 11)
+
+- **`_SEED_NARRATIVES`** from `GET /narratives` route: hardcoded fallback data
+  removed. Endpoint now returns live DB data or empty list. Tests updated to
+  mock `fetch_latest_narratives` for deterministic assertions.
+
+### Fixed (Phase 11)
+
+- **SQLAlchemy `metadata` reserved name conflict**: Alert model column named
+  `metadata` conflicted with `Base.metadata`. Fixed by using `alert_metadata`
+  as the Python attribute with `mapped_column("metadata", JSONB)`.
+- **Missing `__init__.py`** in `backend/tests/api/routes/` caused import failures.
+
 ### Added (Phase 10 — Live Narratives + Cycle Detection)
 
 - **CycleDetector** (`backend/app/analysis/cycle_detector.py`):

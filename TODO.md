@@ -244,10 +244,10 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 - ✅ `collectors/defillama_collector.py` — TVL, TVL evolution 30d/90d, chains, DEX volume, revenue
 - ✅ `collectors/social_collector.py` — extend with Twitter/X real-time mentions + sentiment
   (key: `TWITTER_BEARER_TOKEN` — Basic plan required ~$100/month)
-- 🔲 Wire live `NarrativeDetector` pipeline to replace seed data in `GET /narratives`
-  → **Moved to Phase 10** (requires real social data + cycle detection first)
-- 🔲 Wire live `AlertRuleEngine` to scheduler so alerts fire automatically
-  → **Moved to Phase 11** (requires full scoring pipeline first)
+- ✅ Wire live `NarrativeDetector` pipeline to replace seed data in `GET /narratives`
+  → done in Phase 11 (narrative snapshot wired into daily pipeline)
+- ✅ Wire live `AlertRuleEngine` to scheduler so alerts fire automatically
+  → done in Phase 11 (AlertEvaluator wired into daily pipeline)
 
 ### Scheduler Hardening
 - ✅ Wire `scheduler/jobs.py` full pipeline: collect → process → score → persist → alert
@@ -265,10 +265,8 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 
 ### Frontend — Live Data Pages
 - ✅ Dashboard refresh interval (polling 30s) for real-time score updates
-- 🔲 `Narratives` page — replace seed data with live `NarrativeDetector` output
-  → **Moved to Phase 10**
-- 🔲 `Alerts` page — real alerts from the rule engine (currently empty state)
-  → **Moved to Phase 11**
+- ✅ `Narratives` page — live data from `NarrativePersister` pipeline (Phase 11)
+- ✅ `Alerts` page — real alerts from the rule engine (Phase 11)
 
 ### Production Infrastructure
 - ✅ `infra/docker-compose.prod.yml` — production overrides (no bind mounts, resource limits)
@@ -375,8 +373,7 @@ possible.
 - ✅ `NarrativeTrendAnalyzer.compare()` — compares current vs previous snapshot → trend
   (`accelerating`, `growing`, `stable`, `declining`)
 - ✅ Scheduler jobs: `persist_narrative_snapshot()` + `build_narrative_snapshot_from_categories()`
-- 🔲 Remove `_SEED_NARRATIVES` fallback from `GET /narratives` once live data flows
-  → deferred: requires wiring `NarrativePersister` into narratives route (Phase 11)
+- ✅ Remove `_SEED_NARRATIVES` fallback from `GET /narratives` — done in Phase 11
 
 ### Cycle detection
 - ✅ `app/analysis/cycle_detector.py` — `CycleDetector.classify()` with weighted-vote:
@@ -420,7 +417,7 @@ pipeline integration. 924 backend tests (92.9% coverage), 133 frontend tests.
 
 ---
 
-## Phase 11 — Alert Generation (target: ~1–2 weeks)
+## Phase 11 — Alert Generation ✅ COMPLETE
 
 > Goal: Alerts page shows real fired alerts. Telegram notifications working.
 > The system proactively warns about opportunities and risks.
@@ -428,33 +425,49 @@ pipeline integration. 924 backend tests (92.9% coverage), 133 frontend tests.
 ### Problem statement
 `AlertRuleEngine` and 7 concrete alert rules exist in code but are never called.
 The scheduler pipeline ends at `_persist_results`. No alerts are ever generated.
-The Alerts page is always empty.
+The Alerts page is always empty. Narratives route still uses `_SEED_NARRATIVES`
+hardcoded fallback.
 
 ### Wire alert generation into pipeline
-- 🔲 Call `AlertRuleEngine.evaluate()` after scoring in `daily_collection_job`
-- 🔲 Persist fired alerts to `alerts` table with full metadata
-- 🔲 Send high-urgency alerts to Telegram via `TelegramBot`
+- ✅ `AlertEvaluator` service bridges scored pipeline data → `AlertRuleEngine` →
+  `Alert` ORM objects with key/scale mapping (`listing_probability` 0–1 → 0–100, etc.)
+- ✅ `evaluate_and_persist_alerts()` in `scheduler/jobs.py` — called after scoring
+- ✅ Persist fired alerts to `alerts` table with full JSONB metadata
+- ✅ Send high-urgency alerts to Telegram via `TelegramBot` (optional, env-based)
 
-### Alert rules (threshold-based, from scores)
-- 🔲 `LISTING_CANDIDATE`: `listing_probability > 0.70`
-- 🔲 `WHALE_ACCUMULATION`: whale tracker detects accumulation pattern
-- 🔲 `NARRATIVE_EMERGING`: new narrative cluster with `momentum_score > threshold`
-- 🔲 `RUGPULL_RISK`: `risk_score < 0.30` (dangerous zone)
-- 🔲 `TOKEN_UNLOCK_SOON`: tokenomics risk detects >5% unlock in 30 days
-- 🔲 `MANIPULATION_DETECTED`: manipulation detector flags wash trading / pump-dump
-- 🔲 `MEMECOIN_HYPE_DETECTED`: social growth > 500% in 48h
+### Alert model upgrade
+- ✅ Alert model: new columns — `alert_metadata` (JSONB, mapped from `metadata` DB col),
+  `sent_telegram`, `acknowledged`, `acknowledged_at`, `token_symbol`; `token_id` nullable
+- ✅ Alembic migration `d4e5f6a7b8c9`: ALTER + ADD columns + index on `alert_type`
+
+### Alerts API rewrite
+- ✅ Replaced in-memory `_alerts_store` with DB-backed async routes
+- ✅ Response schema: `AlertResponse` (maps `alert_metadata` → `metadata`,
+  `triggered_at` → `created_at` for frontend compatibility)
+- ✅ Endpoints: `GET /` (list with limit/type/acknowledged filters),
+  `GET /stats`, `GET /{alert_id}`, `POST /test`, `PUT /{alert_id}/acknowledge`
+
+### Wire narratives into pipeline
+- ✅ Added narrative build+persist step to `daily_collection_job`
+- ✅ Removed `_SEED_NARRATIVES` hardcoded fallback from `GET /narratives`
+  (endpoint returns empty list when DB has no data)
 
 ### Daily digest
-- 🔲 Generate `DAILY_REPORT` alert with top 10 movers, new alerts summary
-- 🔲 Send daily digest to Telegram at configured hour
+- ✅ `scheduler/digest.py` — `build_digest()` summarises alerts into DAILY_REPORT
+- ✅ `send_daily_digest()` — formats via `AlertFormatter` + sends via `TelegramBot`
 
-### Tests (TDD)
-- 🔲 Tests for alert generation from real scores
-- 🔲 Tests for Telegram delivery
-- 🔲 Tests for daily digest formatting
+### Tests (TDD) — 34 new tests, 958 backend total
+- ✅ Alert model tests (5 tests — columns, defaults, nullable token_id)
+- ✅ AlertEvaluator tests (8 tests — thresholds, metadata, batch, token_id)
+- ✅ Alerts API tests (12 tests — list/filter/shape, get by id, test alert, acknowledge, stats)
+- ✅ Pipeline alert integration tests (2 tests — evaluator called, failure isolation)
+- ✅ Pipeline narrative integration tests (2 tests — snapshot called, failure isolation)
+- ✅ Daily digest tests (5 tests — build, empty, metadata, telegram, skip)
+- ✅ Narrative route tests updated (12 tests — live data mock, empty list on no DB data)
 
 **Deliverable:** Alerts fire automatically from real data. Telegram receives
-notifications. User sees actionable alerts in the dashboard.
+notifications. User sees actionable alerts in the dashboard. Narratives served
+from live DB data. 958 backend tests (93.5% coverage), 133 frontend tests.
 
 ---
 

@@ -1,51 +1,51 @@
-"""Alerts route handlers.
+"""Alerts route handlers — persisted to PostgreSQL.
 
 Provides endpoints for managing and viewing alerts:
-- GET /alerts - List all alerts with filtering
-- GET /alerts/stats - Get alert statistics
-- GET /alerts/{id} - Get single alert
-- POST /alerts/test - Send test alert
-- PUT /alerts/{id}/acknowledge - Acknowledge alert
+- GET /alerts — List all alerts with filtering
+- GET /alerts/stats — Get alert statistics
+- GET /alerts/{id} — Get single alert
+- POST /alerts/test — Send test alert via Telegram
+- PUT /alerts/{id}/acknowledge — Acknowledge alert
 """
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
-from typing import Any
+from typing import Annotated, Any
 
 import structlog
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.alerts.alert_formatter import AlertType
 from app.alerts.telegram_bot import TelegramBot
 from app.config import settings
+from app.db.session import get_db
+from app.models.alert import Alert
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
 
-# In-memory storage for demo (replace with DB in production)
-_alerts_store: list[dict[str, Any]] = []
-_alert_id_counter = 0
+DbDep = Annotated[AsyncSession, Depends(get_db)]
 
 
-def _get_next_id() -> int:
-    """Get next alert ID."""
-    global _alert_id_counter
-    _alert_id_counter += 1
-    return _alert_id_counter
-
-
-# --- Pydantic models ---
+# --- Pydantic response models ---
 
 
 class AlertResponse(BaseModel):
-    """Alert response schema."""
+    """Alert response schema (matches frontend ``Alert`` interface)."""
 
     id: int
+    token_id: int | None = None
     alert_type: str
     message: str
-    triggered_at: datetime
+    metadata: dict[str, Any] | None = None
+    sent_telegram: bool = False
     acknowledged: bool = False
-    token_symbol: str | None = None
+    created_at: str  # ISO-8601
+
+    model_config = {"from_attributes": True}
 
 
 class AlertStatsResponse(BaseModel):
@@ -74,7 +74,24 @@ class AcknowledgeResponse(BaseModel):
 
     id: int
     acknowledged: bool
-    acknowledged_at: datetime
+    acknowledged_at: str  # ISO-8601
+
+
+# --- Helpers ---
+
+
+def _alert_to_response(alert: Alert) -> dict[str, Any]:
+    """Convert an Alert ORM object to a response dict."""
+    return {
+        "id": alert.id,
+        "token_id": alert.token_id,
+        "alert_type": alert.alert_type,
+        "message": alert.message,
+        "metadata": alert.alert_metadata,
+        "sent_telegram": alert.sent_telegram or False,
+        "acknowledged": alert.acknowledged or False,
+        "created_at": (alert.triggered_at.isoformat() if alert.triggered_at else ""),
+    }
 
 
 # --- Route handlers ---
@@ -82,6 +99,7 @@ class AcknowledgeResponse(BaseModel):
 
 @router.get("/", response_model=list[AlertResponse])
 async def get_alerts(
+    db: DbDep,
     limit: int = Query(default=50, ge=1, le=200, description="Max alerts to return"),
     alert_type: str | None = Query(default=None, description="Filter by alert type"),
     acknowledged: bool | None = Query(default=None, description="Filter by ack status"),
@@ -89,6 +107,7 @@ async def get_alerts(
     """Get list of alerts with optional filtering.
 
     Args:
+        db: Async database session (injected).
         limit: Maximum number of alerts to return.
         alert_type: Optional filter by alert type.
         acknowledged: Optional filter by acknowledged status.
@@ -96,34 +115,47 @@ async def get_alerts(
     Returns:
         List of alerts matching the criteria.
     """
-    filtered = _alerts_store.copy()
+    stmt = select(Alert)
 
     if alert_type:
-        filtered = [a for a in filtered if a["alert_type"] == alert_type]
+        stmt = stmt.where(Alert.alert_type == alert_type)
 
     if acknowledged is not None:
-        filtered = [a for a in filtered if a["acknowledged"] == acknowledged]
+        stmt = stmt.where(Alert.acknowledged == acknowledged)
 
-    # Sort by triggered_at descending (newest first)
-    filtered.sort(key=lambda x: x["triggered_at"], reverse=True)
+    stmt = stmt.order_by(Alert.triggered_at.desc()).limit(limit)
 
-    return filtered[:limit]
+    result = await db.execute(stmt)
+    alerts = result.scalars().all()
+
+    return [_alert_to_response(a) for a in alerts]
 
 
 @router.get("/stats", response_model=AlertStatsResponse)
-async def get_alert_stats() -> dict[str, Any]:
+async def get_alert_stats(db: DbDep) -> dict[str, Any]:
     """Get alert statistics.
+
+    Args:
+        db: Async database session (injected).
 
     Returns:
         Statistics including total, unacknowledged, and counts by type.
     """
-    total = len(_alerts_store)
-    unacknowledged = sum(1 for a in _alerts_store if not a["acknowledged"])
+    # Total count
+    total_result = await db.execute(select(func.count(Alert.id)))
+    total: int = total_result.scalar_one()
 
-    by_type: dict[str, int] = {}
-    for alert in _alerts_store:
-        atype = alert["alert_type"]
-        by_type[atype] = by_type.get(atype, 0) + 1
+    # Unacknowledged count
+    unack_result = await db.execute(
+        select(func.count(Alert.id)).where(Alert.acknowledged == False),  # noqa: E712
+    )
+    unacknowledged: int = unack_result.scalar_one()
+
+    # Counts by type
+    type_result = await db.execute(
+        select(Alert.alert_type, func.count(Alert.id)).group_by(Alert.alert_type),
+    )
+    by_type: dict[str, int] = {row[0]: row[1] for row in type_result.all()}
 
     return {
         "total": total,
@@ -133,11 +165,12 @@ async def get_alert_stats() -> dict[str, Any]:
 
 
 @router.get("/{alert_id}", response_model=AlertResponse)
-async def get_alert(alert_id: int) -> dict[str, Any]:
+async def get_alert(alert_id: int, db: DbDep) -> dict[str, Any]:
     """Get a single alert by ID.
 
     Args:
         alert_id: Alert ID to retrieve.
+        db: Async database session (injected).
 
     Returns:
         Alert data.
@@ -145,11 +178,13 @@ async def get_alert(alert_id: int) -> dict[str, Any]:
     Raises:
         HTTPException: 404 if alert not found.
     """
-    for alert in _alerts_store:
-        if alert["id"] == alert_id:
-            return alert
+    result = await db.execute(select(Alert).where(Alert.id == alert_id))
+    alert = result.scalars().first()
 
-    raise HTTPException(status_code=404, detail="Alert not found")
+    if alert is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+
+    return _alert_to_response(alert)
 
 
 @router.post("/test", response_model=TestAlertResponse)
@@ -165,7 +200,6 @@ async def send_test_alert(request: TestAlertRequest) -> dict[str, Any]:
     Raises:
         HTTPException: 503 if Telegram is not configured or fails.
     """
-    # Check if Telegram is configured
     if not settings.telegram_bot_token or not settings.telegram_chat_id:
         raise HTTPException(
             status_code=503,
@@ -194,11 +228,12 @@ async def send_test_alert(request: TestAlertRequest) -> dict[str, Any]:
 
 
 @router.put("/{alert_id}/acknowledge", response_model=AcknowledgeResponse)
-async def acknowledge_alert(alert_id: int) -> dict[str, Any]:
+async def acknowledge_alert(alert_id: int, db: DbDep) -> dict[str, Any]:
     """Acknowledge an alert.
 
     Args:
         alert_id: Alert ID to acknowledge.
+        db: Async database session (injected).
 
     Returns:
         Acknowledgement confirmation.
@@ -206,53 +241,20 @@ async def acknowledge_alert(alert_id: int) -> dict[str, Any]:
     Raises:
         HTTPException: 404 if alert not found.
     """
-    for alert in _alerts_store:
-        if alert["id"] == alert_id:
-            alert["acknowledged"] = True
-            alert["acknowledged_at"] = datetime.now(UTC)
-            logger.info("alert_acknowledged", alert_id=alert_id)
-            return {
-                "id": alert_id,
-                "acknowledged": True,
-                "acknowledged_at": alert["acknowledged_at"],
-            }
+    result = await db.execute(select(Alert).where(Alert.id == alert_id))
+    alert = result.scalars().first()
 
-    raise HTTPException(status_code=404, detail="Alert not found")
+    if alert is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
 
+    now = datetime.now(UTC)
+    alert.acknowledged = True
+    alert.acknowledged_at = now
+    await db.commit()
 
-# --- Helper functions for creating alerts (used by other modules) ---
-
-
-def create_alert(
-    alert_type: AlertType,
-    message: str,
-    token_symbol: str | None = None,
-) -> dict[str, Any]:
-    """Create a new alert and store it.
-
-    Args:
-        alert_type: Type of alert.
-        message: Alert message.
-        token_symbol: Optional token symbol.
-
-    Returns:
-        Created alert data.
-    """
-    alert = {
-        "id": _get_next_id(),
-        "alert_type": alert_type.value,
-        "message": message,
-        "triggered_at": datetime.now(UTC),
-        "acknowledged": False,
-        "token_symbol": token_symbol,
+    logger.info("alert_acknowledged", alert_id=alert_id)
+    return {
+        "id": alert_id,
+        "acknowledged": True,
+        "acknowledged_at": now.isoformat(),
     }
-    _alerts_store.append(alert)
-    logger.info("alert_created", alert_id=alert["id"], alert_type=alert_type.value)
-    return alert
-
-
-def clear_alerts() -> None:
-    """Clear all alerts (for testing)."""
-    global _alert_id_counter
-    _alerts_store.clear()
-    _alert_id_counter = 0

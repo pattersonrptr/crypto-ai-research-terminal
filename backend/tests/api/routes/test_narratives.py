@@ -13,6 +13,27 @@ from fastapi.testclient import TestClient
 
 from app.api.routes.narratives import router
 
+_FAKE_LIVE_NARRATIVES = [
+    {
+        "id": 1,
+        "name": "AI & ML",
+        "momentum_score": 9.2,
+        "trend": "accelerating",
+        "tokens": ["FET", "RNDR"],
+        "keywords": ["AI", "compute"],
+        "token_count": 2,
+    },
+    {
+        "id": 2,
+        "name": "DeFi Lending",
+        "momentum_score": 6.4,
+        "trend": "stable",
+        "tokens": ["AAVE", "COMP"],
+        "keywords": ["yield", "lending"],
+        "token_count": 2,
+    },
+]
+
 
 @pytest.fixture
 def app() -> FastAPI:
@@ -28,22 +49,34 @@ def client(app: FastAPI) -> TestClient:
     return TestClient(app)
 
 
+def _patch_live(data: list[dict]) -> AsyncMock:  # type: ignore[type-arg]
+    """Return a patcher that makes fetch_latest_narratives return *data*."""
+    return patch(
+        "app.api.routes.narratives.fetch_latest_narratives",
+        new_callable=AsyncMock,
+        return_value=data,
+    )
+
+
 class TestGetNarratives:
-    """Test GET /narratives endpoint."""
+    """Test GET /narratives endpoint with live data."""
 
     def test_get_narratives_returns_200(self, client: TestClient) -> None:
         """GET /narratives should return HTTP 200."""
-        response = client.get("/narratives/")
+        with _patch_live(_FAKE_LIVE_NARRATIVES):
+            response = client.get("/narratives/")
         assert response.status_code == 200
 
     def test_get_narratives_returns_list(self, client: TestClient) -> None:
         """GET /narratives should return a JSON list."""
-        response = client.get("/narratives/")
+        with _patch_live(_FAKE_LIVE_NARRATIVES):
+            response = client.get("/narratives/")
         assert isinstance(response.json(), list)
 
     def test_get_narratives_items_have_required_fields(self, client: TestClient) -> None:
         """Each narrative item should contain required schema fields."""
-        response = client.get("/narratives/")
+        with _patch_live(_FAKE_LIVE_NARRATIVES):
+            response = client.get("/narratives/")
         items = response.json()
         for item in items:
             assert "id" in item
@@ -56,21 +89,24 @@ class TestGetNarratives:
 
     def test_get_narratives_tokens_is_list(self, client: TestClient) -> None:
         """tokens field should be a list of strings."""
-        response = client.get("/narratives/")
+        with _patch_live(_FAKE_LIVE_NARRATIVES):
+            response = client.get("/narratives/")
         items = response.json()
         for item in items:
             assert isinstance(item["tokens"], list)
 
     def test_get_narratives_keywords_is_list(self, client: TestClient) -> None:
         """keywords field should be a list of strings."""
-        response = client.get("/narratives/")
+        with _patch_live(_FAKE_LIVE_NARRATIVES):
+            response = client.get("/narratives/")
         items = response.json()
         for item in items:
             assert isinstance(item["keywords"], list)
 
     def test_get_narratives_momentum_score_is_float(self, client: TestClient) -> None:
         """momentum_score field should be a number."""
-        response = client.get("/narratives/")
+        with _patch_live(_FAKE_LIVE_NARRATIVES):
+            response = client.get("/narratives/")
         items = response.json()
         for item in items:
             assert isinstance(item["momentum_score"], int | float)
@@ -78,27 +114,31 @@ class TestGetNarratives:
     def test_get_narratives_trend_is_valid_string(self, client: TestClient) -> None:
         """trend field should be one of the valid trend values."""
         valid_trends = {"accelerating", "stable", "declining"}
-        response = client.get("/narratives/")
+        with _patch_live(_FAKE_LIVE_NARRATIVES):
+            response = client.get("/narratives/")
         items = response.json()
         for item in items:
             assert item["trend"] in valid_trends
 
     def test_get_narratives_token_count_matches_tokens_length(self, client: TestClient) -> None:
         """token_count should equal len(tokens)."""
-        response = client.get("/narratives/")
+        with _patch_live(_FAKE_LIVE_NARRATIVES):
+            response = client.get("/narratives/")
         items = response.json()
         for item in items:
             assert item["token_count"] == len(item["tokens"])
 
     def test_get_narratives_returns_nonempty_list(self, client: TestClient) -> None:
-        """GET /narratives should return at least one narrative."""
-        response = client.get("/narratives/")
+        """GET /narratives with live data should return at least one narrative."""
+        with _patch_live(_FAKE_LIVE_NARRATIVES):
+            response = client.get("/narratives/")
         items = response.json()
         assert len(items) >= 1
 
     def test_get_narratives_id_is_integer(self, client: TestClient) -> None:
         """id field should be a positive integer."""
-        response = client.get("/narratives/")
+        with _patch_live(_FAKE_LIVE_NARRATIVES):
+            response = client.get("/narratives/")
         items = response.json()
         for item in items:
             assert isinstance(item["id"], int)
@@ -106,7 +146,7 @@ class TestGetNarratives:
 
 
 class TestGetNarrativesLiveData:
-    """GET /narratives returns live DB data when available, falls back to seed."""
+    """GET /narratives returns live DB data when available, empty list otherwise."""
 
     @pytest.mark.asyncio
     async def test_get_narratives_uses_live_data_when_db_returns_narratives(
@@ -140,10 +180,10 @@ class TestGetNarrativesLiveData:
         assert data[0]["name"] == "Live Narrative"
 
     @pytest.mark.asyncio
-    async def test_get_narratives_falls_back_to_seed_when_db_returns_empty(
+    async def test_get_narratives_returns_empty_list_when_db_has_no_data(
         self,
     ) -> None:
-        """When fetch_latest_narratives returns empty list the endpoint uses seed data."""
+        """When fetch_latest_narratives returns empty list the endpoint returns []."""
         from httpx import AsyncClient  # noqa: PLC0415
 
         from app.main import app as main_app  # noqa: PLC0415
@@ -157,5 +197,4 @@ class TestGetNarrativesLiveData:
                 response = await client.get("/narratives/")
         assert response.status_code == 200
         data = response.json()
-        # Falls back to seed data which has >= 1 item
-        assert len(data) >= 1
+        assert data == []
