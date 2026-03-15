@@ -9,10 +9,10 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.db.base import Base
 from app.models.market_data import MarketData
 from app.models.score import TokenScore
 from app.models.token import Token
+from tests.conftest_helpers import create_sqlite_tables
 
 # ---------------------------------------------------------------------------
 # Fixtures — in-memory async SQLite engine (no live PostgreSQL required)
@@ -24,7 +24,7 @@ async def async_engine():  # type: ignore[return]
     """Create an in-memory async SQLite engine with the full schema."""
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(create_sqlite_tables)
     yield engine
     await engine.dispose()
 

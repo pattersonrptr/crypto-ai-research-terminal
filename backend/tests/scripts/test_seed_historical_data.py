@@ -17,8 +17,8 @@ import respx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.db.base import Base
 from app.models.historical_candle import HistoricalCandle
+from tests.conftest_helpers import create_sqlite_tables
 
 # ---------------------------------------------------------------------------
 # Helpers — CoinGecko market_chart/range response shape
@@ -56,7 +56,7 @@ async def async_engine():  # type: ignore[return]
     """Create an in-memory async SQLite engine with the full schema."""
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(create_sqlite_tables)
     yield engine
     await engine.dispose()
 

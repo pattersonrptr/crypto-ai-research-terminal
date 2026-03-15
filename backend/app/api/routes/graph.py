@@ -4,6 +4,9 @@ Provides read-only endpoints for the Graph Intelligence Layer (Phase 7):
 - GET /graph/communities   — Louvain community detection results
 - GET /graph/centrality    — PageRank / betweenness / degree centrality scores
 - GET /graph/ecosystem     — Full ecosystem snapshot (communities + top tokens)
+
+Phase 10: supports live graph construction via :class:`LiveGraphBuilder` when
+token data is available, falling back to static seed data.
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ from pydantic import BaseModel, Field
 from app.graph.centrality_analyzer import CentralityAnalyzer
 from app.graph.ecosystem_tracker import EcosystemSnapshot, EcosystemTracker
 from app.graph.graph_builder import EdgeData, GraphBuilder, NodeAttributes, TokenGraph
+from app.graph.live_graph_builder import LiveGraphBuilder, TokenInfo
 
 router = APIRouter()
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
@@ -67,6 +71,59 @@ def _build_seed_graph() -> TokenGraph:
     return GraphBuilder().build_from_tokens(_SEED_NODES, _SEED_EDGES)
 
 
+async def _build_live_graph() -> TokenGraph | None:
+    """Attempt to build a live graph from DB token data.
+
+    Returns ``None`` when the DB is unreachable or has no tokens, in which
+    case callers should fall back to :func:`_build_seed_graph`.
+    """
+    try:
+        from sqlalchemy import text  # noqa: PLC0415
+        from sqlalchemy.ext.asyncio import create_async_engine  # noqa: PLC0415
+
+        from app.config import settings  # noqa: PLC0415
+
+        engine = create_async_engine(settings.database_url)
+        async with engine.begin() as conn:
+            result = await conn.execute(
+                text(
+                    "SELECT t.symbol, md.market_cap_usd "
+                    "FROM tokens t "
+                    "JOIN market_data md ON md.token_id = t.id "
+                    "ORDER BY md.collected_at DESC "
+                    "LIMIT 250"
+                )
+            )
+            rows = result.fetchall()
+
+        if not rows:
+            return None
+
+        tokens: list[TokenInfo] = []
+        for row in rows:
+            tokens.append(
+                TokenInfo(
+                    symbol=row.symbol,
+                    market_cap_usd=float(row.market_cap_usd or 0),
+                )
+            )
+
+        graph = LiveGraphBuilder.build(tokens)
+        logger.info("graph.live_build", nodes=graph.node_count(), edges=graph.edge_count())
+        return graph
+    except Exception:
+        logger.warning("graph.live_build_failed")
+        return None
+
+
+async def _get_graph() -> TokenGraph:
+    """Return a live graph if available, otherwise the seed graph."""
+    live = await _build_live_graph()
+    if live is not None and live.node_count() > 0:
+        return live
+    return _build_seed_graph()
+
+
 # ---------------------------------------------------------------------------
 # Pydantic response schemas
 # ---------------------------------------------------------------------------
@@ -110,7 +167,7 @@ async def get_communities() -> list[CommunityResponse]:
     Each community is a cluster of tokens that are more densely connected
     to each other than to the rest of the graph.
     """
-    graph = _build_seed_graph()
+    graph = await _get_graph()
     tracker = EcosystemTracker()
     snapshot: EcosystemSnapshot = tracker.snapshot(graph)
 
@@ -129,7 +186,7 @@ async def get_centrality(
     Args:
         top_n: Limit to the top-N tokens by PageRank. Minimum 1.
     """
-    graph = _build_seed_graph()
+    graph = await _get_graph()
     analyzer = CentralityAnalyzer()
     results = analyzer.top_n_by_pagerank(graph, top_n)
 
@@ -152,7 +209,7 @@ async def get_ecosystem() -> EcosystemResponse:
     Combines community detection and centrality analysis to provide a
     holistic view of the token graph at a point in time.
     """
-    graph = _build_seed_graph()
+    graph = await _get_graph()
     tracker = EcosystemTracker()
     snapshot: EcosystemSnapshot = tracker.snapshot(graph)
 
