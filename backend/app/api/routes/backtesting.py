@@ -1,7 +1,9 @@
 """Backtesting route handlers.
 
-Provides endpoints for the Backtesting Engine (Phase 7):
-- POST /backtesting/run  — Run a simulation for a symbol over a market cycle
+Provides endpoints for the Backtesting Engine (Phase 7 + Phase 12):
+- POST /backtesting/run       — Run a simulation for a symbol over a market cycle
+- POST /backtesting/validate  — Run validation metrics on historical data
+- POST /backtesting/calibrate — Run weight calibration sweep
 """
 
 from __future__ import annotations
@@ -17,6 +19,11 @@ from pydantic import BaseModel, Field
 from app.backtesting.data_loader import CycleLabel, DataLoader, HistoricalCandle
 from app.backtesting.performance_metrics import MetricsReport, PerformanceMetrics
 from app.backtesting.simulation_engine import SimulationConfig, SimulationEngine
+from app.backtesting.validation_metrics import (
+    TokenOutcome,
+    generate_validation_report,
+)
+from app.backtesting.weight_calibrator import calibrate_weights
 
 router = APIRouter()
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
@@ -154,4 +161,191 @@ async def run_backtest(request: BacktestRequest) -> BacktestResponse:
         max_drawdown_pct=metrics.max_drawdown_pct,
         avg_trade_return_pct=metrics.avg_trade_return_pct,
         is_profitable=metrics.is_profitable,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 12 — Validation sample data
+# ---------------------------------------------------------------------------
+
+# Simulated historical outcomes: model scores (from scoring a Jan 2020 snapshot)
+# vs actual multipliers during the 2020-2021 bull cycle.
+# This will be replaced with real DB data once historical_snapshots is seeded.
+
+_SAMPLE_OUTCOMES: list[TokenOutcome] = [
+    TokenOutcome(symbol="SOL", model_rank=1, model_score=0.88, actual_multiplier=320.0),
+    TokenOutcome(symbol="AVAX", model_rank=2, model_score=0.85, actual_multiplier=55.0),
+    TokenOutcome(symbol="MATIC", model_rank=3, model_score=0.82, actual_multiplier=95.0),
+    TokenOutcome(symbol="LINK", model_rank=4, model_score=0.78, actual_multiplier=12.0),
+    TokenOutcome(symbol="UNI", model_rank=5, model_score=0.75, actual_multiplier=18.0),
+    TokenOutcome(symbol="AAVE", model_rank=6, model_score=0.72, actual_multiplier=22.0),
+    TokenOutcome(symbol="DOT", model_rank=7, model_score=0.70, actual_multiplier=8.5),
+    TokenOutcome(symbol="ATOM", model_rank=8, model_score=0.68, actual_multiplier=6.0),
+    TokenOutcome(symbol="ETH", model_rank=9, model_score=0.65, actual_multiplier=15.0),
+    TokenOutcome(symbol="BTC", model_rank=10, model_score=0.62, actual_multiplier=7.0),
+    TokenOutcome(symbol="BNB", model_rank=11, model_score=0.58, actual_multiplier=13.0),
+    TokenOutcome(symbol="ADA", model_rank=12, model_score=0.55, actual_multiplier=45.0),
+    TokenOutcome(symbol="FTM", model_rank=13, model_score=0.52, actual_multiplier=180.0),
+    TokenOutcome(symbol="NEAR", model_rank=14, model_score=0.48, actual_multiplier=35.0),
+    TokenOutcome(symbol="ARB", model_rank=15, model_score=0.45, actual_multiplier=2.0),
+]
+
+
+# ---------------------------------------------------------------------------
+# Phase 12 — Pydantic schemas for validation endpoints
+# ---------------------------------------------------------------------------
+
+
+class ValidateRequest(BaseModel):
+    """Request body for POST /backtesting/validate."""
+
+    k: int = Field(default=10, ge=1, le=100, description="Top-K tokens for metrics")
+    winner_threshold: float = Field(
+        default=5.0, ge=1.0, description="Multiplier threshold for 'winner'"
+    )
+    market_multiplier: float = Field(default=2.0, ge=1.0, description="Market benchmark multiplier")
+
+
+class TokenBreakdownItem(BaseModel):
+    """A single token in the validation breakdown."""
+
+    symbol: str
+    model_rank: int
+    model_score: float
+    actual_multiplier: float
+    is_winner: bool
+
+
+class ValidateResponse(BaseModel):
+    """Response body for POST /backtesting/validate."""
+
+    precision_at_k: float = Field(ge=0.0, le=1.0)
+    recall_at_k: float = Field(ge=0.0, le=1.0)
+    hit_rate: float = Field(ge=0.0, le=1.0)
+    k: int
+    winner_threshold: float
+    n_total_tokens: int
+    n_winners: int
+    model_is_useful: bool
+    token_breakdown: list[TokenBreakdownItem]
+
+
+class CalibrateRequest(BaseModel):
+    """Request body for POST /backtesting/calibrate."""
+
+    step: float = Field(default=0.25, ge=0.05, le=0.50, description="Grid step size")
+    k: int = Field(default=10, ge=1, le=100, description="Top-K for precision")
+
+
+class WeightSetResponse(BaseModel):
+    """A set of pillar weights."""
+
+    fundamental: float
+    growth: float
+    narrative: float
+    listing: float
+    risk: float
+
+
+class CalibrateResponse(BaseModel):
+    """Response body for POST /backtesting/calibrate."""
+
+    best_weights: WeightSetResponse
+    best_precision_at_k: float
+    n_combinations_tested: int
+    improved: bool
+
+
+# ---------------------------------------------------------------------------
+# Phase 12 — Route handlers
+# ---------------------------------------------------------------------------
+
+
+@router.post("/validate", response_model=ValidateResponse)
+async def validate_model(request: ValidateRequest) -> ValidateResponse:
+    """Run validation metrics on the model's historical predictions.
+
+    Uses sample outcomes (Phase 12). Will be wired to real DB data
+    once ``historical_snapshots`` is seeded.
+
+    Args:
+        request: Validation parameters (k, thresholds).
+
+    Returns:
+        A :class:`ValidateResponse` with precision, recall, hit rate.
+    """
+    report = generate_validation_report(
+        outcomes=_SAMPLE_OUTCOMES,
+        k=request.k,
+        winner_threshold=request.winner_threshold,
+        market_multiplier=request.market_multiplier,
+    )
+
+    breakdown = [
+        TokenBreakdownItem(
+            symbol=o.symbol,
+            model_rank=o.model_rank,
+            model_score=o.model_score,
+            actual_multiplier=o.actual_multiplier,
+            is_winner=o.is_winner(threshold=request.winner_threshold),
+        )
+        for o in report.token_breakdown
+    ]
+
+    logger.info(
+        "backtesting.validate",
+        k=request.k,
+        precision=report.precision_at_k,
+        recall=report.recall_at_k,
+    )
+
+    return ValidateResponse(
+        precision_at_k=report.precision_at_k,
+        recall_at_k=report.recall_at_k,
+        hit_rate=report.hit_rate,
+        k=report.k,
+        winner_threshold=report.winner_threshold,
+        n_total_tokens=report.n_total_tokens,
+        n_winners=report.n_winners,
+        model_is_useful=report.model_is_useful,
+        token_breakdown=breakdown,
+    )
+
+
+@router.post("/calibrate", response_model=CalibrateResponse)
+async def calibrate_model_weights(request: CalibrateRequest) -> CalibrateResponse:
+    """Run weight calibration sweep on historical validation data.
+
+    Performs a grid search over pillar weights to find the combination
+    that maximises Precision@K.
+
+    Args:
+        request: Calibration parameters (step size, k).
+
+    Returns:
+        A :class:`CalibrateResponse` with best weights and precision.
+    """
+    result = calibrate_weights(
+        outcomes=_SAMPLE_OUTCOMES,
+        k=request.k,
+        step=request.step,
+    )
+
+    logger.info(
+        "backtesting.calibrate",
+        n_combinations=result.n_combinations_tested,
+        best_precision=result.best_precision_at_k,
+    )
+
+    return CalibrateResponse(
+        best_weights=WeightSetResponse(
+            fundamental=result.best_weights.fundamental,
+            growth=result.best_weights.growth,
+            narrative=result.best_weights.narrative,
+            listing=result.best_weights.listing,
+            risk=result.best_weights.risk,
+        ),
+        best_precision_at_k=result.best_precision_at_k,
+        n_combinations_tested=result.n_combinations_tested,
+        improved=result.improved(baseline_precision=0.5),
     )

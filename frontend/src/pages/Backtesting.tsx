@@ -4,17 +4,21 @@
  * Features:
  * - Form: symbol input + cycle selector + run button
  * - Results panel with key metrics (total return, trades, win rate, Sharpe, drawdown)
+ * - Model validation: run scoring model against historical cycles
+ * - Weight calibration: parameter sweep to optimise pillar weights
  * - Error state
  * - Loading state on the button while running
  */
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { PlayCircle } from "lucide-react";
+import { PlayCircle, FlaskConical } from "lucide-react";
 import {
   runBacktest,
+  runValidation,
   type BacktestResult,
   type CycleLabel,
+  type ValidateResult,
 } from "@/services/backtesting.service";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { cn } from "@/lib/utils";
@@ -100,6 +104,85 @@ function ResultsPanel({ result }: { result: BacktestResult }) {
   );
 }
 
+// ── ValidationPanel ───────────────────────────────────────────────────────
+
+function ValidationPanel({ result }: { result: ValidateResult }) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <MetricCard
+          label="Precision@K"
+          value={`${(result.precision_at_k * 100).toFixed(0)}%`}
+          highlight={result.precision_at_k >= 0.5 ? "positive" : "negative"}
+        />
+        <MetricCard
+          label="Recall@K"
+          value={`${(result.recall_at_k * 100).toFixed(0)}%`}
+          highlight={result.recall_at_k >= 0.5 ? "positive" : "negative"}
+        />
+        <MetricCard
+          label="Hit Rate"
+          value={`${(result.hit_rate * 100).toFixed(0)}%`}
+          highlight={result.hit_rate >= 0.5 ? "positive" : "negative"}
+        />
+        <MetricCard
+          label="Model Useful?"
+          value={result.model_is_useful ? "Yes ✓" : "No ✗"}
+          highlight={result.model_is_useful ? "positive" : "negative"}
+        />
+      </div>
+
+      {/* Token breakdown table */}
+      {result.token_breakdown.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-muted/50 text-xs text-muted-foreground">
+              <tr>
+                <th className="px-4 py-2">Rank</th>
+                <th className="px-4 py-2">Symbol</th>
+                <th className="px-4 py-2">Score</th>
+                <th className="px-4 py-2">Actual ×</th>
+                <th className="px-4 py-2">Winner</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.token_breakdown.map((t) => (
+                <tr
+                  key={t.symbol}
+                  className="border-t border-border hover:bg-muted/30"
+                >
+                  <td className="px-4 py-2 text-muted-foreground">
+                    #{t.model_rank}
+                  </td>
+                  <td className="px-4 py-2 font-medium text-foreground">
+                    {t.symbol}
+                  </td>
+                  <td className="px-4 py-2">{t.model_score.toFixed(2)}</td>
+                  <td className="px-4 py-2">
+                    {t.actual_multiplier.toFixed(1)}×
+                  </td>
+                  <td className="px-4 py-2">
+                    <span
+                      className={cn(
+                        "inline-block rounded-full px-2 py-0.5 text-xs font-semibold",
+                        t.is_winner
+                          ? "bg-green-500/20 text-green-400"
+                          : "bg-red-500/20 text-red-400",
+                      )}
+                    >
+                      {t.is_winner ? "Yes" : "No"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Backtesting ───────────────────────────────────────────────────────────
 
 const CYCLE_OPTIONS: { value: CycleLabel; label: string }[] = [
@@ -114,6 +197,10 @@ export function Backtesting() {
 
   const mutation = useMutation({
     mutationFn: () => runBacktest({ symbol: symbol.trim().toUpperCase(), cycle }),
+  });
+
+  const validationMutation = useMutation({
+    mutationFn: () => runValidation(),
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -210,6 +297,46 @@ export function Backtesting() {
 
       {/* Results */}
       {mutation.data && <ResultsPanel result={mutation.data} />}
+
+      {/* Model Validation */}
+      <section aria-labelledby="validation-heading" className="space-y-4">
+        <h2
+          id="validation-heading"
+          className="text-base font-semibold text-foreground"
+        >
+          Model Validation
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Evaluate the scoring model against historical market cycles. Measures
+          precision, recall, and hit rate of top-K recommendations.
+        </p>
+
+        <button
+          type="button"
+          aria-label="Run Validation"
+          onClick={() => validationMutation.mutate()}
+          disabled={validationMutation.isPending}
+          className={cn(
+            "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium",
+            "bg-primary text-primary-foreground transition-opacity",
+            "hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring",
+            validationMutation.isPending && "cursor-not-allowed opacity-50",
+          )}
+        >
+          <FlaskConical className="h-4 w-4 shrink-0" aria-hidden="true" />
+          {validationMutation.isPending ? "Validating…" : "Run Validation"}
+        </button>
+
+        {validationMutation.isError && (
+          <p className="text-sm text-destructive">
+            Validation failed. Please try again later.
+          </p>
+        )}
+
+        {validationMutation.data && (
+          <ValidationPanel result={validationMutation.data} />
+        )}
+      </section>
     </div>
   );
 }

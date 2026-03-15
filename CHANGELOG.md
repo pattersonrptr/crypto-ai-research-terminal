@@ -10,6 +10,45 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Added (Phase 12 — Backtesting Validation)
+
+- **HistoricalSnapshot model** (`backend/app/models/historical_snapshot.py`):
+  SQLAlchemy ORM model storing full token state per date (price, market cap,
+  volume, supply, categories). Unique constraint on (symbol, snapshot_date).
+  Alembic migration `3587d61f0e41` creates the `historical_snapshots` table.
+- **ValidationEngine** (`backend/app/backtesting/validation_metrics.py`):
+  Measures predictive accuracy of the scoring model. Computes Precision@K
+  (what fraction of top-K picks actually performed), Recall@K (what fraction
+  of actual performers the model captured), and Hit Rate (overall success
+  ratio). Returns structured `ValidationReport` with per-token breakdowns.
+- **HistoricalScorer** (`backend/app/backtesting/historical_scorer.py`):
+  Runs simplified scoring pipeline on historical snapshots. Produces ranked
+  `ScoredToken` lists using fundamental scoring + estimated growth metrics.
+  `HistoricalScoringResult` groups ranked tokens by snapshot date.
+- **WeightCalibrator** (`backend/app/backtesting/weight_calibrator.py`):
+  Parameter sweep over the 5-pillar weights (fundamental, growth, narrative,
+  listing, risk) to maximise Precision@K. Grid search with configurable step
+  size generates all valid weight combinations summing to 1.0.
+- **HistoricalDataCollector** (`backend/app/backtesting/historical_data_collector.py`):
+  Parses CoinGecko `/market_chart/range` and `/coins/{id}` responses into
+  snapshot dictionaries. Includes `BACKTEST_TOKENS` mapping (10 tokens) and
+  `BACKTEST_DATE_RANGE` (2019-01-01 to 2021-12-31).
+- **Validation API endpoints** (`backend/app/api/routes/backtesting.py`):
+  `POST /backtesting/validate` — runs validation on sample data, returns
+  precision, recall, hit rate, token breakdown.
+  `POST /backtesting/calibrate` — runs weight calibration sweep, returns
+  best weights and precision achieved.
+- **Frontend validation UI** (`frontend/src/pages/Backtesting.tsx`):
+  New "Model Validation" section with Run Validation button, metrics panel
+  (Precision@K, Recall@K, Hit Rate, Model Useful?), and token breakdown
+  table (rank, symbol, score, actual multiplier, winner status).
+- **Frontend service** (`frontend/src/services/backtesting.service.ts`):
+  `runValidation()` and `runCalibration()` functions with typed interfaces
+  (`ValidateResult`, `CalibrateResult`, `TokenBreakdownItem`, `WeightSet`).
+- **MSW handlers** for validation/calibration endpoints with mock data.
+- **89 new backend tests** (1039 total, 93% coverage); **11 new frontend
+  tests** (144 total). All passing.
+
 ### Added (Phase 11 — Alert Generation)
 
 - **AlertEvaluator** (`backend/app/alerts/alert_evaluator.py`):

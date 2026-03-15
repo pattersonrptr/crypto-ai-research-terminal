@@ -1,7 +1,7 @@
 /**
  * TDD tests for the Backtesting page.
  *
- * MSW intercepts POST /api/backtesting/run.
+ * MSW intercepts POST /api/backtesting/run, /validate, /calibrate.
  */
 
 import { describe, it, expect } from "vitest";
@@ -12,7 +12,9 @@ import { server } from "@/test/msw/server";
 import {
   backtestRunHandler,
   backtestRunErrorHandler,
+  backtestValidateHandler,
   MOCK_BACKTEST_RESULT,
+  MOCK_VALIDATE_RESULT,
 } from "@/test/msw/handlers";
 import { Backtesting } from "./Backtesting";
 
@@ -27,6 +29,7 @@ function makeQueryClient() {
 function renderBacktesting() {
   const qc = makeQueryClient();
   server.use(backtestRunHandler(MOCK_BACKTEST_RESULT));
+  server.use(backtestValidateHandler(MOCK_VALIDATE_RESULT));
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>
@@ -101,6 +104,7 @@ describe("Backtesting", () => {
   it("shows_error_message_on_api_failure", async () => {
     const qc = makeQueryClient();
     server.use(backtestRunErrorHandler());
+    server.use(backtestValidateHandler(MOCK_VALIDATE_RESULT));
     render(
       <QueryClientProvider client={qc}>
         <MemoryRouter>
@@ -116,6 +120,37 @@ describe("Backtesting", () => {
       expect(
         screen.getByText(/simulation failed/i),
       ).toBeInTheDocument();
+    });
+  });
+
+  it("renders_model_validation_section_heading", () => {
+    renderBacktesting();
+    expect(screen.getByText(/model validation/i)).toBeInTheDocument();
+  });
+
+  it("renders_validate_button", () => {
+    renderBacktesting();
+    expect(
+      screen.getByRole("button", { name: /run validation/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows_validation_metrics_after_clicking_validate", async () => {
+    renderBacktesting();
+    fireEvent.click(screen.getByRole("button", { name: /run validation/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/precision/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows_token_breakdown_table_after_validation", async () => {
+    renderBacktesting();
+    fireEvent.click(screen.getByRole("button", { name: /run validation/i }));
+
+    await waitFor(() => {
+      // MOCK_VALIDATE_RESULT has SOL as first token
+      expect(screen.getByText("SOL")).toBeInTheDocument();
     });
   });
 });

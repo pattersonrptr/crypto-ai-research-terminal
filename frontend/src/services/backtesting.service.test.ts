@@ -8,9 +8,14 @@ import { server } from "@/test/msw/server";
 import {
   backtestRunHandler,
   backtestRunErrorHandler,
+  backtestValidateHandler,
+  backtestValidateErrorHandler,
+  backtestCalibrateHandler,
   MOCK_BACKTEST_RESULT,
+  MOCK_VALIDATE_RESULT,
+  MOCK_CALIBRATE_RESULT,
 } from "@/test/msw/handlers";
-import { runBacktest } from "./backtesting.service";
+import { runBacktest, runValidation, runCalibration } from "./backtesting.service";
 
 describe("backtesting.service", () => {
   it("runBacktest_returns_BacktestResult", async () => {
@@ -49,5 +54,55 @@ describe("backtesting.service", () => {
     server.use(backtestRunHandler(accResult));
     const result = await runBacktest({ symbol: "SOL", cycle: "accumulation" });
     expect(result.cycle).toBe("accumulation");
+  });
+});
+
+describe("backtesting.service validation", () => {
+  it("runValidation_returns_ValidateResult", async () => {
+    server.use(backtestValidateHandler(MOCK_VALIDATE_RESULT));
+    const result = await runValidation({ k: 10 });
+    expect(result.precision_at_k).toBe(0.8);
+    expect(result.recall_at_k).toBe(0.6);
+    expect(result.hit_rate).toBe(0.7);
+  });
+
+  it("runValidation_returns_token_breakdown", async () => {
+    server.use(backtestValidateHandler(MOCK_VALIDATE_RESULT));
+    const result = await runValidation({ k: 5 });
+    expect(Array.isArray(result.token_breakdown)).toBe(true);
+    expect(result.token_breakdown.length).toBeGreaterThan(0);
+  });
+
+  it("runValidation_includes_model_is_useful", async () => {
+    server.use(backtestValidateHandler(MOCK_VALIDATE_RESULT));
+    const result = await runValidation();
+    expect(typeof result.model_is_useful).toBe("boolean");
+  });
+
+  it("runValidation_throws_on_server_error", async () => {
+    server.use(backtestValidateErrorHandler());
+    await expect(runValidation()).rejects.toThrow();
+  });
+});
+
+describe("backtesting.service calibration", () => {
+  it("runCalibration_returns_CalibrateResult", async () => {
+    server.use(backtestCalibrateHandler(MOCK_CALIBRATE_RESULT));
+    const result = await runCalibration({ step: 0.25 });
+    expect(result.best_precision_at_k).toBe(0.85);
+    expect(result.n_combinations_tested).toBe(56);
+  });
+
+  it("runCalibration_returns_best_weights", async () => {
+    server.use(backtestCalibrateHandler(MOCK_CALIBRATE_RESULT));
+    const result = await runCalibration();
+    expect(result.best_weights.fundamental).toBe(0.4);
+    expect(result.best_weights.growth).toBe(0.2);
+  });
+
+  it("runCalibration_includes_improved_flag", async () => {
+    server.use(backtestCalibrateHandler(MOCK_CALIBRATE_RESULT));
+    const result = await runCalibration();
+    expect(typeof result.improved).toBe("boolean");
   });
 });
