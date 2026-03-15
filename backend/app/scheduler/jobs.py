@@ -1,16 +1,18 @@
 """Scheduler jobs — periodic data collection and scoring pipeline.
 
 Phase 8: full pipeline with job health monitoring and Redis dead-letter queue.
+Phase 10: narrative snapshot persistence and category-based narrative building.
 """
 
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from app.analysis.narrative_persister import NarrativePersister
 from app.collectors.coingecko_collector import CoinGeckoCollector
 from app.models.market_data import MarketData
 from app.models.score import TokenScore
@@ -23,6 +25,8 @@ from app.scoring.opportunity_engine import OpportunityEngine
 if TYPE_CHECKING:
     import redis.asyncio as aioredis
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.narrative import NarrativeCluster
 
 logger = structlog.get_logger(__name__)
 
@@ -306,3 +310,65 @@ async def _persist_results(
     finally:
         if own_session:
             await session.close()
+
+
+# ---------------------------------------------------------------------------
+# Phase 10: Narrative snapshot helpers
+# ---------------------------------------------------------------------------
+
+
+async def persist_narrative_snapshot(
+    clusters: list[NarrativeCluster],
+    *,
+    session: AsyncSession | None = None,
+) -> None:
+    """Persist a list of :class:`NarrativeCluster` rows to the database.
+
+    Args:
+        clusters: Narrative cluster ORM objects to persist.
+        session: Optional externally-managed session (used by tests).
+    """
+    if not clusters:
+        logger.info("persist_narrative_snapshot.empty")
+        return
+
+    own_session = False
+    if session is None:
+        from app.db.session import _SessionLocal  # noqa: PLC0415
+
+        session = _SessionLocal()
+        own_session = True
+
+    try:
+        for cluster in clusters:
+            session.add(cluster)
+        await session.commit()
+        logger.info("persist_narrative_snapshot.committed", count=len(clusters))
+    except Exception:
+        await session.rollback()
+        logger.exception("persist_narrative_snapshot.failed")
+        raise
+    finally:
+        if own_session:
+            await session.close()
+
+
+def build_narrative_snapshot_from_categories(
+    token_data: list[dict[str, Any]],
+    *,
+    snapshot_date: date | None = None,
+) -> list[NarrativeCluster]:
+    """Build narrative clusters from CoinGecko category metadata.
+
+    Groups tokens by their categories and creates one
+    :class:`NarrativeCluster` per category that contains ≥ 2 tokens.
+
+    Args:
+        token_data: List of dicts with at least ``symbol`` and ``categories``.
+        snapshot_date: Date for the snapshot. Defaults to today.
+
+    Returns:
+        List of :class:`NarrativeCluster` objects (not yet persisted).
+    """
+    snap = snapshot_date or date.today()
+    return NarrativePersister.build_from_categories(token_data, snapshot_date=snap)

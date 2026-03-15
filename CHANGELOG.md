@@ -10,6 +10,31 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Added (Phase 10 — Live Narratives + Cycle Detection)
+
+- **CycleDetector** (`backend/app/analysis/cycle_detector.py`):
+  Weighted-vote market phase classification (accumulation/bull/distribution/bear)
+  using Fear & Greed index, BTC dominance trend, and market cap vs 200d MA
+- **CycleDataCollector** (`backend/app/analysis/cycle_data_collector.py`):
+  Fetches Fear & Greed from Alternative.me API and BTC dominance from CoinGecko
+- **NarrativePersister** (`backend/app/analysis/narrative_persister.py`):
+  Converts NarrativeDetector output to ORM objects; fallback mode derives
+  narratives from CoinGecko token categories (22 slugs → 11 human names)
+- **NarrativeTrendAnalyzer** (`backend/app/analysis/narrative_trend.py`):
+  Compares current vs previous narrative snapshots → trend classification
+- **NarrativeCluster** ORM model with Alembic migration `c3d4e5f6a7b8`
+- **`GET /market/cycle`** endpoint with phase, confidence, description, indicators
+- **`OpportunityEngine.cycle_adjusted_score()`**: Cycle-aware score adjustment
+- **LiveGraphBuilder** (`backend/app/graph/live_graph_builder.py`):
+  Real token graph from shared chains + narratives; graph routes use live-first
+  with seed fallback
+- **Scheduler**: `persist_narrative_snapshot()` + `build_narrative_snapshot_from_categories()`
+- **Frontend CycleIndicator**: Phase badge with emoji, color, confidence, description
+  in dashboard header; auto-refreshes every 60s
+- **88 new backend tests** (924 total, 92.9% coverage); **7 new frontend tests**
+  (133 total, 16 test files)
+- SQLite test infrastructure fix: `conftest_helpers.py` skips PG-only tables
+
 ### Added (Phase 9 — Full Scoring Pipeline)
 
 - **HeuristicSubScorer** (`backend/app/scoring/heuristic_sub_scorer.py`):
@@ -77,18 +102,89 @@ Full 5-pillar formula active. Radar chart and rankings functional.
 - Wire `CycleLeaderModel` probability into composite score
 - Add AI-generated token summary via Ollama/Gemini → cache in `ai_analyses` table
 
-#### Phase 10 — Live Narratives + Cycle Detection (target: ~2 weeks)
+#### Phase 10 — Live Narratives + Cycle Detection (COMPLETE)
 
 **Problem:** Narratives page shows hardcoded `_SEED_NARRATIVES`. Ecosystems page
 uses hardcoded 15-node graph. App does not know the current market cycle.
 
 **Goal:** Narratives and ecosystems derived from real data. Cycle awareness.
 
-- Run `NarrativeDetector` on real social data → persist to `narratives` table
-- Add cycle detection: BTC dominance trend, total market cap, Fear & Greed index
-- Expose cycle phase in API (`accumulation`, `bull`, `distribution`, `bear`)
-- Narrative trend comparison (current vs 30d ago → accelerating/declining)
-- Build real ecosystem graph from token relationships (narratives, correlations, chains)
+##### Backend — Analysis
+
+- **`backend/app/analysis/cycle_detector.py`** — `CycleDetector`:
+  - `CyclePhase` enum: `ACCUMULATION`, `BULL`, `DISTRIBUTION`, `BEAR`
+  - `CycleIndicators` dataclass: BTC dominance (current + 30d ago), total market cap,
+    200d MA, Fear & Greed index + label
+  - `classify(indicators)`: Weighted-vote algorithm — Fear & Greed (weight 3),
+    market vs 200d MA (weight 2), BTC dominance trend (weight 1.5)
+  - `cycle_score_adjustment(phase)`: BULL=1.10, ACCUMULATION=1.0,
+    DISTRIBUTION=0.90, BEAR=0.75
+- **`backend/app/analysis/cycle_data_collector.py`** — `CycleDataCollector`:
+  - `fetch_fear_greed()` → Alternative.me API (free, no key)
+  - `fetch_btc_dominance()` → CoinGecko `/global` endpoint
+  - `collect_indicators()` → assembled `CycleIndicators`
+- **`backend/app/analysis/narrative_persister.py`** — `NarrativePersister`:
+  - `to_clusters()`: Converts `NarrativeDetectorResult` → `NarrativeCluster` ORM list
+  - `build_from_categories()`: Fallback mode — groups tokens by CoinGecko categories
+    (22 mapped slugs → 11 human-readable narrative names), min 2 tokens per narrative
+- **`backend/app/analysis/narrative_trend.py`** — `NarrativeTrendAnalyzer`:
+  - `compare(current, previous)`: Returns `NarrativeTrendResult` per narrative
+  - Trend classification: `accelerating` (Δ > 0.50), `growing` (Δ > 0.10),
+    `declining` (Δ < −0.10), `stable` (otherwise), `accelerating` for new narratives
+
+##### Backend — API
+
+- **`GET /market/cycle`** (`backend/app/api/routes/market.py`):
+  - Returns: `phase`, `confidence`, `phase_description`, `indicators`
+  - Phase descriptions: human-readable text for each cycle phase
+- **`OpportunityEngine.cycle_adjusted_score()`**: Multiplies base score by cycle
+  factor, clamped to [0, 1]
+
+##### Backend — Graph
+
+- **`backend/app/graph/live_graph_builder.py`** — `LiveGraphBuilder`:
+  - `TokenInfo` dataclass: symbol, name, market_cap_usd, chain, categories
+  - `build(tokens, narrative_clusters)`: Creates edges from shared chains
+    (ecosystem, weight 0.7) and shared categories/narratives (narrative, weight 0.6)
+- **Graph routes** (`backend/app/api/routes/graph.py`):
+  - `_build_live_graph()`: Queries DB for tokens + market data, builds live graph
+  - `_get_graph()`: Tries live graph first, falls back to seed graph
+  - All 3 routes (communities, centrality, ecosystem) use live-first pattern
+
+##### Backend — Models & Migration
+
+- **`backend/app/models/narrative.py`** — `NarrativeCluster` ORM model:
+  - Columns: `id`, `name` (String100), `momentum_score` (Float), `trend` (String20),
+    `keywords` (ARRAY), `token_symbols` (ARRAY), `snapshot_date` (Date, indexed),
+    `created_at` (DateTime)
+- **Alembic migration** `c3d4e5f6a7b8`: Creates `narratives` table with index
+
+##### Backend — Scheduler
+
+- `persist_narrative_snapshot(clusters, session)`: Persists NarrativeCluster rows
+- `build_narrative_snapshot_from_categories(token_data)`: Delegates to
+  `NarrativePersister.build_from_categories()` with today's date
+
+##### Frontend
+
+- **`frontend/src/services/market.service.ts`**: `MarketCycleResponse` type,
+  `fetchMarketCycle()` API call
+- **`frontend/src/components/Dashboard/CycleIndicator.tsx`**: Phase badge with
+  emoji (🐂/📊/⚠️/🐻), color-coded (green/blue/amber/red), confidence %,
+  description, loading skeleton, error state; auto-refreshes every 60s
+- **Home page**: `CycleIndicator` integrated into `PageHeader` actions
+
+##### Test Infrastructure
+
+- **`backend/tests/conftest_helpers.py`**: `create_sqlite_tables()` — skips
+  PostgreSQL-only tables (ARRAY columns) when running tests on SQLite
+- Fixed 5 existing test files that broke due to `NarrativeCluster` ARRAY columns
+
+##### Test Summary — 88 new backend + 7 new frontend tests
+
+- Backend: **924 passed** (92.9% coverage) — 88 new tests across 12 test files
+- Frontend: **133 passed** (16 test files) — 7 new tests across 3 test files
+- All quality gates: ruff ✅ | mypy ✅ | bandit ✅
 
 #### Phase 11 — Alert Generation (target: ~1–2 weeks)
 

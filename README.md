@@ -424,26 +424,25 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 | 6 | React Dashboard — fully wired, Docker containers | ✅ Complete |
 | 7 | ML + Knowledge Graph + Backtesting | ✅ Complete |
 | 8 | Live Data Pipeline + Production Hardening | ✅ Complete |
-| 9 | **Full Scoring Pipeline** — all 11 sub-scores, 5-pillar formula, heuristic derivation | � In Progress |
-| 10 | **Live Narratives + Cycle Detection** — real clusters, market phase awareness | 🔲 Planned |
+| 9 | **Full Scoring Pipeline** — all 11 sub-scores, 5-pillar formula, heuristic derivation | ✅ Complete |
+| 10 | **Live Narratives + Cycle Detection** — real clusters, market phase awareness | ✅ Complete |
 | 11 | **Alert Generation** — fire alerts from scores, Telegram delivery | 🔲 Planned |
 | 12 | **Backtesting Validation** — real historical data, precision metrics, calibration | 🔲 Planned |
 
 ### Current Status & Known Limitations
 
-The infrastructure is complete (802 backend tests, 126 frontend tests, full Docker
-stack, real CoinGecko data). However, the **predictive capability** — the core
-purpose of the app — is not yet functional:
+The infrastructure is complete (924 backend tests, 133 frontend tests, full Docker
+stack, real CoinGecko data). The system now detects market cycle phases and builds
+real token relationship graphs. Remaining gaps:
 
-- **Rankings are superficial:** ~~Only `fundamental_score` and `opportunity_score`
-  populated.~~ Phase 9 now populates all 11 sub-scores via `HeuristicSubScorer`.
-- **Radar chart is empty:** ~~All sub-pillar scores are 0.0.~~ Fixed — all sub-scores
-  now flow from API to frontend with proper 0–10 scaling.
-- **Narratives are seed data:** Hardcoded, not detected from real social signals.
+- **Narratives partially live:** `NarrativePersister` and `NarrativeTrendAnalyzer`
+  are implemented but the narratives API route still uses seed data as a fallback.
+  Full pipeline wiring deferred to Phase 11.
 - **Alerts are never generated:** Rule engine exists but is never called.
 - **Backtesting uses synthetic data:** Cannot validate the model against real cycles.
-- **No cycle detection:** App doesn't know the current market phase.
+- **Price correlation edges:** Not yet in graph (requires historical price data from
+  Phase 12).
 
-Phases 9–12 address all of these. See [`SCOPE.md`](SCOPE.md) §10 for details.
+Phases 11–12 address the remaining gaps. See [`SCOPE.md`](SCOPE.md) §10 for details.
 
-**Current test counts:** 836 backend + 126 frontend = **962 total tests**
+**Current test counts:** 924 backend + 133 frontend = **1 057 total tests**

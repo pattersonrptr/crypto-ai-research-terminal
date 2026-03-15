@@ -3,6 +3,7 @@
 Phase 1: only fundamental_score is available.
 Phase 2: adds growth_score from dev and social metrics.
 Phase 9: full 5-pillar formula with cycle-leader boost.
+Phase 10: cycle-aware scoring adjustment (bear → dampen, bull → boost).
 
 .. note:: **Phase 12 tuning reminder**
 
@@ -12,6 +13,9 @@ Phase 9: full 5-pillar formula with cycle-leader boost.
    ``HeuristicSubScorer`` module docstring for related concerns.
 """
 
+from __future__ import annotations
+
+from app.analysis.cycle_detector import CycleDetector, CyclePhase
 from app.exceptions import ScoringError
 from app.processors.normalizer import clamp
 
@@ -110,3 +114,30 @@ class OpportunityEngine:
 
         boost = 1.0 + cycle_leader_prob * _CYCLE_BOOST_MAX
         return clamp(base * boost, 0.0, 1.0)
+
+    @staticmethod
+    def cycle_adjusted_score(
+        base_score: float,
+        cycle_phase: CyclePhase | None,
+    ) -> float:
+        """Apply cycle-phase multiplier to a base opportunity score.
+
+        Phase 10: adjusts scoring based on the detected market cycle:
+        - BULL: +10% boost (momentum-friendly environment)
+        - ACCUMULATION: neutral (1.0×)
+        - DISTRIBUTION: −10% dampen (risk of reversal)
+        - BEAR: −25% dampen (preservation mode)
+
+        Args:
+            base_score: Opportunity score in [0, 1].
+            cycle_phase: Current market cycle phase, or ``None`` if
+                cycle detection is unavailable.
+
+        Returns:
+            Adjusted score in [0, 1].
+        """
+        if cycle_phase is None:
+            return base_score
+
+        multiplier = CycleDetector.cycle_score_adjustment(cycle_phase)
+        return clamp(base_score * multiplier, 0.0, 1.0)

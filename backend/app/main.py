@@ -6,6 +6,7 @@ from app.api.routes import (
     alerts,
     backtesting,
     graph,
+    market,
     narratives,
     rankings,
     reports,
@@ -26,6 +27,7 @@ app.include_router(alerts.router, prefix="/alerts", tags=["alerts"])
 app.include_router(reports.router, prefix="/reports", tags=["reports"])
 app.include_router(backtesting.router, prefix="/backtesting", tags=["backtesting"])
 app.include_router(graph.router, prefix="/graph", tags=["graph"])
+app.include_router(market.router, prefix="/market", tags=["market"])
 app.include_router(scheduler.router, prefix="/scheduler", tags=["scheduler"])
 
 

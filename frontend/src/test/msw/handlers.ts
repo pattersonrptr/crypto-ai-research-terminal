@@ -21,6 +21,7 @@ import type {
   CentralityResult,
   EcosystemSnapshot,
 } from "@/services/graph.service";
+import type { MarketCycleResponse } from "@/services/market.service";
 
 // ── Shared mock data factories ─────────────────────────────────────────────
 
@@ -310,6 +311,34 @@ export function backtestRunErrorHandler() {
   );
 }
 
+// ── Market cycle mock data ────────────────────────────────────────────────
+
+export const MOCK_MARKET_CYCLE: MarketCycleResponse = {
+  phase: "accumulation",
+  confidence: 0.72,
+  phase_description:
+    "Accumulation phase — smart money is quietly building positions while prices consolidate.",
+  indicators: {
+    btc_dominance: 54.2,
+    fear_greed_index: 35,
+    fear_greed_label: "Fear",
+  },
+};
+
+// ── Market cycle handler factories ────────────────────────────────────────
+
+export function marketCycleHandler(
+  data: MarketCycleResponse = MOCK_MARKET_CYCLE,
+) {
+  return http.get("/api/market/cycle", () => HttpResponse.json(data));
+}
+
+export function marketCycleErrorHandler() {
+  return http.get("/api/market/cycle", () =>
+    HttpResponse.json({ detail: "Internal server error" }, { status: 500 }),
+  );
+}
+
 // ── Default handlers (happy-path baseline) ────────────────────────────────
 
 export const handlers = [
@@ -327,4 +356,5 @@ export const handlers = [
   graphCentralityHandler(),
   graphEcosystemHandler(),
   backtestRunHandler(),
+  marketCycleHandler(),
 ];

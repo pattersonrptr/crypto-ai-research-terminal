@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchRankingOpportunities } from "@/services/tokens.service";
 import { TokenCard } from "@/features/tokens/components/TokenCard";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { CycleIndicator } from "@/components/Dashboard/CycleIndicator";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
@@ -28,6 +29,7 @@ export function Home() {
       <PageHeader
         title="Top Opportunities"
         description={`${opportunities.length} tokens analysed — updated daily`}
+        actions={<CycleIndicator />}
       />
 
       {/* ── Loading state ─────────────────────────────────────────── */}
