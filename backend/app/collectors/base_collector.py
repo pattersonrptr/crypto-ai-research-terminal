@@ -1,7 +1,7 @@
 """Base collector class — all collectors inherit from this."""
 
 import abc
-from typing import Any
+from typing import Any, Self
 
 import httpx
 import structlog
@@ -22,7 +22,7 @@ class BaseCollector(abc.ABC):
         self.api_key = api_key
         self._client: httpx.AsyncClient | None = None
 
-    async def __aenter__(self) -> "BaseCollector":
+    async def __aenter__(self) -> Self:
         self._client = httpx.AsyncClient(base_url=self.base_url, timeout=30.0)
         return self
 

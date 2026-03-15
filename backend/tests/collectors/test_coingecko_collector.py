@@ -147,3 +147,88 @@ class TestCoinGeckoCollectorCollectSingle:
         with pytest.raises(CollectorError):
             async with CoinGeckoCollector() as collector:
                 await collector.collect_single("nonexistent-token")
+
+
+# ── Detail-based data (coin detail pages with categories) ──────────────────
+
+COINGECKO_DETAIL_BITCOIN = {
+    "id": "bitcoin",
+    "symbol": "btc",
+    "name": "Bitcoin",
+    "categories": ["Cryptocurrency", "Layer 1 (L1)", "Proof of Work (PoW)"],
+}
+
+COINGECKO_DETAIL_ETHEREUM = {
+    "id": "ethereum",
+    "symbol": "eth",
+    "name": "Ethereum",
+    "categories": ["Smart Contract Platform", "Layer 1 (L1)"],
+}
+
+COINGECKO_DETAIL_AAVE = {
+    "id": "aave",
+    "symbol": "aave",
+    "name": "Aave",
+    "categories": ["DeFi", "Lending/Borrowing"],
+}
+
+
+class TestCoinGeckoCollectorCollectCategories:
+    """CoinGeckoCollector.collect_categories() fetches categories via /coins/{id}."""
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_collect_categories_returns_dict_mapping_id_to_categories(
+        self,
+    ) -> None:
+        respx.get("https://api.coingecko.com/api/v3/coins/bitcoin").mock(
+            return_value=httpx.Response(200, json=COINGECKO_DETAIL_BITCOIN)
+        )
+        respx.get("https://api.coingecko.com/api/v3/coins/ethereum").mock(
+            return_value=httpx.Response(200, json=COINGECKO_DETAIL_ETHEREUM)
+        )
+
+        async with CoinGeckoCollector() as collector:
+            result = await collector.collect_categories(["bitcoin", "ethereum"])
+
+        assert isinstance(result, dict)
+        assert "bitcoin" in result
+        assert "ethereum" in result
+        assert "Layer 1 (L1)" in result["bitcoin"]
+        assert "Smart Contract Platform" in result["ethereum"]
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_collect_categories_skips_failed_tokens(self) -> None:
+        respx.get("https://api.coingecko.com/api/v3/coins/bitcoin").mock(
+            return_value=httpx.Response(200, json=COINGECKO_DETAIL_BITCOIN)
+        )
+        respx.get("https://api.coingecko.com/api/v3/coins/nonexistent").mock(
+            return_value=httpx.Response(404)
+        )
+
+        async with CoinGeckoCollector() as collector:
+            result = await collector.collect_categories(["bitcoin", "nonexistent"], delay=0.0)
+
+        assert "bitcoin" in result
+        assert "nonexistent" not in result
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_collect_categories_empty_input_returns_empty_dict(self) -> None:
+        async with CoinGeckoCollector() as collector:
+            result = await collector.collect_categories([])
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_collect_categories_handles_missing_categories_field(self) -> None:
+        respx.get("https://api.coingecko.com/api/v3/coins/bitcoin").mock(
+            return_value=httpx.Response(200, json={"id": "bitcoin", "symbol": "btc"})
+        )
+
+        async with CoinGeckoCollector() as collector:
+            result = await collector.collect_categories(["bitcoin"], delay=0.0)
+
+        assert result["bitcoin"] == []

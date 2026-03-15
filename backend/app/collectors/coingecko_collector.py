@@ -1,5 +1,6 @@
 """CoinGecko collector — fetches market data from the CoinGecko public API."""
 
+import asyncio
 from typing import Any
 
 import structlog
@@ -45,7 +46,7 @@ class CoinGeckoCollector(BaseCollector):
             "sparkline": False,
         }
         if self.api_key:
-            params["x_cg_pro_api_key"] = self.api_key
+            params["x_cg_demo_api_key"] = self.api_key
 
         try:
             raw: list[dict[str, Any]] = await self._get(_MARKETS_ENDPOINT, params=params)
@@ -71,6 +72,56 @@ class CoinGeckoCollector(BaseCollector):
         if not results:
             raise CollectorError(f"CoinGecko returned no data for '{symbol}'")
         return results[0]
+
+    async def collect_categories(
+        self,
+        coingecko_ids: list[str],
+        *,
+        delay: float = 3.0,
+    ) -> dict[str, list[str]]:
+        """Fetch categories for a list of tokens via ``/coins/{id}``.
+
+        The CoinGecko ``/coins/markets`` endpoint does not include categories.
+        This method calls the detail endpoint for each token individually,
+        with a delay between requests to respect rate limits.
+
+        Args:
+            coingecko_ids: List of CoinGecko coin IDs.
+            delay: Seconds to wait between requests (default 3.0s for free tier).
+
+        Returns:
+            Dict mapping coingecko_id → list of category strings.
+            Tokens that fail to fetch are silently skipped.
+        """
+        if not coingecko_ids:
+            return {}
+
+        result: dict[str, list[str]] = {}
+        for i, coin_id in enumerate(coingecko_ids):
+            try:
+                params: dict[str, Any] | None = None
+                if self.api_key:
+                    params = {"x_cg_demo_api_key": self.api_key}
+                data: dict[str, Any] = await self._get(f"/coins/{coin_id}", params=params)
+                result[coin_id] = data.get("categories") or []
+                logger.debug(
+                    "coingecko.categories.fetched",
+                    coin_id=coin_id,
+                    count=len(result[coin_id]),
+                )
+            except Exception:
+                logger.warning("coingecko.categories.failed", coin_id=coin_id)
+
+            # Rate-limit delay between requests (skip after last one)
+            if delay > 0 and i < len(coingecko_ids) - 1:
+                await asyncio.sleep(delay)
+
+        logger.info(
+            "coingecko.categories.completed",
+            requested=len(coingecko_ids),
+            fetched=len(result),
+        )
+        return result
 
     # ------------------------------------------------------------------
     # Internal helpers
