@@ -106,40 +106,75 @@ class TestDailyCollectionJob:
 
     @pytest.mark.asyncio
     async def test_daily_collection_job_calls_opportunity_engine(self) -> None:
-        """daily_collection_job must call OpportunityEngine.composite_score() for each token."""
+        """daily_collection_job must call full_composite_score for each token."""
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
+        from app.scoring.heuristic_sub_scorer import SubScoreResult
 
+        sub = SubScoreResult(
+            technology_score=0.5,
+            tokenomics_score=0.5,
+            adoption_score=0.5,
+            dev_activity_score=0.5,
+            narrative_score=0.6,
+            growth_score=0.7,
+            risk_score=0.4,
+            listing_probability=0.3,
+            cycle_leader_prob=0.1,
+        )
         cls_mock, _ = _make_collector_mock()
         with (
             patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs.MarketProcessor") as mock_processor,
             patch("app.scheduler.jobs.FundamentalScorer") as mock_scorer,
+            patch("app.scheduler.jobs.HeuristicSubScorer") as mock_sub,
             patch("app.scheduler.jobs.OpportunityEngine") as mock_engine,
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
         ):
             mock_processor.process = MagicMock(return_value=_PROCESSED)
             mock_scorer.score = MagicMock(return_value=0.75)
-            mock_engine.composite_score = MagicMock(return_value=0.75)
+            mock_sub.score = MagicMock(return_value=sub)
+            mock_engine.full_composite_score = MagicMock(return_value=0.75)
             await daily_collection_job()
 
-        mock_engine.composite_score.assert_called_once_with(0.75)
+        mock_engine.full_composite_score.assert_called_once_with(
+            fundamental=0.75,
+            growth=sub.growth_score,
+            narrative=sub.narrative_score,
+            listing=sub.listing_probability,
+            risk=sub.risk_score,
+            cycle_leader_prob=sub.cycle_leader_prob,
+        )
 
     @pytest.mark.asyncio
     async def test_daily_collection_job_calls_persist(self) -> None:
         """daily_collection_job must call _persist_results with the scored results."""
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
+        from app.scoring.heuristic_sub_scorer import SubScoreResult
 
+        sub = SubScoreResult(
+            technology_score=0.5,
+            tokenomics_score=0.5,
+            adoption_score=0.5,
+            dev_activity_score=0.5,
+            narrative_score=0.6,
+            growth_score=0.7,
+            risk_score=0.4,
+            listing_probability=0.3,
+            cycle_leader_prob=0.1,
+        )
         cls_mock, _ = _make_collector_mock()
         with (
             patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs.MarketProcessor") as mock_processor,
             patch("app.scheduler.jobs.FundamentalScorer") as mock_scorer,
+            patch("app.scheduler.jobs.HeuristicSubScorer") as mock_sub,
             patch("app.scheduler.jobs.OpportunityEngine") as mock_engine,
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock) as mock_persist,
         ):
             mock_processor.process = MagicMock(return_value=_PROCESSED)
             mock_scorer.score = MagicMock(return_value=0.75)
-            mock_engine.composite_score = MagicMock(return_value=0.75)
+            mock_sub.score = MagicMock(return_value=sub)
+            mock_engine.full_composite_score = MagicMock(return_value=0.82)
             await daily_collection_job()
 
         mock_persist.assert_awaited_once()
@@ -147,7 +182,9 @@ class TestDailyCollectionJob:
         assert len(call_args) == 1
         assert call_args[0]["symbol"] == "BTC"
         assert call_args[0]["fundamental_score"] == 0.75
-        assert call_args[0]["opportunity_score"] == 0.75
+        assert call_args[0]["opportunity_score"] == 0.82
+        assert call_args[0]["growth_score"] == 0.7
+        assert call_args[0]["narrative_score"] == 0.6
 
     @pytest.mark.asyncio
     async def test_daily_collection_job_uses_collector_as_context_manager(

@@ -424,7 +424,7 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 | 6 | React Dashboard — fully wired, Docker containers | ✅ Complete |
 | 7 | ML + Knowledge Graph + Backtesting | ✅ Complete |
 | 8 | Live Data Pipeline + Production Hardening | ✅ Complete |
-| 9 | **Full Scoring Pipeline** — all 11 sub-scores, 5-pillar formula, AI summaries | 🔲 Planned |
+| 9 | **Full Scoring Pipeline** — all 11 sub-scores, 5-pillar formula, heuristic derivation | � In Progress |
 | 10 | **Live Narratives + Cycle Detection** — real clusters, market phase awareness | 🔲 Planned |
 | 11 | **Alert Generation** — fire alerts from scores, Telegram delivery | 🔲 Planned |
 | 12 | **Backtesting Validation** — real historical data, precision metrics, calibration | 🔲 Planned |
@@ -435,9 +435,10 @@ The infrastructure is complete (802 backend tests, 126 frontend tests, full Dock
 stack, real CoinGecko data). However, the **predictive capability** — the core
 purpose of the app — is not yet functional:
 
-- **Rankings are superficial:** Only `fundamental_score` (4 market metrics) and
-  `opportunity_score` (copy of fundamental) are populated. 9 other sub-scores = 0.0.
-- **Radar chart is empty:** All sub-pillar scores are 0.0.
+- **Rankings are superficial:** ~~Only `fundamental_score` and `opportunity_score`
+  populated.~~ Phase 9 now populates all 11 sub-scores via `HeuristicSubScorer`.
+- **Radar chart is empty:** ~~All sub-pillar scores are 0.0.~~ Fixed — all sub-scores
+  now flow from API to frontend with proper 0–10 scaling.
 - **Narratives are seed data:** Hardcoded, not detected from real social signals.
 - **Alerts are never generated:** Rule engine exists but is never called.
 - **Backtesting uses synthetic data:** Cannot validate the model against real cycles.
@@ -445,4 +446,4 @@ purpose of the app — is not yet functional:
 
 Phases 9–12 address all of these. See [`SCOPE.md`](SCOPE.md) §10 for details.
 
-**Current test counts:** 802 backend + 126 frontend = **928 total tests**
+**Current test counts:** 836 backend + 126 frontend = **962 total tests**

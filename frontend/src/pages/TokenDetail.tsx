@@ -165,7 +165,10 @@ export function TokenDetail() {
                   ["Growth",       score.growth_score],
                   ["Risk",         score.risk_score],
                 ] as [string, number][]
-              ).map(([label, value]) => (
+              ).map(([label, raw]) => {
+                // API returns 0-1; scale to 0-10 for display
+                const value = raw * 10;
+                return (
                 <div key={label} className="flex items-center justify-between gap-4">
                   <span className="text-sm text-muted-foreground">{label}</span>
                   <div className="flex flex-1 items-center gap-2">
@@ -179,7 +182,7 @@ export function TokenDetail() {
                         })}
                         style={{ width: `${(value / 10) * 100}%` }}
                         role="progressbar"
-                        aria-valuenow={value}
+                        aria-valuenow={Math.round(value * 10) / 10}
                         aria-valuemin={0}
                         aria-valuemax={10}
                         aria-label={`${label} score`}
@@ -190,7 +193,8 @@ export function TokenDetail() {
                     </span>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No score data available.</p>

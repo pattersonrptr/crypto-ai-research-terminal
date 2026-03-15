@@ -66,6 +66,8 @@ services:
       OLLAMA_BASE_URL: http://ollama:11434
     ports:
       - "8000:8000"
+    volumes:
+      - ../backend:/app/backend:ro
     depends_on:
       postgres:
         condition: service_healthy

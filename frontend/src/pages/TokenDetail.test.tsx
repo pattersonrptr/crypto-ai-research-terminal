@@ -109,7 +109,8 @@ describe("TokenDetail", () => {
       const bar = screen.getByRole("progressbar", {
         name: /opportunity score/i,
       });
-      expect(bar).toHaveAttribute("aria-valuenow", "71");
+      // API returns 0.71, display scales to 7.1
+      expect(bar).toHaveAttribute("aria-valuenow", "7.1");
     });
   });
 
