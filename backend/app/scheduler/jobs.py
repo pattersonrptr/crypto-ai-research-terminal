@@ -22,8 +22,8 @@ from app.models.score import TokenScore
 from app.models.token import Token
 from app.processors.market_processor import MarketProcessor
 from app.scoring.fundamental_scorer import FundamentalScorer
-from app.scoring.heuristic_sub_scorer import HeuristicSubScorer
 from app.scoring.opportunity_engine import OpportunityEngine
+from app.scoring.pipeline_scorer import PipelineScorer
 
 if TYPE_CHECKING:
     import redis.asyncio as aioredis
@@ -179,8 +179,17 @@ async def daily_collection_job(
         for raw in raw_data:
             try:
                 processed = MarketProcessor.process(raw)
-                fundamental_score = FundamentalScorer.score(processed)
-                sub_scores = HeuristicSubScorer.score(processed)
+                sub_scores = PipelineScorer.score(processed)
+
+                # Phase 9: use 5-sub-pillar model when sub-scores available
+                fundamental_score = FundamentalScorer.sub_pillar_score(
+                    technology=sub_scores.technology_score,
+                    tokenomics=sub_scores.tokenomics_score,
+                    adoption=sub_scores.adoption_score,
+                    dev_activity=sub_scores.dev_activity_score,
+                    narrative=sub_scores.narrative_score,
+                )
+
                 opportunity_score = OpportunityEngine.full_composite_score(
                     fundamental=fundamental_score,
                     growth=sub_scores.growth_score,

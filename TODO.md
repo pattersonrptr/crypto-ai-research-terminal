@@ -271,7 +271,8 @@ See `.github/copilot-instructions.md` and `.github/instructions/python-backend.i
 ### Production Infrastructure
 - ✅ `infra/docker-compose.prod.yml` — production overrides (no bind mounts, resource limits)
 - ✅ Nginx rate limiting + CORS hardening
-- 🔲 Log rotation + structured log export (optional: Loki/Grafana) → **Deferred**
+- ✅ Log rotation + structured log export — `logging_config.py` (JSON/console modes),
+  Docker log rotation (json-file driver, 50 MB × 5 files) in `docker-compose.prod.yml`
 - ✅ `.env.example` updated with all new keys
 
 **Status:** Pipeline works end-to-end (249 real tokens from CoinGecko). But only
@@ -331,15 +332,16 @@ are 0.0. The radar chart, rankings, and token detail page are useless.
 - ✅ `entrypoint.sh`: Runs `seed_data.py` after Alembic migration (auto-seeds, backfills)
 - ✅ Seed data: All 11 sub-scores in `SAMPLE_SCORES`, `_backfill_sub_scores()` function
 
-### Remaining (optional enhancements — deferred)
-- 🔲 Upgrade `FundamentalScorer` from 4-metric → 5-sub-pillar model
-  (technology, tokenomics, adoption, dev_activity, narrative_fit)
-- 🔲 Wire `GrowthScorer` into pipeline (uses existing GitHub + Reddit data)
-- 🔲 Wire `RiskScorer` into pipeline (uses existing risk detector modules)
-- 🔲 Wire `NarrativeScorer` into pipeline (uses narrative clusters)
-- 🔲 Wire `ListingScorer` into pipeline (uses existing exchange monitor data)
-- 🔲 Wire `CycleLeaderModel.predict()` → persist `cycle_leader_prob`
-- 🔲 AI-generated token summary via Ollama/Gemini → cache in `ai_analyses` table
+### Remaining (optional enhancements — ✅ all completed)
+- ✅ Upgrade `FundamentalScorer` from 4-metric → 5-sub-pillar model
+  (`sub_pillar_score()` — technology, tokenomics, adoption, dev_activity, narrative)
+- ✅ Wire `GrowthScorer` into pipeline via `PipelineScorer` (data-availability check)
+- ✅ Wire `RiskScorer` into pipeline via `PipelineScorer` (data-availability check)
+- ✅ Wire `NarrativeScorer` into pipeline via `PipelineScorer` (category-based, no LLM)
+- ✅ Wire `ListingScorer` into pipeline via `PipelineScorer` (data-availability check)
+- ✅ Wire `CycleLeaderModel.predict()` → `cycle_leader_prob` via `PipelineScorer`
+- ✅ AI-generated token summary → `AiAnalysis` model + `SummaryCacheService` +
+  `GET /tokens/{symbol}/summary` endpoint with DB cache
 
 ### Tests (TDD) — 34 new tests, 836 total
 - ✅ Tests for `HeuristicSubScorer` (all 9 sub-scores, edge cases)
@@ -393,9 +395,10 @@ possible.
   - Shared narrative clusters (tokens in same narrative = edge, weight 0.6)
   - Shared blockchain ecosystem (same chain = edge, weight 0.7)
 - ✅ Graph routes prefer live data, fall back to seed graph when DB is empty
-- 🔲 Price correlation matrix (corr > 0.7 = edge) → deferred: requires historical
-  price data (Phase 12 backtesting data)
-- 🔲 Detect growing ecosystems (compare community sizes over time) → deferred: Phase 11
+- ✅ Price correlation matrix (corr > 0.7 = edge) — `PriceCorrelationBuilder`
+  with Pearson correlation, configurable threshold, absolute value mode
+- ✅ Detect growing ecosystems — `EcosystemTracker.growth_summary()` compares
+  community sizes over time, reports trend (growing/shrinking/stable)
 
 ### Tests (TDD) — 88 new tests, 924 backend + 133 frontend total
 - ✅ `CycleDetector` (24 tests — phase classification, all edge cases)

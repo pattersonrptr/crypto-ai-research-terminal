@@ -153,3 +153,41 @@ class EcosystemTracker:
             removed=len(removed_tokens),
         )
         return diff
+
+    def growth_summary(
+        self,
+        snap1: EcosystemSnapshot,
+        snap2: EcosystemSnapshot,
+    ) -> dict[str, object]:
+        """Compare community sizes over time and classify the ecosystem trend.
+
+        Args:
+            snap1: The earlier (reference) snapshot.
+            snap2: The later snapshot to compare against.
+
+        Returns:
+            Dict with keys: ``total_tokens_before``, ``total_tokens_after``,
+            ``net_growth``, ``communities_before``, ``communities_after``,
+            ``trend`` (``"growing"`` / ``"shrinking"`` / ``"stable"``).
+        """
+        before = snap1.total_tokens
+        after = snap2.total_tokens
+        net = after - before
+
+        if net > 0:
+            trend = "growing"
+        elif net < 0:
+            trend = "shrinking"
+        else:
+            trend = "stable"
+
+        summary: dict[str, object] = {
+            "total_tokens_before": before,
+            "total_tokens_after": after,
+            "net_growth": net,
+            "communities_before": snap1.n_communities,
+            "communities_after": snap2.n_communities,
+            "trend": trend,
+        }
+        logger.info("ecosystem_tracker.growth_summary", **dict(summary.items()))
+        return summary

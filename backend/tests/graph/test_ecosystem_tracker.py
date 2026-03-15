@@ -215,3 +215,93 @@ class TestEcosystemTracker:
         diff = tracker.compare(snap1, snap2)
         assert "SOL" in diff.new_tokens
         assert "ETH" in diff.removed_tokens
+
+
+# ---------------------------------------------------------------------------
+# TestEcosystemTracker.growth_summary
+# ---------------------------------------------------------------------------
+
+
+class TestEcosystemTrackerGrowthSummary:
+    """growth_summary() compares community sizes over time."""
+
+    def test_growth_summary_reports_total_delta(self) -> None:
+        tracker = EcosystemTracker()
+        ts = datetime(2024, 1, 1, tzinfo=UTC)
+        snap1 = EcosystemSnapshot(
+            timestamp=ts,
+            communities=[_make_community(0, ["BTC", "ETH"])],
+            top_tokens=["BTC"],
+        )
+        snap2 = EcosystemSnapshot(
+            timestamp=ts,
+            communities=[_make_community(0, ["BTC", "ETH", "SOL", "AVAX"])],
+            top_tokens=["BTC"],
+        )
+        summary = tracker.growth_summary(snap1, snap2)
+        assert summary["total_tokens_before"] == 2
+        assert summary["total_tokens_after"] == 4
+        assert summary["net_growth"] == 2
+
+    def test_growth_summary_reports_community_count_delta(self) -> None:
+        tracker = EcosystemTracker()
+        ts = datetime(2024, 1, 1, tzinfo=UTC)
+        snap1 = EcosystemSnapshot(
+            timestamp=ts,
+            communities=[_make_community(0, ["BTC", "ETH"])],
+            top_tokens=["BTC"],
+        )
+        snap2 = EcosystemSnapshot(
+            timestamp=ts,
+            communities=[
+                _make_community(0, ["BTC", "ETH"]),
+                _make_community(1, ["SOL", "AVAX"]),
+            ],
+            top_tokens=["BTC"],
+        )
+        summary = tracker.growth_summary(snap1, snap2)
+        assert summary["communities_before"] == 1
+        assert summary["communities_after"] == 2
+
+    def test_growth_summary_label_growing(self) -> None:
+        tracker = EcosystemTracker()
+        ts = datetime(2024, 1, 1, tzinfo=UTC)
+        snap1 = EcosystemSnapshot(
+            timestamp=ts,
+            communities=[_make_community(0, ["BTC"])],
+            top_tokens=["BTC"],
+        )
+        snap2 = EcosystemSnapshot(
+            timestamp=ts,
+            communities=[_make_community(0, ["BTC", "ETH", "SOL"])],
+            top_tokens=["BTC"],
+        )
+        summary = tracker.growth_summary(snap1, snap2)
+        assert summary["trend"] == "growing"
+
+    def test_growth_summary_label_shrinking(self) -> None:
+        tracker = EcosystemTracker()
+        ts = datetime(2024, 1, 1, tzinfo=UTC)
+        snap1 = EcosystemSnapshot(
+            timestamp=ts,
+            communities=[_make_community(0, ["BTC", "ETH", "SOL"])],
+            top_tokens=["BTC"],
+        )
+        snap2 = EcosystemSnapshot(
+            timestamp=ts,
+            communities=[_make_community(0, ["BTC"])],
+            top_tokens=["BTC"],
+        )
+        summary = tracker.growth_summary(snap1, snap2)
+        assert summary["trend"] == "shrinking"
+
+    def test_growth_summary_label_stable(self) -> None:
+        tracker = EcosystemTracker()
+        ts = datetime(2024, 1, 1, tzinfo=UTC)
+        snap = EcosystemSnapshot(
+            timestamp=ts,
+            communities=[_make_community(0, ["BTC", "ETH"])],
+            top_tokens=["BTC"],
+        )
+        summary = tracker.growth_summary(snap, snap)
+        assert summary["trend"] == "stable"
