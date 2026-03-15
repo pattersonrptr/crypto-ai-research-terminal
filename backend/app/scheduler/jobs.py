@@ -2,6 +2,7 @@
 
 Phase 8: full pipeline with job health monitoring and Redis dead-letter queue.
 Phase 10: narrative snapshot persistence and category-based narrative building.
+Phase 11: alert generation via AlertEvaluator after scoring.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from app.alerts.alert_evaluator import AlertEvaluator
 from app.analysis.narrative_persister import NarrativePersister
 from app.collectors.coingecko_collector import CoinGeckoCollector
 from app.models.market_data import MarketData
@@ -26,6 +28,7 @@ if TYPE_CHECKING:
     import redis.asyncio as aioredis
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from app.models.alert import Alert
     from app.models.narrative import NarrativeCluster
 
 logger = structlog.get_logger(__name__)
@@ -192,6 +195,36 @@ async def daily_collection_job(
 
         log.info("daily_collection_job.scored", count=len(results))
         await _persist_results(results)
+
+        # Build and persist narrative snapshots from token categories
+        try:
+            narrative_data = [
+                {
+                    "symbol": r.get("symbol", ""),
+                    "name": r.get("name", ""),
+                    "categories": r.get("categories", []),
+                }
+                for r in raw_data
+            ]
+            clusters = build_narrative_snapshot_from_categories(narrative_data)
+            await persist_narrative_snapshot(clusters)
+            log.info(
+                "daily_collection_job.narratives_persisted",
+                count=len(clusters),
+            )
+        except Exception:
+            log.exception("daily_collection_job.narrative_snapshot_error")
+
+        # Evaluate alert rules against scored results and persist triggered alerts
+        try:
+            triggered = await evaluate_and_persist_alerts(results)
+            log.info(
+                "daily_collection_job.alerts_evaluated",
+                count=len(triggered),
+            )
+        except Exception:
+            log.exception("daily_collection_job.alert_evaluation_error")
+
         log.info("daily_collection_job.completed", count=len(results))
 
         if redis is not None:
@@ -372,3 +405,52 @@ def build_narrative_snapshot_from_categories(
     """
     snap = snapshot_date or date.today()
     return NarrativePersister.build_from_categories(token_data, snapshot_date=snap)
+
+
+# ---------------------------------------------------------------------------
+# Phase 11: Alert evaluation helpers
+# ---------------------------------------------------------------------------
+
+
+async def evaluate_and_persist_alerts(
+    results: list[dict[str, Any]],
+    *,
+    session: AsyncSession | None = None,
+) -> list[Alert]:
+    """Run AlertEvaluator on scored results and persist triggered alerts.
+
+    Args:
+        results: Scored pipeline output dicts.
+        session: Optional externally-managed session (used by tests).
+
+    Returns:
+        List of persisted Alert ORM objects.
+    """
+    evaluator = AlertEvaluator()
+    alerts = evaluator.evaluate_batch(results)
+
+    if not alerts:
+        logger.info("evaluate_and_persist_alerts.none_triggered")
+        return []
+
+    own_session = False
+    if session is None:
+        from app.db.session import _SessionLocal  # noqa: PLC0415
+
+        session = _SessionLocal()
+        own_session = True
+
+    try:
+        for alert in alerts:
+            session.add(alert)
+        await session.commit()
+        logger.info("evaluate_and_persist_alerts.committed", count=len(alerts))
+    except Exception:
+        await session.rollback()
+        logger.exception("evaluate_and_persist_alerts.failed")
+        raise
+    finally:
+        if own_session:
+            await session.close()
+
+    return alerts

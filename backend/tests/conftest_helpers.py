@@ -14,8 +14,8 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from sqlalchemy import Connection
 
-# Tables that use PostgreSQL-only column types (e.g. ARRAY).
-_PG_ONLY_TABLES = {"narratives"}
+# Tables that use PostgreSQL-only column types (e.g. ARRAY, JSONB).
+_PG_ONLY_TABLES = {"narratives", "alerts"}
 
 
 def create_sqlite_tables(conn: Connection) -> None:

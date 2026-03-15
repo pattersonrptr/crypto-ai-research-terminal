@@ -2,7 +2,8 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -14,11 +15,30 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    token_id: Mapped[int] = mapped_column(ForeignKey("tokens.id"), nullable=False, index=True)
-    alert_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    token_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tokens.id"),
+        nullable=True,
+        index=True,
+    )
+    token_symbol: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    alert_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     message: Mapped[str] = mapped_column(Text, nullable=False)
+    alert_metadata: Mapped[dict | None] = mapped_column(  # type: ignore[type-arg]
+        "metadata",
+        JSONB,
+        nullable=True,
+    )
+    sent_telegram: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    acknowledged: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    acknowledged_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     triggered_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        index=True,
     )
 
     def __repr__(self) -> str:
