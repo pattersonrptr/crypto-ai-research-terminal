@@ -203,8 +203,10 @@ class TestDailyCollectionJob:
         ):
             await daily_collection_job()
 
-        instance.__aenter__.assert_awaited_once()
-        instance.__aexit__.assert_awaited_once()
+        # Collector is used as context manager at least once (market data);
+        # a second usage may occur for category fetching.
+        assert instance.__aenter__.await_count >= 1
+        assert instance.__aexit__.await_count >= 1
 
 
 # ---------------------------------------------------------------------------

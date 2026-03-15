@@ -45,6 +45,14 @@ class TestPipelineNarrativeIntegration:
             _make_raw_token("COMP", categories=["defi"]),
         ]
 
+        # Categories returned by collect_categories (keyed by coingecko_id)
+        fake_categories = {
+            "fet": ["ai"],
+            "rndr": ["ai"],
+            "aave": ["defi"],
+            "comp": ["defi"],
+        }
+
         mock_clusters = [MagicMock(spec=NarrativeCluster)]
 
         with (
@@ -64,6 +72,7 @@ class TestPipelineNarrativeIntegration:
             # Set up collector mock as async context manager
             mock_collector = AsyncMock()
             mock_collector.collect.return_value = raw_tokens
+            mock_collector.collect_categories.return_value = fake_categories
             mock_collector_cls.return_value.__aenter__ = AsyncMock(
                 return_value=mock_collector,
             )

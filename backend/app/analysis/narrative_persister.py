@@ -23,36 +23,88 @@ from app.models.narrative import NarrativeCluster
 
 logger = structlog.get_logger(__name__)
 
-# Category keywords → narrative name mapping for fallback mode
+# Category keywords → narrative name mapping for fallback mode.
+# Keys are compared against *lowercased* CoinGecko category strings.
 _CATEGORY_MAPPING: dict[str, str] = {
+    # AI & Machine Learning
     "artificial-intelligence": "AI & Machine Learning",
     "ai": "AI & Machine Learning",
     "machine learning": "AI & Machine Learning",
     "machine-learning": "AI & Machine Learning",
     "gpu": "AI & Machine Learning",
+    # Layer 2 Scaling
     "layer 2": "Layer 2 Scaling",
     "layer-2": "Layer 2 Scaling",
+    "layer 2 (l2)": "Layer 2 Scaling",
     "optimistic rollup": "Layer 2 Scaling",
     "zk-rollup": "Layer 2 Scaling",
+    "optimistic rollups": "Layer 2 Scaling",
+    "zero knowledge (zk)": "Layer 2 Scaling",
+    # Real World Assets
     "real world assets": "Real World Assets",
+    "real world assets (rwa)": "Real World Assets",
     "rwa": "Real World Assets",
+    "rwa protocol": "Real World Assets",
     "tokenised assets": "Real World Assets",
+    "tokenized real-world assets": "Real World Assets",
+    # DeFi
     "defi": "DeFi",
     "decentralized-finance": "DeFi",
+    "decentralized finance (defi)": "DeFi",
+    # DeFi Lending
     "lending": "DeFi Lending",
+    "lending/borrowing": "DeFi Lending",
     "borrowing": "DeFi Lending",
+    # Meme Coins
     "meme": "Meme Coins",
     "meme-token": "Meme Coins",
+    "dog-themed": "Meme Coins",
+    "cat-themed": "Meme Coins",
+    "elon musk-inspired": "Meme Coins",
+    "4chan-themed": "Meme Coins",
+    "political memes": "Meme Coins",
+    # GameFi & Metaverse
     "gaming": "GameFi & Metaverse",
     "gamefi": "GameFi & Metaverse",
     "metaverse": "GameFi & Metaverse",
+    "play-to-earn": "GameFi & Metaverse",
+    # NFT & Digital Collectibles
     "nft": "NFT & Digital Collectibles",
+    "non-fungible tokens (nft)": "NFT & Digital Collectibles",
+    # Privacy
     "privacy": "Privacy",
+    "privacy coins": "Privacy",
+    "privacy infrastructure": "Privacy",
+    # Oracles & Data
     "oracle": "Oracles & Data",
+    "oracles": "Oracles & Data",
+    # Decentralized Storage
     "storage": "Decentralized Storage",
+    "decentralized storage": "Decentralized Storage",
+    "file sharing": "Decentralized Storage",
+    # Layer 1 Platforms
     "layer 1": "Layer 1 Platforms",
     "layer-1": "Layer 1 Platforms",
+    "layer 1 (l1)": "Layer 1 Platforms",
+    "smart contract platform": "Layer 1 Platforms",
+    # Modular Blockchains
     "modular blockchain": "Modular Blockchains",
+    # Stablecoins
+    "stablecoins": "Stablecoins",
+    "usd stablecoin": "Stablecoins",
+    "eur stablecoin": "Stablecoins",
+    "algorithmic stablecoin": "Stablecoins",
+    # Proof of Stake
+    "proof of stake (pos)": "Proof of Stake",
+    "liquid staking tokens": "Proof of Stake",
+    "liquid staking derivatives": "Proof of Stake",
+    "restaking": "Proof of Stake",
+    # Cross-chain / Interoperability
+    "cross-chain communication": "Interoperability",
+    "bridge": "Interoperability",
+    "chain abstraction": "Interoperability",
+    # Infrastructure
+    "infrastructure": "Infrastructure",
 }
 
 _MIN_TOKENS_PER_NARRATIVE = 2

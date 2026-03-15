@@ -132,13 +132,23 @@ async def run_collection_job() -> int:
         Number of tokens successfully processed and persisted.
     """
     from app.collectors.coingecko_collector import CoinGeckoCollector  # noqa: PLC0415
+    from app.config import Settings  # noqa: PLC0415
     from app.processors.market_processor import MarketProcessor  # noqa: PLC0415
-    from app.scheduler.jobs import _persist_results  # noqa: PLC0415
+    from app.scheduler.jobs import (  # noqa: PLC0415
+        _NARRATIVE_CATEGORY_LIMIT,
+        _persist_results,
+        build_narrative_snapshot_from_categories,
+        evaluate_and_persist_alerts,
+        persist_narrative_snapshot,
+    )
     from app.scoring.fundamental_scorer import FundamentalScorer  # noqa: PLC0415
     from app.scoring.heuristic_sub_scorer import HeuristicSubScorer  # noqa: PLC0415
     from app.scoring.opportunity_engine import OpportunityEngine  # noqa: PLC0415
 
-    async with CoinGeckoCollector() as collector:
+    settings = Settings()
+    api_key = settings.coingecko_api_key
+
+    async with CoinGeckoCollector(api_key=api_key) as collector:
         raw_data = await collector.collect(symbols=[])
 
     results: list[dict[str, object]] = []
@@ -167,6 +177,37 @@ async def run_collection_job() -> int:
             logger.exception("collect_now.token_error", symbol=raw.get("symbol"))
 
     await _persist_results(results)
+
+    # Build narratives from token categories
+    try:
+        top_ids = [r.get("coingecko_id", "") for r in raw_data if r.get("coingecko_id")]
+        top_ids = top_ids[:_NARRATIVE_CATEGORY_LIMIT]
+        categories_map: dict[str, list[str]] = {}
+        if top_ids:
+            async with CoinGeckoCollector(api_key=api_key) as cat_collector:
+                categories_map = await cat_collector.collect_categories(top_ids)
+        narrative_data = [
+            {
+                "symbol": r.get("symbol", "").upper(),
+                "name": r.get("name", ""),
+                "categories": categories_map.get(r.get("coingecko_id", ""), []),
+            }
+            for r in raw_data
+            if r.get("coingecko_id", "") in categories_map
+        ]
+        clusters = build_narrative_snapshot_from_categories(narrative_data)
+        await persist_narrative_snapshot(clusters)
+        logger.info("collect_now.narratives_persisted", count=len(clusters))
+    except Exception:
+        logger.exception("collect_now.narrative_error")
+
+    # Evaluate and persist alerts
+    try:
+        triggered = await evaluate_and_persist_alerts(results)
+        logger.info("collect_now.alerts_evaluated", count=len(triggered))
+    except Exception:
+        logger.exception("collect_now.alert_error")
+
     return len(results)
 
 

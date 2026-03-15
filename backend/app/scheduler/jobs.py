@@ -16,6 +16,7 @@ import structlog
 from app.alerts.alert_evaluator import AlertEvaluator
 from app.analysis.narrative_persister import NarrativePersister
 from app.collectors.coingecko_collector import CoinGeckoCollector
+from app.config import Settings
 from app.models.market_data import MarketData
 from app.models.score import TokenScore
 from app.models.token import Token
@@ -36,6 +37,9 @@ logger = structlog.get_logger(__name__)
 # Redis key templates
 _JOB_HASH_KEY = "scheduler:job:{job_name}"
 _JOB_DLQ_KEY = "scheduler:dlq:{job_name}"
+
+# Max tokens to fetch categories for (rate-limit friendly)
+_NARRATIVE_CATEGORY_LIMIT = 20
 
 
 # ---------------------------------------------------------------------------
@@ -164,8 +168,11 @@ async def daily_collection_job(
     log = logger.bind(job=_JOB_NAME)
     log.info("daily_collection_job.started")
 
+    settings = Settings()
+    api_key = settings.coingecko_api_key
+
     try:
-        async with CoinGeckoCollector() as collector:
+        async with CoinGeckoCollector(api_key=api_key) as collector:
             raw_data = await collector.collect(symbols=[])
 
         results: list[dict[str, Any]] = []
@@ -198,13 +205,23 @@ async def daily_collection_job(
 
         # Build and persist narrative snapshots from token categories
         try:
+            # Fetch categories for top tokens via /coins/{id} detail endpoint
+            top_ids = [r.get("coingecko_id", "") for r in raw_data if r.get("coingecko_id")]
+            top_ids = top_ids[:_NARRATIVE_CATEGORY_LIMIT]
+
+            categories_map: dict[str, list[str]] = {}
+            if top_ids:
+                async with CoinGeckoCollector(api_key=api_key) as cat_collector:
+                    categories_map = await cat_collector.collect_categories(top_ids)
+
             narrative_data = [
                 {
-                    "symbol": r.get("symbol", ""),
+                    "symbol": r.get("symbol", "").upper(),
                     "name": r.get("name", ""),
-                    "categories": r.get("categories", []),
+                    "categories": categories_map.get(r.get("coingecko_id", ""), []),
                 }
                 for r in raw_data
+                if r.get("coingecko_id", "") in categories_map
             ]
             clusters = build_narrative_snapshot_from_categories(narrative_data)
             await persist_narrative_snapshot(clusters)
