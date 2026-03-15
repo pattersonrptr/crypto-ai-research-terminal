@@ -399,6 +399,19 @@ async def persist_narrative_snapshot(
         own_session = True
 
     try:
+        # Delete existing narratives for the same snapshot_date to avoid duplicates
+        if clusters:
+            snapshot_date = clusters[0].snapshot_date
+            from sqlalchemy import delete  # noqa: PLC0415
+
+            from app.models.narrative import NarrativeCluster as NarrativeModel  # noqa: PLC0415
+
+            await session.execute(
+                delete(NarrativeModel).where(
+                    NarrativeModel.snapshot_date == snapshot_date,
+                )
+            )
+
         for cluster in clusters:
             session.add(cluster)
         await session.commit()

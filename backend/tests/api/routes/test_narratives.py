@@ -135,6 +135,14 @@ class TestGetNarratives:
         items = response.json()
         assert len(items) >= 1
 
+    def test_get_narratives_no_duplicates_by_name(self, client: TestClient) -> None:
+        """GET /narratives must not return duplicate narrative names."""
+        with _patch_live(_FAKE_LIVE_NARRATIVES):
+            response = client.get("/narratives/")
+        items = response.json()
+        names = [item["name"] for item in items]
+        assert len(names) == len(set(names)), f"Duplicate names found: {names}"
+
     def test_get_narratives_id_is_integer(self, client: TestClient) -> None:
         """id field should be a positive integer."""
         with _patch_live(_FAKE_LIVE_NARRATIVES):

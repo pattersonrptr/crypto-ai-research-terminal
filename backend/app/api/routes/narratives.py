@@ -55,14 +55,16 @@ async def fetch_latest_narratives() -> list[dict[str, Any]]:
 
         engine = create_async_engine(settings.database_url)
         async with engine.begin() as conn:
-            # Query latest snapshot date
+            # Query only the latest snapshot date to avoid duplicates
             result = await conn.execute(
                 text(
                     "SELECT id, name, momentum_score, trend, keywords, "
                     "token_symbols, snapshot_date "
                     "FROM narratives "
-                    "ORDER BY snapshot_date DESC, momentum_score DESC "
-                    "LIMIT 20"
+                    "WHERE snapshot_date = ("
+                    "  SELECT MAX(snapshot_date) FROM narratives"
+                    ") "
+                    "ORDER BY momentum_score DESC"
                 )
             )
             rows = result.fetchall()
