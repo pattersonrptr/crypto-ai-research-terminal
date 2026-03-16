@@ -15,19 +15,59 @@ logger = structlog.get_logger(__name__)
 # Default exclusion sets (upper-case symbols)
 # ---------------------------------------------------------------------------
 
-_DEFAULT_STABLECOINS: frozenset[str] = frozenset({
-    "USDT", "USDC", "DAI", "BUSD", "TUSD", "FRAX", "FDUSD", "USD1",
-    "USDP", "GUSD", "LUSD", "SUSD", "MIM", "CRVUSD", "GHO", "PYUSD",
-    "USDD", "USDJ", "USDN", "EURS", "EURT", "XSGD", "BIDR", "IDRT",
-    "UST",
-})
+_DEFAULT_STABLECOINS: frozenset[str] = frozenset(
+    {
+        "USDT",
+        "USDC",
+        "DAI",
+        "BUSD",
+        "TUSD",
+        "FRAX",
+        "FDUSD",
+        "USD1",
+        "USDP",
+        "GUSD",
+        "LUSD",
+        "SUSD",
+        "MIM",
+        "CRVUSD",
+        "GHO",
+        "PYUSD",
+        "USDD",
+        "USDJ",
+        "USDN",
+        "EURS",
+        "EURT",
+        "XSGD",
+        "BIDR",
+        "IDRT",
+        "UST",
+    }
+)
 
-_DEFAULT_WRAPPED: frozenset[str] = frozenset({
-    "WBTC", "WETH", "STETH", "CBETH", "RETH", "WBNB",
-    "WMATIC", "WAVAX", "WFTM", "WSOL", "WTRX",
-    "TBTC", "HBTC", "RENBTC", "SBTC",
-    "METH", "MSOL", "JITOMSOL", "BNSOL",
-})
+_DEFAULT_WRAPPED: frozenset[str] = frozenset(
+    {
+        "WBTC",
+        "WETH",
+        "STETH",
+        "CBETH",
+        "RETH",
+        "WBNB",
+        "WMATIC",
+        "WAVAX",
+        "WFTM",
+        "WSOL",
+        "WTRX",
+        "TBTC",
+        "HBTC",
+        "RENBTC",
+        "SBTC",
+        "METH",
+        "MSOL",
+        "JITOMSOL",
+        "BNSOL",
+    }
+)
 
 _DEFAULT_MIN_VOLUME_24H: float = 10_000.0
 
@@ -99,6 +139,4 @@ class TokenFilter:
     @property
     def excluded_symbols(self) -> frozenset[str]:
         """Union of all symbol-based exclusion sets (upper-case)."""
-        return self.stablecoins | self.wrapped | frozenset(
-            s.upper() for s in self.extra_exclude
-        )
+        return self.stablecoins | self.wrapped | frozenset(s.upper() for s in self.extra_exclude)

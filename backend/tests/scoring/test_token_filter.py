@@ -4,7 +4,6 @@ Addresses Item 1 of the Ranking Quality Loop: filter noise so the ranking
 answers 'which altcoins could explode during the next ATH?'
 """
 
-
 from app.scoring.token_filter import TokenFilter
 
 # ---------------------------------------------------------------------------
