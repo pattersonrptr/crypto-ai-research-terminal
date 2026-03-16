@@ -7,6 +7,7 @@ set is used by :class:`OpportunityEngine` when computing composite scores.
 
 from __future__ import annotations
 
+from datetime import datetime  # noqa: TCH003 — SQLAlchemy needs runtime access
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Float, Integer, String, func
@@ -15,8 +16,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from app.backtesting.weight_calibrator import WeightSet
 
 
