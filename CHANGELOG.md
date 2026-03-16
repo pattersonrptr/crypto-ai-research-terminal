@@ -10,6 +10,23 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Ranking Quality Loop — Pragmatic sprint
+
+> Replaces the original Phase 15 plan. Attacks the 6 concrete blockers
+> preventing the ranking from being useful, in priority order.
+
+#### Planned
+- **Item 1:** Filter stablecoins, wrapped tokens, dead projects from rankings
+- **Item 2:** Persist Twitter/Reddit data to `social_data` table
+- **Item 3:** Connect calibrated weights to live `OpportunityEngine`
+- **Item 4:** Run real backtesting with CoinGecko data + calibrate weights
+- **Item 5:** Wire `CycleDetector` into live scoring pipeline
+- **Item 6:** Score explanation on Token Detail page
+
+---
+
+## [0.14.0] — 2026-03-16
+
 ### Phase 14 — Backtesting Real: Multi-Cycle Validation & Weight Calibration
 
 #### Added

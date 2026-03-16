@@ -495,39 +495,36 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 | 11 | Alert Generation — fire alerts from scores, Telegram delivery | ✅ Complete |
 | 12 | Backtesting Validation — historical data, precision metrics | ✅ Complete |
 | 13 | **Ranking Foundation** — real social data, wire CMC, CLI db mgmt, Gemini whitepapers | ✅ Complete |
-| 14 | **Multi-Cycle Backtesting** — 3 BTC cycles, weight calibration feedback loop | � In Progress |
-| 15 | **Ranking Polish** — smart filtering, cycle-aware scoring, score explanations | 🔲 Planned |
+| 14 | **Multi-Cycle Backtesting** — 3 BTC cycles, weight calibration feedback loop | ✅ Complete |
+| — | **Ranking Quality Loop** — filter noise, persist social data, calibrate weights, cycle-aware scoring, score explanations | � In Progress |
 | 16 | Narratives & Ecosystems — real social-driven narratives, real graph edges | 🔲 Future |
 | 17 | Alerts Tuning — smart thresholds, reduce volume | 🔲 Future |
 
 ### Current Status & Known Limitations
 
-Phases 1–12 are complete (1109 backend tests, 144 frontend tests, full Docker
+Phases 1–14 are complete (1299 backend tests, 158 frontend tests, full Docker
 stack, real CoinGecko data). The infrastructure is solid. The main gap is
 **ranking quality** — sub-scores rely on heuristic guesses because social and
-dev data collectors aren't wired into the scoring pipeline.
+dev data collectors aren't wired into the scoring pipeline, and calibrated
+weights are not applied to live scoring.
 
 **What works:**
 - Full Docker stack (`docker compose up` → all services healthy)
 - CoinGecko collection: 250 real tokens, scored and persisted
 - Cycle detection: BTC dominance, Fear & Greed, market phase classification
 - Alert generation: fires alerts from scores, Telegram delivery
-- Backtesting infrastructure: validation engine, weight calibrator
+- Multi-cycle backtesting: 3 BTC cycles (2015-2025), 50 tokens, ground truth, weight calibration engine
 - Frontend: 5 pages (Rankings, Token Detail, Narratives, Ecosystems, Backtesting, Alerts)
 
-**Known limitations (addressed by Phases 13–15):**
-- **Rankings are unreliable:** Heuristic sub-scores (from `HeuristicSubScorer`)
-  produce misleading results. Obscure tokens rank above BTC/ETH because the
-  heuristic confuses speculative volume with adoption.
-- **Social data not wired:** Twitter and Reddit collectors exist but don't feed
-  into the scoring pipeline. `growth_score` and `narrative_score` are guesses.
-- **CoinMarketCap not wired:** CMC collector exists but isn't called in the
-  pipeline. Tags and categories aren't used for scoring.
-- **Backtesting uses limited data:** Only 10 tokens, one cycle (2019-2021).
-  Weight calibration results aren't applied to live ranking.
-- **Whitepaper PDF is non-functional:** Download button exists but generates
-  stub content, not real analysis.
-- **Seed data auto-runs:** `entrypoint.sh` seeds fake data on every container
-  start, which mixes with real data.
+**Known limitations (addressed by Ranking Quality Loop):**
+- **Stablecoins in top rankings:** No filter excludes USDT, USDC, FDUSD from results.
+- **Scoring weights are hardcoded guesses:** 0.30/0.25/0.20/0.15/0.10 were never
+  validated against historical data. The calibrator exists but its results
+  aren't applied to the live `OpportunityEngine`.
+- **Social data not persisted:** Twitter and Reddit collectors run but don't
+  save to `social_data` table, so the scorer falls back to heuristics.
+- **Cycle detection not wired:** `CycleDetector` and `cycle_adjusted_score()`
+  exist but are never called in the scoring pipeline.
+- **No score explanations:** User can't understand why a token ranks high.
 
-**Current test counts:** 1109 backend + 144 frontend = **1 253 total tests**
+**Current test counts:** 1299 backend + 158 frontend = **1 457 total tests**

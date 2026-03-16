@@ -764,71 +764,97 @@ persistence model, and API endpoints for cycles & weights.
 
 ---
 
-## Phase 15 — Ranking Polish & UX (target: ~1–2 weeks)
+## Ranking Quality Loop — Pragmatic sprint (replaces Phase 15)
 
-> Goal: Make the ranking page actually useful for investment research.
-> Filter out noise, add cycle awareness, explain scores.
+> **Goal:** Make the ranking answer one question: "Which altcoins could
+> explode during the next crypto ATH?" Everything else is secondary.
+>
+> This sprint replaces the original Phase 15 plan. Instead of following
+> the phased roadmap, we attack the 6 concrete blockers preventing the
+> ranking from being useful — in priority order.
 
-### Problem statement
-Even with better data (Phase 13) and calibrated weights (Phase 14), the
-ranking still shows stablecoins, wrapped tokens, and dead projects. The
-user wants to see altcoins with potential to perform in the current BTC
-cycle. There is no way to filter by timeframe or understand why a token
-scores high.
+### Problem statement (current state)
+The ranking shows USDT at #1, USD1 at #2, FDUSD at #3. Stablecoins and
+wrapped tokens pollute the results. Scoring weights are hardcoded guesses
+(0.30/0.25/0.20/0.15/0.10) that were never validated. Twitter and Reddit
+collectors exist but their data is never persisted, so the scorer falls
+back to heuristics for almost every token. The `CycleDetector` exists but
+is never called in the live pipeline. There is no way to understand why a
+token scores high.
 
-### Smart filtering
-- 🔲 Exclude stablecoins (USDT, USDC, DAI, BUSD, etc.) from rankings.
-  Configurable exclusion list in `config.py`.
-- 🔲 Exclude wrapped/bridged tokens (WBTC, WETH, stETH, etc.).
-- 🔲 Exclude dead/inactive tokens (no volume > $10k in 30 days,
-  no GitHub commits in 180 days if repo exists).
-- 🔲 Frontend: filter chips for category (DeFi, AI, L1, L2, Gaming,
-  DePIN, Meme) and market cap range (micro/small/mid/large).
+### Item 1 — Filter stablecoins, wrapped tokens, and dead projects
+- 🔲 `scoring/token_filter.py` — `TokenFilter` class with configurable
+  exclusion lists: stablecoins (USDT, USDC, DAI, BUSD, TUSD, FRAX, FDUSD,
+  USD1, etc.), wrapped/bridged (WBTC, WETH, stETH, cbETH, rETH, etc.),
+  dead tokens (volume < $10k for 30 days).
+- 🔲 Rankings API applies filter before returning results.
+- 🔲 Frontend: filter chips for category (DeFi, AI, L1, L2, Meme, etc.)
+  and market cap range (micro/small/mid/large).
 - 🔲 Tests for filtering logic (TDD).
 
-### Cycle-aware ranking
-- 🔲 Integrate `CycleDetector.classify()` into the scoring pipeline.
-  `OpportunityEngine.cycle_adjusted_score()` is called for every token
-  in the live pipeline (currently exists but is not called).
-- 🔲 Display current cycle phase prominently on Rankings page header.
-- 🔲 Ranking answers: "Which altcoins could perform well from here
-  until the next BTC ATH?" — the default view.
-- 🔲 Tests for cycle integration (TDD).
+### Item 2 — Persist Twitter/Reddit data to social_data table
+- 🔲 Wire `TwitterTwikitCollector.collect_mentions()` results into
+  `social_data` table (`twitter_mentions_24h`, `twitter_sentiment`).
+- 🔲 Wire `SocialCollector` (Reddit) results into `social_data` table
+  (`reddit_posts_7d`, `reddit_subscribers`, `reddit_growth_pct`).
+- 🔲 `PipelineScorer` automatically uses real social data when present
+  (adoption_score, narrative_score use real signals instead of heuristics).
+- 🔲 Tests for social data persistence (TDD).
 
-### Timeframe selector
-- 🔲 Rankings page: dropdown to select analysis horizon:
-  - "Next cycle" (default) — emphasises fundamental + growth
-  - "Next 90 days" — emphasises momentum + narrative
-  - "Next 30 days" — emphasises short-term signals
-- 🔲 Each timeframe adjusts the pillar weights used for ranking
-  (stored as named weight presets).
-- 🔲 Tests for timeframe-aware ranking (TDD).
+### Item 3 — Connect calibrated weights to live scoring
+- 🔲 `POST /backtesting/apply-weights` — persists calibrated weights to
+  `scoring_weights` table and sets `is_active=True` (deactivates previous).
+- 🔲 `OpportunityEngine.full_composite_score()` reads active weights from
+  DB (via Redis cache, 5 min TTL) instead of hardcoded constants.
+- 🔲 Fallback: if no active weights in DB, use Phase 9 defaults.
+- 🔲 Tests for weight application and dynamic scoring (TDD).
 
-### Score explanation
-- 🔲 Token Detail page: "Why this score?" section.
-  For each pillar, show 1-2 sentences explaining the score:
-  - "Adoption: 7.2/10 — Reddit subscribers grew 15% in 30 days.
-    Twitter mentions are 2x above 30-day average."
-  - "Technology: 8.1/10 — 342 commits in 90 days across 28
-    contributors. Active GitHub development."
-  - "Risk: 3.2/10 — Top 10 wallets hold 45% of supply. No recent
-    audit found."
-- 🔲 Gemini can generate richer explanations when available. Cache
-  explanations in `ai_analyses` table.
+### Item 4 — Run real backtesting + calibrate weights
+- 🔲 CLI command: `cryptoai backtest-collect [cycle]` — fetches real
+  CoinGecko historical data for the specified cycle using
+  `MultiCycleCollector`. Persists to `historical_snapshots` with cycle_tag.
+- 🔲 CLI command: `cryptoai backtest-calibrate [--cycles all]` — runs
+  `calibrate_weights_with_rescoring()` against real historical data.
+  Reports best weights and precision@K per cycle.
+- 🔲 After calibration, user can apply weights via API or CLI.
+- 🔲 Tests for CLI commands (TDD).
+
+### Item 5 — Wire CycleDetector into live scoring pipeline
+- 🔲 `daily_collection_job` calls `CycleDetector.classify()` once per run.
+- 🔲 `OpportunityEngine.cycle_adjusted_score()` applied to every token
+  (bull=+10%, bear=−25%, accumulation=neutral, distribution=−10%).
+- 🔲 Display current cycle phase on Rankings page header.
+- 🔲 Tests for cycle integration in pipeline (TDD).
+
+### Item 6 — Score explanation on Token Detail
+- 🔲 `scoring/score_explainer.py` — `ScoreExplainer.explain(token_data)`
+  generates 1-2 sentence explanation per pillar based on the actual data
+  that drove the score (e.g., "Adoption: 7.2/10 — Reddit grew 15% in
+  30 days. Twitter mentions 2x above average.").
+- 🔲 `GET /tokens/{symbol}/explanation` API endpoint.
+- 🔲 Frontend: "Why this score?" section on Token Detail page.
 - 🔲 Tests for explanation generation (TDD).
 
-### Tests summary (estimated)
-- 🔲 ~30-40 new backend tests
-- 🔲 ~15-20 new frontend tests
-- 🔲 All existing tests must continue to pass
+### Remaining deferred items (from Phases 13-14, low priority)
+- 🔲 Token Detail "Download PDF" generates real Gemini analysis (Phase 13)
+- 🔲 `fundamental_score` optionally incorporates Gemini analysis (Phase 13)
+- 🔲 Backtesting UI: cycle selector, per-cycle metrics cards, "Apply Best
+  Weights" button (Phase 14 frontend items)
+- 🔲 CI quality gate for backtesting validation (Phase 14)
 
-**Deliverable:** Rankings show only actionable altcoins. User understands
-why each token scores high or low. Cycle phase influences ranking.
-Rankings are ready for real investment research use.
+### Tests summary (estimated)
+- 🔲 ~50-60 new backend tests
+- 🔲 ~15-20 new frontend tests
+- 🔲 All existing tests must continue to pass (1299 backend + 158 frontend)
+
+**Deliverable:** Rankings show only actionable altcoins (no stablecoins, no
+wrapped tokens). Scores use real social data and calibrated weights. Cycle
+phase influences ranking. User understands why each token scores high.
+The system can answer: "Which cryptos could perform well in the next bull run?"
 
 ---
 
-## Future Phases (planned after Ranking + Backtesting are solid)
+## Future Phases (planned after Ranking Quality Loop is solid)
 
 ### Phase 16 — Narratives & Ecosystems (target: TBD)
 > Rebuild Narratives page with real social data from Twitter + Reddit.
