@@ -65,6 +65,16 @@ This project follows strict TDD on **both backend and frontend**. This is mandat
 - Tests must pass locally before any commit is made (`pre-push` hook enforces this).
 - Frontend: `vitest run --coverage` must pass; Backend: `pytest --cov` must pass.
 
+## Git workflow — branch policy (MANDATORY)
+- **NEVER push directly to `main`.** Every change — no matter how small — must go
+  through a feature/fix branch and a Pull Request.
+- If you realise you are on `main` and need to push, **stop immediately**, create a
+  branch from the current HEAD, switch to it, and push the branch instead.
+- Branch naming: `<type>/<short-description>` (e.g., `docs/plan-phases-13-15`,
+  `feat/twitter-collector`, `fix/seed-validation`).
+- After the PR is merged (via GitHub UI), the merge commit lands on `main`
+  automatically — that is the **only** way commits reach `main`.
+
 ## Commit convention (Conventional Commits)
 See `README.md#commit-convention` for the full spec. Short form:
 `<type>(<scope>): <subject>` — types: feat, fix, docs, style, refactor, test, chore, ci.
