@@ -23,6 +23,8 @@ from app.processors.normalizer import clamp, min_max_normalize
 if TYPE_CHECKING:
     from datetime import date
 
+    from app.backtesting.weight_calibrator import WeightSet
+
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
 # Normalisation bounds (same heuristics as FundamentalScorer)
@@ -47,6 +49,10 @@ class HistoricalScoredToken:
         rank: Rank in the scored list (1 = highest score).
         composite_score: Final composite score in [0, 1].
         fundamental_score: Fundamental sub-score in [0, 1].
+        growth_score: Growth sub-score in [0, 1].
+        narrative_score: Narrative sub-score in [0, 1].
+        listing_score: Listing sub-score in [0, 1].
+        risk_score: Risk sub-score in [0, 1].
         volume_mcap_ratio: Volume / market-cap ratio used for scoring.
     """
 
@@ -54,7 +60,11 @@ class HistoricalScoredToken:
     rank: int
     composite_score: float
     fundamental_score: float
-    volume_mcap_ratio: float
+    growth_score: float = _NEUTRAL_SCORE
+    narrative_score: float = _NEUTRAL_SCORE
+    listing_score: float = _NEUTRAL_SCORE
+    risk_score: float = _NEUTRAL_SCORE
+    volume_mcap_ratio: float = 0.0
 
 
 @dataclass
@@ -113,6 +123,8 @@ def _compute_fundamental_score(snapshot: dict[str, Any]) -> float:
 def score_historical_snapshots(
     snapshots: list[dict[str, Any]],
     snapshot_date: date,
+    *,
+    weights: WeightSet | None = None,
 ) -> HistoricalScoringResult:
     """Score a batch of historical snapshots and return ranked results.
 
@@ -120,16 +132,14 @@ def score_historical_snapshots(
     features (volume/mcap, inverse mcap).  Pillars requiring dev/social data
     are set to a neutral 0.5 default.
 
-    The composite score uses the same Phase 9 weights as ``OpportunityEngine``:
-        0.30 × fundamental + 0.25 × growth + 0.20 × narrative
-        + 0.15 × listing + 0.10 × risk
-
-    Since growth, narrative, listing and risk are defaulted to 0.5, the
-    fundamental pillar is the only differentiator.
+    When *weights* is provided the composite score uses those pillar weights
+    instead of the hardcoded Phase 9 defaults.  This allows the weight
+    calibrator to re-rank tokens under different weight assumptions.
 
     Args:
         snapshots: List of dicts with keys matching HistoricalSnapshot columns.
         snapshot_date: The date these snapshots represent.
+        weights: Optional :class:`WeightSet` to override default pillar weights.
 
     Returns:
         A :class:`HistoricalScoringResult` with tokens ranked by score.
@@ -137,12 +147,20 @@ def score_historical_snapshots(
     if not snapshots:
         return HistoricalScoringResult(snapshot_date=snapshot_date, ranked_tokens=[])
 
-    # Phase 9 weights
-    w_fund = 0.30
-    w_growth = 0.25
-    w_narrative = 0.20
-    w_listing = 0.15
-    w_risk = 0.10
+    # Resolve weights — default to Phase 9 values when not provided
+    if weights is not None:
+        w_fund = weights.fundamental
+        w_growth = weights.growth
+        w_narrative = weights.narrative
+        w_listing = weights.listing
+        w_risk = weights.risk
+    else:
+        # Phase 9 defaults
+        w_fund = 0.30
+        w_growth = 0.25
+        w_narrative = 0.20
+        w_listing = 0.15
+        w_risk = 0.10
 
     scored: list[HistoricalScoredToken] = []
 
@@ -167,6 +185,10 @@ def score_historical_snapshots(
                 rank=0,  # assigned below
                 composite_score=composite,
                 fundamental_score=fund_score,
+                growth_score=_NEUTRAL_SCORE,
+                narrative_score=_NEUTRAL_SCORE,
+                listing_score=_NEUTRAL_SCORE,
+                risk_score=_NEUTRAL_SCORE,
                 volume_mcap_ratio=vol_mcap,
             )
         )

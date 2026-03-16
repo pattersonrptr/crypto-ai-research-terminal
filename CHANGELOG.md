@@ -10,6 +10,56 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Phase 14 — Backtesting Real: Multi-Cycle Validation & Weight Calibration
+
+#### Added
+- **Cycle token registry** — `backtesting/cycle_config.py` with `CycleDef`,
+  `CycleTokenEntry` dataclasses and 3 market cycles: Cycle 1 (2015-2018,
+  15 tokens), Cycle 2 (2019-2021, 31 tokens), Cycle 3 (2022-2025, 50 tokens).
+  Each subsequent cycle includes all tokens from previous cycles. 21 tests.
+- **Multi-cycle collector** — `backtesting/multi_cycle_collector.py` with
+  `MultiCycleCollector` class for fetching historical CoinGecko data per
+  cycle. Rate-limited with configurable delay, handles partial failures,
+  reports collection progress. 16 tests.
+- **Ground truth module** — `backtesting/ground_truth.py` with
+  `PerformanceTier` enum, `GroundTruthEntry`, `CycleGroundTruth`
+  dataclasses and `build_ground_truth()` function. Computes ROI from
+  cycle bottom to top, classifies tokens as big_winner (≥10×), winner
+  (≥5×), average (>1×), or loser (≤1×). 28 tests.
+- **Cross-cycle report** — `backtesting/cycle_report.py` with `CycleMetrics`,
+  `CrossCycleReport` dataclasses and `build_cross_cycle_report()`. Computes
+  average precision/recall/hit-rate and consistency score (1 − CV). 11 tests.
+- **ScoringWeight model** — `models/scoring_weight.py` ORM model for
+  persisting calibrated pillar weights with source cycle, precision, and
+  active flag. Migration `b8c9d0e1f2a3`. 5 tests.
+- **API endpoints** — `GET /backtesting/cycles` (list available market
+  cycles), `GET /backtesting/weights` (current active scoring weights).
+  7 API tests.
+- **Frontend service** — `fetchCycles()` and `fetchActiveWeights()`
+  service functions with `CycleInfo` and `ActiveWeights` types. MSW
+  handlers for testing. 6 frontend tests.
+
+#### Changed
+- **Historical scorer upgrade** — `backtesting/historical_scorer.py` now
+  accepts optional `WeightSet` parameter for re-scoring with different
+  weight combinations. `HistoricalScoredToken` exposes all 5 pillar
+  sub-scores (growth_score, narrative_score, listing_score, risk_score).
+  Backward-compatible: default weights match Phase 9. 9 new tests.
+- **Weight calibrator upgrade** — `backtesting/weight_calibrator.py` adds
+  `calibrate_weights_with_rescoring()` which actually re-scores and
+  re-ranks tokens for each weight set (fixes Phase 12 limitation where
+  all combos got identical precision). 7 new tests.
+- **HistoricalSnapshot model** — added `cycle_tag` column (VARCHAR 40,
+  nullable, indexed) for tagging snapshots by cycle. Migration
+  `a7b8c9d0e1f2`. 4 tests.
+- Updated `models/__init__.py` to export `ScoringWeight`.
+- Updated `api/routes/backtesting.py` with new Phase 14 endpoints.
+
+#### Tests
+- 114 new backend tests (1191 → 1299, all passing)
+- 6 new frontend tests (152 → 158, all passing)
+- Total: 1457 tests
+
 ### Phase 13 — Ranking Foundation: Data Quality & Feedback Loop
 
 #### Added

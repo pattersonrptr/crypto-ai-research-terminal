@@ -397,6 +397,59 @@ export function backtestCalibrateHandler(data: CalibrateResult = MOCK_CALIBRATE_
   return http.post("/api/backtesting/calibrate", () => HttpResponse.json(data));
 }
 
+// ── Phase 14 — Cycle & weights mock data ──────────────────────────────────
+
+export interface CycleInfo {
+  name: string;
+  bottom_date: string;
+  top_date: string;
+  n_tokens: number;
+}
+
+export const MOCK_CYCLES: CycleInfo[] = [
+  { name: "cycle_1_2015_2018", bottom_date: "2015-01-14", top_date: "2017-12-17", n_tokens: 15 },
+  { name: "cycle_2_2019_2021", bottom_date: "2018-12-15", top_date: "2021-11-10", n_tokens: 31 },
+  { name: "cycle_3_2022_2025", bottom_date: "2022-11-21", top_date: "2025-01-20", n_tokens: 50 },
+];
+
+export interface ActiveWeights {
+  fundamental: number;
+  growth: number;
+  narrative: number;
+  listing: number;
+  risk: number;
+  source: string;
+}
+
+export const MOCK_ACTIVE_WEIGHTS: ActiveWeights = {
+  fundamental: 0.30,
+  growth: 0.25,
+  narrative: 0.20,
+  listing: 0.15,
+  risk: 0.10,
+  source: "default_phase9",
+};
+
+export function backtestCyclesHandler(data: CycleInfo[] = MOCK_CYCLES) {
+  return http.get("/api/backtesting/cycles", () => HttpResponse.json(data));
+}
+
+export function backtestCyclesErrorHandler() {
+  return http.get("/api/backtesting/cycles", () =>
+    HttpResponse.json({ detail: "Internal server error" }, { status: 500 }),
+  );
+}
+
+export function backtestWeightsHandler(data: ActiveWeights = MOCK_ACTIVE_WEIGHTS) {
+  return http.get("/api/backtesting/weights", () => HttpResponse.json(data));
+}
+
+export function backtestWeightsErrorHandler() {
+  return http.get("/api/backtesting/weights", () =>
+    HttpResponse.json({ detail: "Internal server error" }, { status: 500 }),
+  );
+}
+
 // ── Market cycle mock data ────────────────────────────────────────────────
 
 export const MOCK_MARKET_CYCLE: MarketCycleResponse = {
@@ -481,5 +534,7 @@ export const handlers = [
   backtestRunHandler(),
   backtestValidateHandler(),
   backtestCalibrateHandler(),
+  backtestCyclesHandler(),
+  backtestWeightsHandler(),
   marketCycleHandler(),
 ];

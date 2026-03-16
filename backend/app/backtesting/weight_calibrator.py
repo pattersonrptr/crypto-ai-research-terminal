@@ -13,10 +13,16 @@ This module is part of Phase 12 — Backtesting Validation.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
 from app.backtesting.validation_metrics import TokenOutcome, compute_precision_at_k
+
+if TYPE_CHECKING:
+    from datetime import date
+
+    from app.backtesting.ground_truth import CycleGroundTruth
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
@@ -195,6 +201,114 @@ def calibrate_weights(
 
     logger.info(
         "weight_calibrator.calibration_complete",
+        n_combinations=len(grid),
+        best_precision=best_precision,
+        best_weights={
+            "fundamental": best_ws.fundamental,
+            "growth": best_ws.growth,
+            "narrative": best_ws.narrative,
+            "listing": best_ws.listing,
+            "risk": best_ws.risk,
+        },
+    )
+
+    return CalibrationResult(
+        best_weights=best_ws,
+        best_precision_at_k=best_precision,
+        n_combinations_tested=len(grid),
+        all_results=all_results,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Calibration with rescoring
+# ---------------------------------------------------------------------------
+
+
+def calibrate_weights_with_rescoring(
+    *,
+    snapshots: list[dict[str, Any]],
+    snapshot_date: date,
+    ground_truth: CycleGroundTruth,
+    k: int = 10,
+    step: float = 0.10,
+    winner_threshold: float = 5.0,
+) -> CalibrationResult:
+    """Run a grid search that **re-scores and re-ranks** for each weight set.
+
+    Unlike :func:`calibrate_weights`, this function actually re-computes
+    composite scores with each weight combination, produces a new ranking,
+    and evaluates Precision@K against the supplied ground truth.
+
+    Args:
+        snapshots: Historical snapshot dicts (same as ``score_historical_snapshots``).
+        snapshot_date: The date these snapshots represent.
+        ground_truth: :class:`CycleGroundTruth` with actual performance data.
+        k: Number of top recommendations for Precision@K.
+        step: Grid step size for weight generation.
+        winner_threshold: Multiplier threshold for defining a "winner".
+
+    Returns:
+        A :class:`CalibrationResult` with the best weights found.
+    """
+    from app.backtesting.historical_scorer import score_historical_snapshots
+
+    default_weights = WeightSet(
+        fundamental=_DEFAULT_FUNDAMENTAL,
+        growth=_DEFAULT_GROWTH,
+        narrative=_DEFAULT_NARRATIVE,
+        listing=_DEFAULT_LISTING,
+        risk=_DEFAULT_RISK,
+    )
+
+    if not snapshots or not ground_truth.entries:
+        logger.warning("weight_calibrator.rescoring_no_data")
+        return CalibrationResult(
+            best_weights=default_weights,
+            best_precision_at_k=0.0,
+            n_combinations_tested=0,
+            all_results=[],
+        )
+
+    grid = generate_weight_grid(step=step)
+    all_results: list[tuple[WeightSet, float]] = []
+
+    best_precision = -1.0
+    best_ws = default_weights
+
+    gt_map = {e.symbol: e for e in ground_truth.entries}
+
+    for ws in grid:
+        # Re-score with these weights
+        scoring_result = score_historical_snapshots(
+            snapshots,
+            snapshot_date,
+            weights=ws,
+        )
+
+        # Build outcomes from re-ranked tokens + ground truth
+        outcomes: list[TokenOutcome] = []
+        for token in scoring_result.ranked_tokens:
+            gt_entry = gt_map.get(token.symbol)
+            actual_mult = gt_entry.roi_multiplier if gt_entry else 0.0
+            outcomes.append(
+                TokenOutcome(
+                    symbol=token.symbol,
+                    model_rank=token.rank,
+                    model_score=token.composite_score,
+                    actual_multiplier=actual_mult,
+                )
+            )
+
+        precision = compute_precision_at_k(outcomes, k, winner_threshold)
+        all_results.append((ws, precision))
+
+        if precision > best_precision:
+            best_precision = precision
+            best_ws = ws
+
+    logger.info(
+        "weight_calibrator.rescoring_complete",
         n_combinations=len(grid),
         best_precision=best_precision,
         best_weights={

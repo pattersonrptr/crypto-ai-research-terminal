@@ -8,6 +8,7 @@ from app.models.historical_snapshot import HistoricalSnapshot
 from app.models.market_data import MarketData
 from app.models.narrative import NarrativeCluster
 from app.models.score import TokenScore
+from app.models.scoring_weight import ScoringWeight
 from app.models.signal import Signal
 from app.models.social_data import SocialData
 from app.models.token import Token
@@ -21,6 +22,7 @@ __all__ = [
     "MarketData",
     "NarrativeCluster",
     "TokenScore",
+    "ScoringWeight",
     "Signal",
     "SocialData",
     "Token",
