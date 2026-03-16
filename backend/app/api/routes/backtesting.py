@@ -18,6 +18,7 @@ import structlog
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from app.backtesting.cycle_config import get_cycle, get_cycle_names
 from app.backtesting.data_loader import CycleLabel, DataLoader, HistoricalCandle
 from app.backtesting.performance_metrics import MetricsReport, PerformanceMetrics
 from app.backtesting.simulation_engine import SimulationConfig, SimulationEngine
@@ -26,7 +27,6 @@ from app.backtesting.validation_metrics import (
     generate_validation_report,
 )
 from app.backtesting.weight_calibrator import calibrate_weights
-from app.backtesting.cycle_config import get_cycle, get_cycle_names
 
 router = APIRouter()
 logger: structlog.BoundLogger = structlog.get_logger(__name__)

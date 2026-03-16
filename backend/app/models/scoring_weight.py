@@ -7,12 +7,17 @@ set is used by :class:`OpportunityEngine` when computing composite scores.
 
 from __future__ import annotations
 
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Float, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from app.backtesting.weight_calibrator import WeightSet
 
 
 class ScoringWeight(Base):
@@ -55,11 +60,11 @@ class ScoringWeight(Base):
         """Sum of all pillar weights."""
         return self.fundamental + self.growth + self.narrative + self.listing + self.risk
 
-    def to_weight_set(self) -> "WeightSet":
+    def to_weight_set(self) -> WeightSet:
         """Convert to a :class:`WeightSet` for use by the scorer."""
-        from app.backtesting.weight_calibrator import WeightSet
+        from app.backtesting.weight_calibrator import WeightSet as _WeightSet
 
-        return WeightSet(
+        return _WeightSet(
             fundamental=self.fundamental,
             growth=self.growth,
             narrative=self.narrative,

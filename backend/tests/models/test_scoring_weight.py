@@ -5,8 +5,6 @@ TDD: RED phase — tests written first.
 
 from __future__ import annotations
 
-from datetime import datetime
-
 import pytest
 
 from app.models.scoring_weight import ScoringWeight

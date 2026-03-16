@@ -5,19 +5,16 @@ TDD: RED phase — tests written first.
 
 from __future__ import annotations
 
-from datetime import date
-
 import pytest
 
 from app.backtesting.ground_truth import (
-    GroundTruthEntry,
     CycleGroundTruth,
-    compute_roi,
-    classify_performance,
+    GroundTruthEntry,
     PerformanceTier,
     build_ground_truth,
+    classify_performance,
+    compute_roi,
 )
-
 
 # ---------------------------------------------------------------------------
 # PerformanceTier

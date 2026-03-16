@@ -19,7 +19,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
@@ -57,8 +56,7 @@ class CycleDef:
     def __post_init__(self) -> None:
         if self.top_date <= self.bottom_date:
             raise ValueError(
-                f"top_date must be after bottom_date: "
-                f"{self.top_date} <= {self.bottom_date}"
+                f"top_date must be after bottom_date: " f"{self.top_date} <= {self.bottom_date}"
             )
 
     @property
@@ -140,20 +138,20 @@ _CYCLE_3_TOKENS: list[CycleTokenEntry] = [
 CYCLES: dict[str, CycleDef] = {
     "cycle_1_2015_2018": CycleDef(
         name="cycle_1_2015_2018",
-        bottom_date=date(2015, 1, 14),   # BTC ~$170
-        top_date=date(2017, 12, 17),     # BTC ~$19,800
+        bottom_date=date(2015, 1, 14),  # BTC ~$170
+        top_date=date(2017, 12, 17),  # BTC ~$19,800
         tokens=_CYCLE_1_TOKENS,
     ),
     "cycle_2_2019_2021": CycleDef(
         name="cycle_2_2019_2021",
         bottom_date=date(2018, 12, 15),  # BTC ~$3,200
-        top_date=date(2021, 11, 10),     # BTC ~$69,000
+        top_date=date(2021, 11, 10),  # BTC ~$69,000
         tokens=_CYCLE_2_TOKENS,
     ),
     "cycle_3_2022_2025": CycleDef(
         name="cycle_3_2022_2025",
         bottom_date=date(2022, 11, 21),  # BTC ~$15,500 (post-FTX)
-        top_date=date(2025, 1, 20),      # BTC ~$109,000
+        top_date=date(2025, 1, 20),  # BTC ~$109,000
         tokens=_CYCLE_3_TOKENS,
     ),
 }

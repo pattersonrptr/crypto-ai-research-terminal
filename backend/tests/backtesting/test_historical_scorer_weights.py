@@ -10,12 +10,10 @@ from datetime import date
 import pytest
 
 from app.backtesting.historical_scorer import (
-    HistoricalScoredToken,
     HistoricalScoringResult,
     score_historical_snapshots,
 )
 from app.backtesting.weight_calibrator import WeightSet
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -88,17 +86,25 @@ class TestScoreWithWeights:
         """Without explicit weights, results must equal the default Phase 9 behavior."""
         snapshots = _make_snapshot_data()
         result_default = score_historical_snapshots(
-            snapshots, snapshot_date=date(2020, 1, 15),
+            snapshots,
+            snapshot_date=date(2020, 1, 15),
         )
         phase9_ws = WeightSet(
-            fundamental=0.30, growth=0.25, narrative=0.20,
-            listing=0.15, risk=0.10,
+            fundamental=0.30,
+            growth=0.25,
+            narrative=0.20,
+            listing=0.15,
+            risk=0.10,
         )
         result_explicit = score_historical_snapshots(
-            snapshots, snapshot_date=date(2020, 1, 15), weights=phase9_ws,
+            snapshots,
+            snapshot_date=date(2020, 1, 15),
+            weights=phase9_ws,
         )
         for d, e in zip(
-            result_default.ranked_tokens, result_explicit.ranked_tokens, strict=True,
+            result_default.ranked_tokens,
+            result_explicit.ranked_tokens,
+            strict=True,
         ):
             assert d.symbol == e.symbol
             assert d.composite_score == pytest.approx(e.composite_score)
@@ -108,13 +114,19 @@ class TestScoreWithWeights:
         snapshots = _make_snapshot_data()
 
         low_fund = WeightSet(fundamental=0.10, growth=0.30, narrative=0.30, listing=0.20, risk=0.10)
-        high_fund = WeightSet(fundamental=0.80, growth=0.05, narrative=0.05, listing=0.05, risk=0.05)
+        high_fund = WeightSet(
+            fundamental=0.80, growth=0.05, narrative=0.05, listing=0.05, risk=0.05
+        )
 
         result_low = score_historical_snapshots(
-            snapshots, snapshot_date=date(2020, 1, 15), weights=low_fund,
+            snapshots,
+            snapshot_date=date(2020, 1, 15),
+            weights=low_fund,
         )
         result_high = score_historical_snapshots(
-            snapshots, snapshot_date=date(2020, 1, 15), weights=high_fund,
+            snapshots,
+            snapshot_date=date(2020, 1, 15),
+            weights=high_fund,
         )
 
         # With high fundamental weight, SOL (small mcap, high vol/mcap) should
@@ -133,7 +145,9 @@ class TestScoreWithWeights:
         snapshots = _make_snapshot_data()
         ws = WeightSet(fundamental=0.00, growth=0.30, narrative=0.30, listing=0.20, risk=0.20)
         result = score_historical_snapshots(
-            snapshots, snapshot_date=date(2020, 1, 15), weights=ws,
+            snapshots,
+            snapshot_date=date(2020, 1, 15),
+            weights=ws,
         )
         scores = [t.composite_score for t in result.ranked_tokens]
         # All should be equal (neutral)

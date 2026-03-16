@@ -8,11 +8,10 @@ from __future__ import annotations
 import pytest
 
 from app.backtesting.cycle_report import (
-    CycleMetrics,
     CrossCycleReport,
+    CycleMetrics,
     build_cross_cycle_report,
 )
-
 
 # ---------------------------------------------------------------------------
 # CycleMetrics
@@ -38,15 +37,25 @@ class TestCycleMetrics:
 
     def test_model_is_useful_when_precision_above_50(self) -> None:
         m = CycleMetrics(
-            cycle_name="c", precision_at_k=0.60, recall_at_k=0.5,
-            hit_rate=0.7, k=10, n_tokens=15, n_winners=5,
+            cycle_name="c",
+            precision_at_k=0.60,
+            recall_at_k=0.5,
+            hit_rate=0.7,
+            k=10,
+            n_tokens=15,
+            n_winners=5,
         )
         assert m.model_is_useful is True
 
     def test_model_is_not_useful_when_precision_below_50(self) -> None:
         m = CycleMetrics(
-            cycle_name="c", precision_at_k=0.30, recall_at_k=0.5,
-            hit_rate=0.7, k=10, n_tokens=15, n_winners=5,
+            cycle_name="c",
+            precision_at_k=0.30,
+            recall_at_k=0.5,
+            hit_rate=0.7,
+            k=10,
+            n_tokens=15,
+            n_winners=5,
         )
         assert m.model_is_useful is False
 

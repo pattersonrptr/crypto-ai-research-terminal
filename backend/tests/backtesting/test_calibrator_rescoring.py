@@ -18,11 +18,9 @@ from app.backtesting.ground_truth import (
 from app.backtesting.validation_metrics import TokenOutcome
 from app.backtesting.weight_calibrator import (
     CalibrationResult,
-    WeightSet,
     calibrate_weights,
     calibrate_weights_with_rescoring,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

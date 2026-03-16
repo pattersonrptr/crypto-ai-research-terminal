@@ -11,7 +11,6 @@ from fastapi.testclient import TestClient
 
 from app.api.routes.backtesting import router
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -83,5 +82,11 @@ class TestGetWeights:
 
     def test_get_weights_sum_to_one(self, client: TestClient) -> None:
         data = client.get("/backtesting/weights").json()
-        total = data["fundamental"] + data["growth"] + data["narrative"] + data["listing"] + data["risk"]
+        total = (
+            data["fundamental"]
+            + data["growth"]
+            + data["narrative"]
+            + data["listing"]
+            + data["risk"]
+        )
         assert total == pytest.approx(1.0, abs=0.01)

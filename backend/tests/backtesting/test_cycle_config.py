@@ -10,13 +10,13 @@ from datetime import date
 import pytest
 
 from app.backtesting.cycle_config import (
+    CYCLES,
     CycleDef,
     CycleTokenEntry,
     get_all_tokens_for_cycle,
+    get_coingecko_id,
     get_cycle,
     get_cycle_names,
-    get_coingecko_id,
-    CYCLES,
 )
 
 
@@ -155,6 +155,4 @@ class TestCyclesRegistry:
     def test_no_duplicate_symbols_within_cycle(self) -> None:
         for cycle in CYCLES.values():
             symbols = [t.symbol for t in cycle.tokens]
-            assert len(symbols) == len(set(symbols)), (
-                f"Duplicate symbols in {cycle.name}"
-            )
+            assert len(symbols) == len(set(symbols)), f"Duplicate symbols in {cycle.name}"

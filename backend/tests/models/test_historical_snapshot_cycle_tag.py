@@ -5,7 +5,7 @@ TDD: RED phase — verify cycle_tag field exists on the model.
 
 from __future__ import annotations
 
-from datetime import date, datetime, UTC
+from datetime import date
 
 from app.models.historical_snapshot import HistoricalSnapshot
 

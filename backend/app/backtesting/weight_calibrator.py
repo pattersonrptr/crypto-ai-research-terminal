@@ -281,7 +281,9 @@ def calibrate_weights_with_rescoring(
     for ws in grid:
         # Re-score with these weights
         scoring_result = score_historical_snapshots(
-            snapshots, snapshot_date, weights=ws,
+            snapshots,
+            snapshot_date,
+            weights=ws,
         )
 
         # Build outcomes from re-ranked tokens + ground truth

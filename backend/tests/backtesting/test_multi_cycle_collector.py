@@ -12,11 +12,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.backtesting.multi_cycle_collector import (
-    MultiCycleCollector,
     CollectionProgress,
     CollectionResult,
+    MultiCycleCollector,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers — build fake CoinGecko responses
@@ -63,15 +62,11 @@ class TestCollectionProgress:
         assert p.failed_tokens == 1
 
     def test_progress_pct(self) -> None:
-        p = CollectionProgress(
-            cycle_name="c", total_tokens=10, completed_tokens=5, failed_tokens=0
-        )
+        p = CollectionProgress(cycle_name="c", total_tokens=10, completed_tokens=5, failed_tokens=0)
         assert p.pct_complete == pytest.approx(50.0)
 
     def test_progress_pct_zero_total(self) -> None:
-        p = CollectionProgress(
-            cycle_name="c", total_tokens=0, completed_tokens=0, failed_tokens=0
-        )
+        p = CollectionProgress(cycle_name="c", total_tokens=0, completed_tokens=0, failed_tokens=0)
         assert p.pct_complete == 0.0
 
 
@@ -166,19 +161,21 @@ class TestMultiCycleCollector:
     @pytest.mark.asyncio
     async def test_collect_token_api_error_raises(self) -> None:
         collector = MultiCycleCollector(delay_between_requests=0)
-        with patch.object(
-            collector,
-            "_fetch_market_chart",
-            new_callable=AsyncMock,
-            side_effect=RuntimeError("rate limited"),
+        with (
+            patch.object(
+                collector,
+                "_fetch_market_chart",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("rate limited"),
+            ),
+            pytest.raises(RuntimeError, match="rate limited"),
         ):
-            with pytest.raises(RuntimeError, match="rate limited"):
-                await collector.collect_token(
-                    symbol="BTC",
-                    coingecko_id="bitcoin",
-                    start_date=date(2020, 1, 1),
-                    end_date=date(2020, 1, 31),
-                )
+            await collector.collect_token(
+                symbol="BTC",
+                coingecko_id="bitcoin",
+                start_date=date(2020, 1, 1),
+                end_date=date(2020, 1, 31),
+            )
 
     @pytest.mark.asyncio
     async def test_collect_cycle_returns_result(self) -> None:
