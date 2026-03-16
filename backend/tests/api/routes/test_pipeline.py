@@ -7,13 +7,12 @@ GET  /pipeline/status/{job_id} — returns job progress.
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
-import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api.routes.pipeline import router, _job_registry
-from fastapi import FastAPI
+from app.api.routes.pipeline import _job_registry, router
 
 # ---------------------------------------------------------------------------
 # Test app fixture

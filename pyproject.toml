@@ -153,6 +153,7 @@ module = [
     "weasyprint.*",
     "community.*",
     "sklearn.*",
+    "twikit.*",
 ]
 ignore_missing_imports = true
 

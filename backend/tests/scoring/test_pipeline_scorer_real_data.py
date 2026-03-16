@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.scoring.pipeline_scorer import PipelineScorer, PipelineScorerResult
+from app.scoring.pipeline_scorer import PipelineScorer
 
 
 def _base_data() -> dict[str, Any]:
@@ -138,7 +138,13 @@ class TestPipelineScorerWithCmcData:
         """Token with more relevant tags should score higher."""
         data_rich = _base_data()
         data_rich["cmc_rank"] = 5
-        data_rich["cmc_tags"] = ["smart-contracts", "layer-1", "ethereum-ecosystem", "defi", "staking"]
+        data_rich["cmc_tags"] = [
+            "smart-contracts",
+            "layer-1",
+            "ethereum-ecosystem",
+            "defi",
+            "staking",
+        ]
         data_rich["cmc_category"] = "Smart Contract Platform"
 
         data_poor = _base_data()

@@ -302,7 +302,9 @@ class PipelineScorer:
         fork_score = min_max_normalize(forks, 0.0, 20_000.0)
 
         # Weighted combination → scale to 0-10
-        raw = (commit_score * 0.35 + contrib_score * 0.25 + star_score * 0.25 + fork_score * 0.15) * 10.0
+        raw = (
+            commit_score * 0.35 + contrib_score * 0.25 + star_score * 0.25 + fork_score * 0.15
+        ) * 10.0
         return clamp(raw, 0.0, 10.0), "dev"
 
     @staticmethod

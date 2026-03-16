@@ -262,7 +262,9 @@ async def fetch_table_counts() -> dict[str, int]:
     counts: dict[str, int] = {}
     async with _SessionLocal() as session:
         for table in ALLOWED_TABLES:
-            result = await session.execute(text(f"SELECT COUNT(*) FROM {table}"))  # noqa: S608
+            result = await session.execute(
+                text(f"SELECT COUNT(*) FROM {table}")  # noqa: S608  # nosec B608
+            )
             row = result.scalar_one()
             counts[table] = int(row)
     return counts
@@ -305,11 +307,11 @@ async def run_seed(target: str) -> None:
 
     if target in ("rankings", "all"):
         mod = importlib.import_module("scripts.seed_data")
-        await mod.seed()  # type: ignore[attr-defined]
+        await mod.seed()
 
     if target in ("narratives", "all"):
         mod_hist = importlib.import_module("scripts.seed_historical_data")
-        await mod_hist.seed()  # type: ignore[attr-defined]
+        await mod_hist.seed()
 
 
 # ---------------------------------------------------------------------------
@@ -369,14 +371,15 @@ def db_truncate(table: str, confirm: bool) -> None:
     """Truncate a specific data table. Requires --confirm."""
     if table not in ALLOWED_TABLES:
         click.echo(
-            f"Error: '{table}' is not an allowed table.\n"
-            f"Allowed: {', '.join(ALLOWED_TABLES)}",
+            f"Error: '{table}' is not an allowed table.\n" f"Allowed: {', '.join(ALLOWED_TABLES)}",
             err=True,
         )
         raise SystemExit(1)
 
     if not confirm:
-        click.echo(f"⚠️  This will delete all data from '{table}'. Pass --confirm to proceed.", err=True)
+        click.echo(
+            f"⚠️  This will delete all data from '{table}'. Pass --confirm to proceed.", err=True
+        )
         raise SystemExit(1)
 
     try:

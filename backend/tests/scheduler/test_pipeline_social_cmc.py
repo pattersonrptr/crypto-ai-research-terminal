@@ -10,12 +10,11 @@ Tests:
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
 from app.collectors.subreddit_map import SYMBOL_TO_SUBREDDIT, get_subreddit
-
 
 # ---------------------------------------------------------------------------
 # subreddit_map tests

@@ -9,12 +9,9 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 
-import pytest
-
 from app.ai.whitepaper_analyzer import WhitepaperAnalysis
 from app.ai.whitepaper_cache_service import WhitepaperCacheService
 from app.models.ai_analysis import AiAnalysis
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

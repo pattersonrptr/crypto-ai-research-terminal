@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.collectors.twitter_twikit_collector import TwitterTwikitCollector
+if TYPE_CHECKING:
+    from pathlib import Path
 
+from app.collectors.twitter_twikit_collector import TwitterTwikitCollector
 
 # ---------------------------------------------------------------------------
 # Helpers — mock twikit objects
@@ -47,27 +48,25 @@ class TestTwitterTwikitCollectorInit:
 
     def test_init_stores_credentials(self) -> None:
         """Collector must store username, email, password."""
-        collector = TwitterTwikitCollector(
-            username="user", email="u@e.com", password="pass"
-        )
+        collector = TwitterTwikitCollector(username="user", email="u@e.com", password="pass")
         assert collector.username == "user"
         assert collector.email == "u@e.com"
         assert collector.password == "pass"
 
     def test_init_sets_cookies_path(self) -> None:
         """Collector must default cookies_path to 'twitter_cookies.json'."""
-        collector = TwitterTwikitCollector(
-            username="u", email="e@e.com", password="p"
-        )
+        collector = TwitterTwikitCollector(username="u", email="e@e.com", password="p")
         assert collector.cookies_path == "twitter_cookies.json"
 
     def test_init_custom_cookies_path(self) -> None:
         """Collector must accept a custom cookies_path."""
         collector = TwitterTwikitCollector(
-            username="u", email="e@e.com", password="p",
-            cookies_path="/tmp/cookies.json",
+            username="u",
+            email="e@e.com",
+            password="p",
+            cookies_path="/tmp/cookies.json",  # nosec B108
         )
-        assert collector.cookies_path == "/tmp/cookies.json"
+        assert collector.cookies_path == "/tmp/cookies.json"  # nosec B108
 
 
 class TestTwitterTwikitCollectorLogin:
@@ -75,14 +74,17 @@ class TestTwitterTwikitCollectorLogin:
 
     @pytest.mark.asyncio
     async def test_login_loads_cookies_when_file_exists(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """login() must load cookies from file when it exists."""
         cookies_file = tmp_path / "cookies.json"
         cookies_file.write_text("{}")
 
         collector = TwitterTwikitCollector(
-            username="u", email="e@e.com", password="p",
+            username="u",
+            email="e@e.com",
+            password="p",
             cookies_path=str(cookies_file),
         )
         mock_client = AsyncMock()
@@ -94,13 +96,16 @@ class TestTwitterTwikitCollectorLogin:
 
     @pytest.mark.asyncio
     async def test_login_performs_fresh_login_when_no_cookies(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """login() must call client.login when cookies file does not exist."""
         cookies_file = tmp_path / "cookies.json"
 
         collector = TwitterTwikitCollector(
-            username="user", email="e@e.com", password="pass",
+            username="user",
+            email="e@e.com",
+            password="pass",
             cookies_path=str(cookies_file),
         )
         mock_client = AsyncMock()
@@ -116,13 +121,16 @@ class TestTwitterTwikitCollectorLogin:
 
     @pytest.mark.asyncio
     async def test_login_saves_cookies_after_fresh_login(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """login() must save cookies after a fresh login."""
         cookies_file = tmp_path / "cookies.json"
 
         collector = TwitterTwikitCollector(
-            username="u", email="e@e.com", password="p",
+            username="u",
+            email="e@e.com",
+            password="p",
             cookies_path=str(cookies_file),
         )
         mock_client = AsyncMock()
@@ -140,7 +148,9 @@ class TestTwitterTwikitCollectorCollect:
     async def test_collect_mentions_returns_dict(self) -> None:
         """collect_mentions must return a dict with expected keys."""
         collector = TwitterTwikitCollector(
-            username="u", email="e@e.com", password="p",
+            username="u",
+            email="e@e.com",
+            password="p",
         )
         mock_client = AsyncMock()
         tweets = [_make_tweet("BTC is great!", 20, 5)]
@@ -158,7 +168,9 @@ class TestTwitterTwikitCollectorCollect:
     async def test_collect_mentions_counts_tweets(self) -> None:
         """collect_mentions must set mention_count to number of tweets found."""
         collector = TwitterTwikitCollector(
-            username="u", email="e@e.com", password="p",
+            username="u",
+            email="e@e.com",
+            password="p",
         )
         mock_client = AsyncMock()
         tweets = [_make_tweet() for _ in range(3)]
@@ -173,7 +185,9 @@ class TestTwitterTwikitCollectorCollect:
     async def test_collect_mentions_sums_engagement(self) -> None:
         """collect_mentions must sum likes+retweets as total_engagement."""
         collector = TwitterTwikitCollector(
-            username="u", email="e@e.com", password="p",
+            username="u",
+            email="e@e.com",
+            password="p",
         )
         mock_client = AsyncMock()
         tweets = [
@@ -191,7 +205,9 @@ class TestTwitterTwikitCollectorCollect:
     async def test_collect_mentions_returns_raw_texts(self) -> None:
         """collect_mentions must include raw tweet texts for sentiment analysis."""
         collector = TwitterTwikitCollector(
-            username="u", email="e@e.com", password="p",
+            username="u",
+            email="e@e.com",
+            password="p",
         )
         mock_client = AsyncMock()
         tweets = [_make_tweet(text="BTC to the moon!")]
@@ -207,7 +223,9 @@ class TestTwitterTwikitCollectorCollect:
     async def test_collect_mentions_handles_empty_results(self) -> None:
         """collect_mentions must handle zero results gracefully."""
         collector = TwitterTwikitCollector(
-            username="u", email="e@e.com", password="p",
+            username="u",
+            email="e@e.com",
+            password="p",
         )
         mock_client = AsyncMock()
         mock_client.search_tweet.return_value = _make_search_result([])
@@ -223,7 +241,9 @@ class TestTwitterTwikitCollectorCollect:
     async def test_collect_mentions_searches_dollar_symbol(self) -> None:
         """collect_mentions must search for $SYMBOL."""
         collector = TwitterTwikitCollector(
-            username="u", email="e@e.com", password="p",
+            username="u",
+            email="e@e.com",
+            password="p",
         )
         mock_client = AsyncMock()
         mock_client.search_tweet.return_value = _make_search_result([])
@@ -239,7 +259,9 @@ class TestTwitterTwikitCollectorCollect:
     async def test_collect_calls_collect_mentions_per_symbol(self) -> None:
         """collect() must call collect_mentions for each symbol."""
         collector = TwitterTwikitCollector(
-            username="u", email="e@e.com", password="p",
+            username="u",
+            email="e@e.com",
+            password="p",
         )
         collector.collect_mentions = AsyncMock(  # type: ignore[assignment]
             return_value={"symbol": "BTC", "mention_count": 1, "total_engagement": 5, "texts": []}
@@ -254,7 +276,9 @@ class TestTwitterTwikitCollectorCollect:
     async def test_collect_single_returns_one_result(self) -> None:
         """collect_single() must return a single dict."""
         collector = TwitterTwikitCollector(
-            username="u", email="e@e.com", password="p",
+            username="u",
+            email="e@e.com",
+            password="p",
         )
         collector.collect_mentions = AsyncMock(  # type: ignore[assignment]
             return_value={"symbol": "BTC", "mention_count": 1, "total_engagement": 5, "texts": []}

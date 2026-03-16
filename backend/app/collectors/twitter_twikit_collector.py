@@ -28,7 +28,7 @@ class TwitterTwikitCollector:
     - Rate-limit aware via configurable delay.
     """
 
-    def __init__(
+    def __init__(  # nosec B107
         self,
         username: str = "",
         email: str = "",
@@ -102,8 +102,7 @@ class TwitterTwikitCollector:
         mention_count = len(tweets_list)
 
         total_engagement = sum(
-            getattr(t, "favorite_count", 0) + getattr(t, "retweet_count", 0)
-            for t in tweets_list
+            getattr(t, "favorite_count", 0) + getattr(t, "retweet_count", 0) for t in tweets_list
         )
 
         texts = [getattr(t, "text", "") for t in tweets_list]

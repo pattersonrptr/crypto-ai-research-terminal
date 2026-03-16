@@ -65,11 +65,11 @@ async def _execute_collection(job_id: str) -> None:
     _job_registry[job_id]["status"] = "running"
     logger.info("collect_now.started", job_id=job_id)
     try:
-        from app.scheduler.jobs import run_daily_collection  # noqa: PLC0415
+        from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
 
-        result = await run_daily_collection()
+        await daily_collection_job()
         _job_registry[job_id]["status"] = "completed"
-        _job_registry[job_id]["detail"] = str(result)
+        _job_registry[job_id]["detail"] = "collection finished"
         logger.info("collect_now.completed", job_id=job_id)
     except Exception:
         _job_registry[job_id]["status"] = "failed"
