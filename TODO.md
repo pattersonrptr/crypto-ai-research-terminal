@@ -783,14 +783,14 @@ is never called in the live pipeline. There is no way to understand why a
 token scores high.
 
 ### Item 1 — Filter stablecoins, wrapped tokens, and dead projects
-- 🔲 `scoring/token_filter.py` — `TokenFilter` class with configurable
+- ✅ `scoring/token_filter.py` — `TokenFilter` class with configurable
   exclusion lists: stablecoins (USDT, USDC, DAI, BUSD, TUSD, FRAX, FDUSD,
-  USD1, etc.), wrapped/bridged (WBTC, WETH, stETH, cbETH, rETH, etc.),
-  dead tokens (volume < $10k for 30 days).
-- 🔲 Rankings API applies filter before returning results.
+  USD1 + 17 more), wrapped/bridged (WBTC, WETH, stETH, cbETH, rETH + 14
+  more), dead tokens (volume < $10k or missing volume data).
+- ✅ Rankings API applies filter before returning results (post-query).
 - 🔲 Frontend: filter chips for category (DeFi, AI, L1, L2, Meme, etc.)
   and market cap range (micro/small/mid/large).
-- 🔲 Tests for filtering logic (TDD).
+- ✅ Tests for filtering logic — 27 unit tests + 6 API tests (TDD).
 
 ### Item 2 — Persist Twitter/Reddit data to social_data table
 - 🔲 Wire `TwitterTwikitCollector.collect_mentions()` results into
