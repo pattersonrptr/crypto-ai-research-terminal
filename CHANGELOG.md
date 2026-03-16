@@ -10,6 +10,55 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Planning — Phases 13–15 (Ranking Foundation, Multi-Cycle Backtesting, Ranking Polish)
+
+- **Diagnosed ranking quality issues:** Rankings are unreliable because 9 of 11
+  sub-scores come from `HeuristicSubScorer` (market cap / rank guesses). Social
+  collectors, CoinMarketCap collector, and dev activity data exist as code but
+  are not wired into the scoring pipeline. This produces misleading results
+  (e.g., KOGE ranks above BTC with 8.8 Adoption).
+
+- **Phase 13 — Ranking Foundation: Data Quality & Feedback Loop** (planned):
+  - Remove automatic seed from `entrypoint.sh` (`AUTO_SEED=false` by default)
+  - CLI database management: `seed`, `db-clean`, `db-truncate`, `db-status`
+  - Twitter/X data collection via `twikit` (free, async, no paid API)
+  - Wire Reddit `SocialCollector` into scoring pipeline
+  - Wire `CoinMarketCapCollector` into scoring pipeline
+  - Replace heuristic scores with real data when available
+  - Whitepaper analysis via Gemini free tier → real PDF reports
+  - "Collect Now" button in Rankings + Narratives GUI
+
+- **Phase 14 — Multi-Cycle Backtesting & Weight Calibration** (planned):
+  - Historical data for 3 BTC cycles (2015-2018, 2019-2021, 2022-2025)
+  - Ground truth definition (which tokens did ≥5x per cycle)
+  - Full scoring pipeline on historical monthly snapshots
+  - Precision@K / Recall@K / Hit Rate per cycle
+  - Weight calibration across all cycles → apply to live ranking
+  - Frontend: cycle selector, "Apply Best Weights" button
+
+- **Phase 15 — Ranking Polish & UX** (planned):
+  - Smart filtering (exclude stablecoins, wrapped tokens, dead tokens)
+  - Cycle-aware ranking (integrate `cycle_adjusted_score`)
+  - Timeframe selector ("Next cycle", "90 days", "30 days")
+  - Score explanation ("Why this score?" in Token Detail)
+
+### Changed
+
+- **`.env.example`**: Added `AUTO_SEED=false`, `TWITTER_USERNAME`,
+  `TWITTER_EMAIL`, `TWITTER_PASSWORD`. Marked `TWITTER_BEARER_TOKEN`
+  as deprecated (replaced by twikit scraping).
+- **`.env`**: Added `AUTO_SEED=false` and Twitter/X credential placeholders.
+- **`TODO.md`**: Added Phases 13–15 with full task breakdown. Added
+  future Phases 16 (Narratives & Ecosystems) and 17 (Alerts Tuning).
+- **`SCOPE.md`**: Updated roadmap §10 with Phases 13–17. Updated
+  external integrations table (Twitter/X → twikit). Updated footer
+  timestamp and status.
+- **`README.md`**: Updated roadmap table with Phases 13–17. Rewrote
+  "Current Status & Known Limitations" section with honest assessment.
+  Added database management docs (seed, db-clean, db-truncate, db-status).
+  Added Twitter/X setup instructions. Added `docker exec` examples for
+  all new CLI commands.
+
 ### Added (Optional Enhancements — All Deferred Items Completed)
 
 - **PipelineScorer** (`backend/app/scoring/pipeline_scorer.py`):

@@ -80,6 +80,22 @@ cp .env.example .env
 # Edit .env — fill in API keys (CoinGecko, GitHub, Telegram, etc.)
 ```
 
+#### Twitter/X setup (for social data collection — Phase 13+)
+
+The system uses [`twikit`](https://github.com/d60/twikit) to collect Twitter/X
+data **for free** (no paid API required). You need a regular X account:
+
+```env
+# .env — add your X credentials
+TWITTER_USERNAME=your_x_username
+TWITTER_EMAIL=your_x_email@example.com
+TWITTER_PASSWORD=your_x_password
+```
+
+> **Note:** twikit uses session cookies. After the first login, cookies are
+> persisted so your credentials aren't sent repeatedly. The account is only
+> used for reading — no tweets are posted.
+
 ### 2 — Start all services
 
 ```bash
@@ -156,6 +172,52 @@ docker compose -f infra/docker-compose.yml exec backend python -m app.cli collec
 
 > The scheduler also runs `daily_collection_job` automatically, but `collect-now`
 > lets you populate the DB immediately after a fresh deploy.
+
+### Seed data (optional — disabled by default)
+
+By default, the backend starts with an **empty database**. Seed data is
+controlled by the `AUTO_SEED` environment variable in `.env`:
+
+```env
+# .env
+AUTO_SEED=false   # (default) — no seed data on container start
+AUTO_SEED=true    # seeds sample tokens on container start (for development/demos)
+```
+
+To manually seed the database:
+
+```bash
+# Seed all sample data (rankings + narratives)
+docker compose -f infra/docker-compose.yml exec backend python -m app.cli seed all
+
+# Seed only rankings data
+docker compose -f infra/docker-compose.yml exec backend python -m app.cli seed rankings
+
+# Seed only narratives data
+docker compose -f infra/docker-compose.yml exec backend python -m app.cli seed narratives
+```
+
+### Database management
+
+```bash
+# Show row counts per table
+docker compose -f infra/docker-compose.yml exec backend python -m app.cli db-status
+
+# Truncate ALL data tables (requires --confirm flag)
+docker compose -f infra/docker-compose.yml exec backend python -m app.cli db-clean --confirm
+
+# Truncate a specific table (requires --confirm flag)
+docker compose -f infra/docker-compose.yml exec backend python -m app.cli db-truncate tokens --confirm
+docker compose -f infra/docker-compose.yml exec backend python -m app.cli db-truncate market_data --confirm
+docker compose -f infra/docker-compose.yml exec backend python -m app.cli db-truncate narratives --confirm
+
+# Allowed tables: tokens, token_scores, market_data, narratives, alerts,
+#                 social_data, dev_activity, signals, ai_analyses,
+#                 historical_snapshots
+```
+
+> **Tip:** Use `db-clean` before switching between seed data and real data
+> to avoid mixing them.
 
 ### Production deployment
 
@@ -424,25 +486,44 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 | 6 | React Dashboard — fully wired, Docker containers | ✅ Complete |
 | 7 | ML + Knowledge Graph + Backtesting | ✅ Complete |
 | 8 | Live Data Pipeline + Production Hardening | ✅ Complete |
-| 9 | **Full Scoring Pipeline** — all 11 sub-scores, 5-pillar formula, heuristic derivation | ✅ Complete |
-| 10 | **Live Narratives + Cycle Detection** — real clusters, market phase awareness | ✅ Complete |
-| 11 | **Alert Generation** — fire alerts from scores, Telegram delivery | 🔲 Planned |
-| 12 | **Backtesting Validation** — real historical data, precision metrics, calibration | 🔲 Planned |
+| 9 | Full Scoring Pipeline — all 11 sub-scores, 5-pillar formula | ✅ Complete |
+| 10 | Live Narratives + Cycle Detection | ✅ Complete |
+| 11 | Alert Generation — fire alerts from scores, Telegram delivery | ✅ Complete |
+| 12 | Backtesting Validation — historical data, precision metrics | ✅ Complete |
+| 13 | **Ranking Foundation** — real social data, wire CMC, CLI db mgmt, Gemini whitepapers | 🔲 Planned |
+| 14 | **Multi-Cycle Backtesting** — 3 BTC cycles, weight calibration feedback loop | 🔲 Planned |
+| 15 | **Ranking Polish** — smart filtering, cycle-aware scoring, score explanations | 🔲 Planned |
+| 16 | Narratives & Ecosystems — real social-driven narratives, real graph edges | 🔲 Future |
+| 17 | Alerts Tuning — smart thresholds, reduce volume | 🔲 Future |
 
 ### Current Status & Known Limitations
 
-The infrastructure is complete (924 backend tests, 133 frontend tests, full Docker
-stack, real CoinGecko data). The system now detects market cycle phases and builds
-real token relationship graphs. Remaining gaps:
+Phases 1–12 are complete (1109 backend tests, 144 frontend tests, full Docker
+stack, real CoinGecko data). The infrastructure is solid. The main gap is
+**ranking quality** — sub-scores rely on heuristic guesses because social and
+dev data collectors aren't wired into the scoring pipeline.
 
-- **Narratives partially live:** `NarrativePersister` and `NarrativeTrendAnalyzer`
-  are implemented but the narratives API route still uses seed data as a fallback.
-  Full pipeline wiring deferred to Phase 11.
-- **Alerts are never generated:** Rule engine exists but is never called.
-- **Backtesting uses synthetic data:** Cannot validate the model against real cycles.
-- **Price correlation edges:** Not yet in graph (requires historical price data from
-  Phase 12).
+**What works:**
+- Full Docker stack (`docker compose up` → all services healthy)
+- CoinGecko collection: 250 real tokens, scored and persisted
+- Cycle detection: BTC dominance, Fear & Greed, market phase classification
+- Alert generation: fires alerts from scores, Telegram delivery
+- Backtesting infrastructure: validation engine, weight calibrator
+- Frontend: 5 pages (Rankings, Token Detail, Narratives, Ecosystems, Backtesting, Alerts)
 
-Phases 11–12 address the remaining gaps. See [`SCOPE.md`](SCOPE.md) §10 for details.
+**Known limitations (addressed by Phases 13–15):**
+- **Rankings are unreliable:** Heuristic sub-scores (from `HeuristicSubScorer`)
+  produce misleading results. Obscure tokens rank above BTC/ETH because the
+  heuristic confuses speculative volume with adoption.
+- **Social data not wired:** Twitter and Reddit collectors exist but don't feed
+  into the scoring pipeline. `growth_score` and `narrative_score` are guesses.
+- **CoinMarketCap not wired:** CMC collector exists but isn't called in the
+  pipeline. Tags and categories aren't used for scoring.
+- **Backtesting uses limited data:** Only 10 tokens, one cycle (2019-2021).
+  Weight calibration results aren't applied to live ranking.
+- **Whitepaper PDF is non-functional:** Download button exists but generates
+  stub content, not real analysis.
+- **Seed data auto-runs:** `entrypoint.sh` seeds fake data on every container
+  start, which mixes with real data.
 
-**Current test counts:** 924 backend + 133 frontend = **1 057 total tests**
+**Current test counts:** 1109 backend + 144 frontend = **1 253 total tests**

@@ -1183,10 +1183,10 @@ CREATE TABLE historical_snapshots (
 | CoinMarketCap | Complementary market data | 333 req/day | `https://pro-api.coinmarketcap.com/v1` |
 | DefiLlama | TVL, DeFi data | No limit | `https://api.llama.fi` |
 | GitHub | Dev activity | 60 req/h (unauth), 5000 (auth) | `https://api.github.com` |
-| Twitter/X API | Social data | Limited (Basic plan) | `https://api.twitter.com/2` |
+| Twitter/X (twikit) | Social data (scraping) | Free (account required) | Internal API via `twikit` library |
 | Reddit API | Social data | Free | `https://www.reddit.com/r/{sub}/new.json` |
 | Telegram Bot API | Alerts | Free | `https://api.telegram.org` |
-| Gemini API | LLM | Free tier | `https://generativelanguage.googleapis.com` |
+| Gemini API | LLM + whitepaper analysis | Free tier (15 RPM) | `https://generativelanguage.googleapis.com` |
 | Ollama | LLM local | Free | `http://localhost:11434` |
 
 ---
@@ -1402,18 +1402,89 @@ never called. No alerts are ever generated.
 
 ---
 
-### Phase 12 — Backtesting Validation (2–3 weeks)
+### Phase 12 — Backtesting Validation (2–3 weeks) ✅
 
 **Problem:** Backtesting uses synthetic data. Cannot validate if the model
 would have predicted actual cycle winners.
 
-- [ ] Collect real historical data (CoinGecko, 2019-2021)
-- [ ] Run full scoring pipeline on historical snapshots
-- [ ] Compute Precision@10, Recall@50, Hit Rate
-- [ ] Calibrate scorer weights based on results
+- [x] Collect real historical data (CoinGecko, 2019-2021)
+- [x] Run full scoring pipeline on historical snapshots
+- [x] Compute Precision@10, Recall@50, Hit Rate
+- [x] Calibrate scorer weights based on results
 
 **Deliverable:** Model validated (or limitations documented) against real
 historical cycles.
+
+---
+
+### Phase 13 — Ranking Foundation: Data Quality & Feedback Loop (2–3 weeks)
+
+**Problem:** Rankings are unreliable — 9 of 11 sub-scores come from
+heuristic guesses. Social collectors exist but aren't wired. CMC collector
+exists but isn't wired. Seed data auto-runs on every start. No database
+management CLI. Whitepaper analysis is non-functional.
+
+- [ ] Remove automatic seed — `AUTO_SEED=false` in `.env`, seed via CLI only
+- [ ] CLI: `cryptoai seed`, `cryptoai db-clean`, `cryptoai db-truncate`,
+      `cryptoai db-status`
+- [ ] Twitter/X collector via `twikit` (free, async, no API key needed)
+- [ ] Wire Reddit `SocialCollector` into `daily_collection_job`
+- [ ] Wire `CoinMarketCapCollector` into `daily_collection_job`
+- [ ] Replace heuristics with real data in `PipelineScorer`
+- [ ] Whitepaper analysis via Gemini free tier → real PDF reports
+- [ ] "Collect Now" button in Rankings + Narratives GUI
+- [ ] Documentation: README, `.env.example`, CLI reference
+
+**Deliverable:** Rankings use real social + dev + CMC data. Database
+management via CLI. Twitter/Reddit feed scoring. Whitepaper PDFs.
+
+---
+
+### Phase 14 — Backtesting Real: Multi-Cycle Validation (2–3 weeks)
+
+**Problem:** Backtesting covers 1 cycle with 10 tokens. No feedback loop —
+calibration results don't improve the live ranking. Cannot trust model
+without multi-cycle validation.
+
+- [ ] Collect historical data for 3 BTC cycles (2015-2018, 2019-2021, 2022-2025)
+      with 15-40 tokens per cycle (CoinGecko + CoinMarketCap)
+- [ ] Define ground truth per cycle (which tokens did ≥5x / ≥10x)
+- [ ] Run full scoring pipeline on historical monthly snapshots
+- [ ] Validate: Precision@K, Recall@K, Hit Rate per cycle
+- [ ] Weight calibration across all cycles → apply best weights to live ranking
+- [ ] Frontend: cycle selector, per-cycle metrics, "Apply Best Weights" button
+- [ ] CI quality gate: warn if Precision@10 drops
+
+**Deliverable:** Model validated across 3 BTC cycles. Calibrated weights
+applied. Ranking improves measurably.
+
+---
+
+### Phase 15 — Ranking Polish & UX (1–2 weeks)
+
+**Problem:** Rankings show stablecoins, wrapped tokens, dead projects.
+No cycle awareness in live scoring. No score explanations.
+
+- [ ] Smart filtering: exclude stablecoins, wrapped tokens, dead tokens
+- [ ] Cycle-aware ranking: integrate `cycle_adjusted_score` into pipeline
+- [ ] Timeframe selector: "Next cycle", "90 days", "30 days"
+- [ ] Score explanation: "Why this score?" section in Token Detail
+
+**Deliverable:** Rankings show only actionable altcoins. Scores explained.
+Cycle phase influences ranking. Ready for real research.
+
+---
+
+### Phase 16 — Narratives & Ecosystems (TBD)
+
+Rebuild with real social data. Real graph edges. Useful pages.
+
+---
+
+### Phase 17 — Alerts Tuning (TBD)
+
+Smart thresholds. Reduce volume from 300+ to ~10-20/day. Only
+high-confidence alerts to Telegram.
 
 ---
 
@@ -1430,11 +1501,16 @@ REDIS_URL=redis://redis:6379
 COINGECKO_API_KEY=           # Optional (improves rate limit)
 COINMARKETCAP_API_KEY=       # Required for CMC
 GITHUB_TOKEN=                # Required for dev activity
-TWITTER_BEARER_TOKEN=        # Optional (paid plan)
-GEMINI_API_KEY=              # For Gemini LLM
+TWITTER_BEARER_TOKEN=        # Deprecated — replaced by twikit scraping
+GEMINI_API_KEY=              # For Gemini LLM (free tier: 15 RPM)
 OPENAI_API_KEY=              # Optional, paid fallback
 TELEGRAM_BOT_TOKEN=          # For alerts
 TELEGRAM_CHAT_ID=            # Your chat ID
+
+# ===== TWITTER/X (free — via twikit scraping) =====
+TWITTER_USERNAME=            # Your X account username
+TWITTER_EMAIL=               # Your X account email
+TWITTER_PASSWORD=            # Your X account password
 
 # ===== LLM PROVIDER =====
 LLM_PRIMARY=ollama            # ollama | gemini | openai
@@ -1457,6 +1533,9 @@ MONTHLY_RUN_DAY=1
 ALERT_LISTING_THRESHOLD=0.70         # Minimum score to alert listing
 ALERT_WHALE_ACCUMULATION_THRESHOLD=7.0
 ALERT_MEMECOIN_SOCIAL_GROWTH=500     # % growth in 48h
+
+# ===== SEED DATA =====
+AUTO_SEED=false              # Set to true to auto-seed sample data on container start
 
 # ===== FRONTEND =====
 VITE_API_BASE_URL=http://localhost:8000
@@ -1657,5 +1736,5 @@ Recommended action: MONITOR
 ---
 
 *Document generated for use with GitHub Copilot + Claude Sonnet 4.6*
-*Last updated: 2026-03-14*
-*Status: Phase 8 complete — Phases 9–12 planned (full scoring, narratives, alerts, backtesting)*
+*Last updated: 2026-03-15*
+*Status: Phases 1–12 complete — Phases 13–15 planned (data quality, multi-cycle backtesting, ranking polish)*

@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
+    # Twitter/X (free — via twikit scraping)
+    twitter_username: str = ""
+    twitter_email: str = ""
+    twitter_password: str = ""
+
     # LLM provider
     llm_primary: str = "ollama"
     llm_fallback: str = "gemini"
@@ -43,6 +48,9 @@ class Settings(BaseSettings):
     alert_listing_threshold: float = 0.70
     alert_whale_accumulation_threshold: float = 7.0
     alert_memecoin_social_growth: int = 500
+
+    # Seed data
+    auto_seed: bool = False
 
     # Frontend
     vite_api_base_url: str = "http://localhost:8000"
