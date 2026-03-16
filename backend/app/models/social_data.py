@@ -18,6 +18,8 @@ class SocialData(Base):
     reddit_subscribers: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     reddit_posts_24h: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     sentiment_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    twitter_mentions_24h: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    twitter_engagement: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     collected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )

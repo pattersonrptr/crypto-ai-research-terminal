@@ -793,13 +793,19 @@ token scores high.
 - ✅ Tests for filtering logic — 27 unit tests + 6 API tests (TDD).
 
 ### Item 2 — Persist Twitter/Reddit data to social_data table
-- 🔲 Wire `TwitterTwikitCollector.collect_mentions()` results into
-  `social_data` table (`twitter_mentions_24h`, `twitter_sentiment`).
-- 🔲 Wire `SocialCollector` (Reddit) results into `social_data` table
-  (`reddit_posts_7d`, `reddit_subscribers`, `reddit_growth_pct`).
-- 🔲 `PipelineScorer` automatically uses real social data when present
-  (adoption_score, narrative_score use real signals instead of heuristics).
-- 🔲 Tests for social data persistence (TDD).
+- ✅ Add `twitter_mentions_24h` + `twitter_engagement` columns to
+  `SocialData` model + Alembic migration (`c9d0e1f2a3b4`).
+- ✅ `persist_social_data()` helper in `jobs.py` — merges Reddit + Twitter
+  data per symbol into a single `SocialData` row.
+- ✅ `collect_twitter_data()` helper in `jobs.py` — orchestrates
+  `TwitterTwikitCollector` for all symbols.
+- ✅ `daily_collection_job` collects social data **before** scoring and
+  merges `reddit_subscribers`, `reddit_posts_24h`, `sentiment_score`,
+  `twitter_mentions_24h`, `twitter_engagement` into the processed dict.
+- ✅ `PipelineScorer._score_adoption()` already uses `reddit_subscribers`
+  and `reddit_posts_24h` — now they arrive from real data instead of
+  heuristic fallback.
+- ✅ Tests: 11 new tests (8 persist + 3 collect_twitter_data) — TDD.
 
 ### Item 3 — Connect calibrated weights to live scoring
 - 🔲 `POST /backtesting/apply-weights` — persists calibrated weights to
