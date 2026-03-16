@@ -5,6 +5,8 @@
  * - POST /backtesting/run       — Run a simulation for a symbol over a market cycle
  * - POST /backtesting/validate  — Run validation metrics on historical data
  * - POST /backtesting/calibrate — Run weight calibration sweep
+ * - GET  /backtesting/cycles    — List available market cycles
+ * - GET  /backtesting/weights   — Get current active scoring weights
  */
 
 import type { AxiosResponse } from "axios";
@@ -77,6 +79,24 @@ export interface CalibrateResult {
   improved: boolean;
 }
 
+/** Phase 14 — cycle info from GET /backtesting/cycles */
+export interface CycleInfo {
+  name: string;
+  bottom_date: string;
+  top_date: string;
+  n_tokens: number;
+}
+
+/** Phase 14 — active weights from GET /backtesting/weights */
+export interface ActiveWeights {
+  fundamental: number;
+  growth: number;
+  narrative: number;
+  listing: number;
+  risk: number;
+  source: string;
+}
+
 // ── Service functions ──────────────────────────────────────────────────────
 
 /**
@@ -109,5 +129,21 @@ export async function runCalibration(request: CalibrateRequest = {}): Promise<Ca
     "/backtesting/calibrate",
     request,
   );
+  return res.data;
+}
+
+/**
+ * Fetch available market cycles for backtesting.
+ */
+export async function fetchCycles(): Promise<CycleInfo[]> {
+  const res: AxiosResponse<CycleInfo[]> = await apiClient.get("/backtesting/cycles");
+  return res.data;
+}
+
+/**
+ * Fetch the currently active scoring weights.
+ */
+export async function fetchActiveWeights(): Promise<ActiveWeights> {
+  const res: AxiosResponse<ActiveWeights> = await apiClient.get("/backtesting/weights");
   return res.data;
 }

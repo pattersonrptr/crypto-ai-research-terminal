@@ -36,6 +36,7 @@ class HistoricalSnapshot(Base):
     circulating_supply: Mapped[float | None] = mapped_column(Double, nullable=True)
     total_supply: Mapped[float | None] = mapped_column(Double, nullable=True)
     categories: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cycle_tag: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
     collected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -46,5 +47,6 @@ class HistoricalSnapshot(Base):
             f"HistoricalSnapshot("
             f"symbol={self.symbol!r}, "
             f"snapshot_date={sd!r}, "
-            f"price_usd={self.price_usd!r})"
+            f"price_usd={self.price_usd!r}, "
+            f"cycle_tag={self.cycle_tag!r})"
         )

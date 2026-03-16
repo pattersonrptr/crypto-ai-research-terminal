@@ -1,9 +1,11 @@
 """Backtesting route handlers.
 
-Provides endpoints for the Backtesting Engine (Phase 7 + Phase 12):
+Provides endpoints for the Backtesting Engine (Phase 7 + Phase 12 + Phase 14):
 - POST /backtesting/run       — Run a simulation for a symbol over a market cycle
 - POST /backtesting/validate  — Run validation metrics on historical data
 - POST /backtesting/calibrate — Run weight calibration sweep
+- GET  /backtesting/cycles    — List available market cycles
+- GET  /backtesting/weights   — Get current active scoring weights
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from app.backtesting.validation_metrics import (
     generate_validation_report,
 )
 from app.backtesting.weight_calibrator import calibrate_weights
+from app.backtesting.cycle_config import get_cycle, get_cycle_names
 
 router = APIRouter()
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
@@ -348,4 +351,83 @@ async def calibrate_model_weights(request: CalibrateRequest) -> CalibrateRespons
         best_precision_at_k=result.best_precision_at_k,
         n_combinations_tested=result.n_combinations_tested,
         improved=result.improved(baseline_precision=0.5),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 14 — Pydantic schemas
+# ---------------------------------------------------------------------------
+
+
+class CycleInfoResponse(BaseModel):
+    """Summary info for one market cycle."""
+
+    name: str
+    bottom_date: str
+    top_date: str
+    n_tokens: int
+
+
+class ActiveWeightsResponse(BaseModel):
+    """Currently active scoring weights."""
+
+    fundamental: float
+    growth: float
+    narrative: float
+    listing: float
+    risk: float
+    source: str
+
+
+# ---------------------------------------------------------------------------
+# Phase 14 — Route handlers
+# ---------------------------------------------------------------------------
+
+# Default Phase 9 weights — used when no calibrated weights exist.
+_DEFAULT_PHASE9_WEIGHTS = {
+    "fundamental": 0.30,
+    "growth": 0.25,
+    "narrative": 0.20,
+    "listing": 0.15,
+    "risk": 0.10,
+}
+
+
+@router.get("/cycles", response_model=list[CycleInfoResponse])
+async def list_cycles() -> list[CycleInfoResponse]:
+    """List all available market cycles for backtesting.
+
+    Returns:
+        A list of :class:`CycleInfoResponse` with cycle metadata.
+    """
+    result: list[CycleInfoResponse] = []
+    for name in get_cycle_names():
+        cycle = get_cycle(name)
+        result.append(
+            CycleInfoResponse(
+                name=cycle.name,
+                bottom_date=cycle.bottom_date.isoformat(),
+                top_date=cycle.top_date.isoformat(),
+                n_tokens=len(cycle.tokens),
+            )
+        )
+    logger.info("backtesting.list_cycles", n_cycles=len(result))
+    return result
+
+
+@router.get("/weights", response_model=ActiveWeightsResponse)
+async def get_active_weights() -> ActiveWeightsResponse:
+    """Get the currently active scoring weights.
+
+    Returns the Phase 9 defaults if no calibrated weights have been
+    applied yet.
+
+    Returns:
+        An :class:`ActiveWeightsResponse`.
+    """
+    # Phase 14: for now return defaults.  When a calibration is applied
+    # and persisted to the DB, this route will read from scoring_weights.
+    return ActiveWeightsResponse(
+        **_DEFAULT_PHASE9_WEIGHTS,
+        source="default_phase9",
     )

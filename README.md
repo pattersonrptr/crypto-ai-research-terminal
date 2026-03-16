@@ -494,8 +494,8 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 | 10 | Live Narratives + Cycle Detection | ✅ Complete |
 | 11 | Alert Generation — fire alerts from scores, Telegram delivery | ✅ Complete |
 | 12 | Backtesting Validation — historical data, precision metrics | ✅ Complete |
-| 13 | **Ranking Foundation** — real social data, wire CMC, CLI db mgmt, Gemini whitepapers | 🔲 Planned |
-| 14 | **Multi-Cycle Backtesting** — 3 BTC cycles, weight calibration feedback loop | 🔲 Planned |
+| 13 | **Ranking Foundation** — real social data, wire CMC, CLI db mgmt, Gemini whitepapers | ✅ Complete |
+| 14 | **Multi-Cycle Backtesting** — 3 BTC cycles, weight calibration feedback loop | � In Progress |
 | 15 | **Ranking Polish** — smart filtering, cycle-aware scoring, score explanations | 🔲 Planned |
 | 16 | Narratives & Ecosystems — real social-driven narratives, real graph edges | 🔲 Future |
 | 17 | Alerts Tuning — smart thresholds, reduce volume | 🔲 Future |

@@ -11,11 +11,17 @@ import {
   backtestValidateHandler,
   backtestValidateErrorHandler,
   backtestCalibrateHandler,
+  backtestCyclesHandler,
+  backtestCyclesErrorHandler,
+  backtestWeightsHandler,
+  backtestWeightsErrorHandler,
   MOCK_BACKTEST_RESULT,
   MOCK_VALIDATE_RESULT,
   MOCK_CALIBRATE_RESULT,
+  MOCK_CYCLES,
+  MOCK_ACTIVE_WEIGHTS,
 } from "@/test/msw/handlers";
-import { runBacktest, runValidation, runCalibration } from "./backtesting.service";
+import { runBacktest, runValidation, runCalibration, fetchCycles, fetchActiveWeights } from "./backtesting.service";
 
 describe("backtesting.service", () => {
   it("runBacktest_returns_BacktestResult", async () => {
@@ -104,5 +110,47 @@ describe("backtesting.service calibration", () => {
     server.use(backtestCalibrateHandler(MOCK_CALIBRATE_RESULT));
     const result = await runCalibration();
     expect(typeof result.improved).toBe("boolean");
+  });
+});
+
+describe("backtesting.service cycles", () => {
+  it("fetchCycles_returns_list_of_cycles", async () => {
+    server.use(backtestCyclesHandler(MOCK_CYCLES));
+    const result = await fetchCycles();
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBe(3);
+  });
+
+  it("fetchCycles_returns_cycle_fields", async () => {
+    server.use(backtestCyclesHandler(MOCK_CYCLES));
+    const result = await fetchCycles();
+    expect(result[0].name).toBe("cycle_1_2015_2018");
+    expect(result[0].n_tokens).toBe(15);
+  });
+
+  it("fetchCycles_throws_on_server_error", async () => {
+    server.use(backtestCyclesErrorHandler());
+    await expect(fetchCycles()).rejects.toThrow();
+  });
+});
+
+describe("backtesting.service weights", () => {
+  it("fetchActiveWeights_returns_weight_data", async () => {
+    server.use(backtestWeightsHandler(MOCK_ACTIVE_WEIGHTS));
+    const result = await fetchActiveWeights();
+    expect(result.fundamental).toBe(0.30);
+    expect(result.source).toBe("default_phase9");
+  });
+
+  it("fetchActiveWeights_returns_all_pillar_weights", async () => {
+    server.use(backtestWeightsHandler(MOCK_ACTIVE_WEIGHTS));
+    const result = await fetchActiveWeights();
+    const total = result.fundamental + result.growth + result.narrative + result.listing + result.risk;
+    expect(total).toBeCloseTo(1.0);
+  });
+
+  it("fetchActiveWeights_throws_on_server_error", async () => {
+    server.use(backtestWeightsErrorHandler());
+    await expect(fetchActiveWeights()).rejects.toThrow();
   });
 });
