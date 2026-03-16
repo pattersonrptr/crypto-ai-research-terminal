@@ -12,11 +12,15 @@ from app.db.session import get_db
 from app.models.market_data import MarketData
 from app.models.score import TokenScore
 from app.models.token import Token
+from app.scoring.token_filter import TokenFilter
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]
+
+# Module-level filter instance — shared across requests.
+_token_filter = TokenFilter()
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +165,19 @@ async def get_opportunities(
     result = await db.execute(stmt)
     rows = result.all()
 
-    logger.info("rankings.opportunities.fetched", count=len(rows))
+    # Post-query filtering: remove stablecoins, wrapped tokens, and dead projects.
+    filtered: list[tuple[Token, TokenScore, MarketData | None]] = []
+    for token, score, md in rows:
+        volume = md.volume_24h_usd if md is not None else None
+        if _token_filter.should_exclude(symbol=token.symbol, volume_24h=volume):
+            continue
+        filtered.append((token, score, md))
+
+    logger.info(
+        "rankings.opportunities.fetched",
+        total=len(rows),
+        after_filter=len(filtered),
+    )
 
     return [
         RankingOpportunitySchema(
@@ -187,7 +203,7 @@ async def get_opportunities(
             fundamental_score=score.fundamental_score,
             opportunity_score=score.opportunity_score,
         )
-        for idx, (token, score, md) in enumerate(rows)
+        for idx, (token, score, md) in enumerate(filtered)
     ]
 
 
