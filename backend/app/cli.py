@@ -12,6 +12,27 @@ import structlog
 _BASE_URL = "http://localhost:8000"
 logger = structlog.get_logger(__name__)
 
+# ---------------------------------------------------------------------------
+# Allowed tables for db-clean / db-truncate
+# ---------------------------------------------------------------------------
+
+ALLOWED_TABLES: list[str] = [
+    "tokens",
+    "token_scores",
+    "market_data",
+    "narratives",
+    "alerts",
+    "social_data",
+    "dev_activity",
+    "signals",
+    "ai_analyses",
+    "historical_candles",
+    "historical_snapshots",
+]
+
+# Valid seed targets
+_SEED_TARGETS = {"rankings", "narratives", "all"}
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers — thin HTTP wrappers (patchable in tests)
@@ -218,6 +239,177 @@ def collect_now() -> None:
     try:
         count = asyncio.run(run_collection_job())
         click.echo(f"Done — {count} tokens collected, scored and persisted.")
+    except Exception as exc:
+        click.echo(f"Error: {exc}", err=True)
+        raise SystemExit(1) from exc
+
+
+# ---------------------------------------------------------------------------
+# Database management helpers (async)
+# ---------------------------------------------------------------------------
+
+
+async def fetch_table_counts() -> dict[str, int]:
+    """Return row counts for every table in ALLOWED_TABLES.
+
+    Returns:
+        Dict mapping table name → row count.
+    """
+    from sqlalchemy import text  # noqa: PLC0415
+
+    from app.db.session import _SessionLocal  # noqa: PLC0415
+
+    counts: dict[str, int] = {}
+    async with _SessionLocal() as session:
+        for table in ALLOWED_TABLES:
+            result = await session.execute(
+                text(f"SELECT COUNT(*) FROM {table}")  # noqa: S608  # nosec B608
+            )
+            row = result.scalar_one()
+            counts[table] = int(row)
+    return counts
+
+
+async def truncate_all_tables() -> None:
+    """Truncate every table in ALLOWED_TABLES (CASCADE)."""
+    from sqlalchemy import text  # noqa: PLC0415
+
+    from app.db.session import _SessionLocal  # noqa: PLC0415
+
+    async with _SessionLocal() as session:
+        for table in ALLOWED_TABLES:
+            await session.execute(text(f"TRUNCATE TABLE {table} CASCADE"))  # noqa: S608
+        await session.commit()
+
+
+async def truncate_table(table_name: str) -> None:
+    """Truncate a single table by name (CASCADE).
+
+    Args:
+        table_name: Must be in ALLOWED_TABLES (validated by caller).
+    """
+    from sqlalchemy import text  # noqa: PLC0415
+
+    from app.db.session import _SessionLocal  # noqa: PLC0415
+
+    async with _SessionLocal() as session:
+        await session.execute(text(f"TRUNCATE TABLE {table_name} CASCADE"))  # noqa: S608
+        await session.commit()
+
+
+async def run_seed(target: str) -> None:
+    """Run seed scripts for the given target.
+
+    Args:
+        target: One of 'rankings', 'narratives', or 'all'.
+    """
+    import importlib  # noqa: PLC0415
+
+    if target in ("rankings", "all"):
+        mod = importlib.import_module("scripts.seed_data")
+        await mod.seed()
+
+    if target in ("narratives", "all"):
+        mod_hist = importlib.import_module("scripts.seed_historical_data")
+        await mod_hist.seed()
+
+
+# ---------------------------------------------------------------------------
+# cryptoai db-status
+# ---------------------------------------------------------------------------
+
+
+@cli.command("db-status")
+def db_status() -> None:
+    """Show row counts for every data table."""
+    try:
+        counts = asyncio.run(fetch_table_counts())
+    except Exception as exc:
+        click.echo(f"Error: {exc}", err=True)
+        raise SystemExit(1) from exc
+
+    click.echo(f"\n{'Table':<25} {'Rows':>10}")
+    click.echo("-" * 37)
+    total = 0
+    for table, count in counts.items():
+        click.echo(f"{table:<25} {count:>10}")
+        total += count
+    click.echo("-" * 37)
+    click.echo(f"{'TOTAL':<25} {total:>10}\n")
+
+
+# ---------------------------------------------------------------------------
+# cryptoai db-clean --confirm
+# ---------------------------------------------------------------------------
+
+
+@cli.command("db-clean")
+@click.option("--confirm", is_flag=True, default=False, help="Required to actually truncate.")
+def db_clean(confirm: bool) -> None:
+    """Truncate ALL data tables. Requires --confirm."""
+    if not confirm:
+        click.echo("⚠️  This will delete all data. Pass --confirm to proceed.", err=True)
+        raise SystemExit(1)
+
+    try:
+        asyncio.run(truncate_all_tables())
+        click.echo("All tables truncated successfully.")
+    except Exception as exc:
+        click.echo(f"Error: {exc}", err=True)
+        raise SystemExit(1) from exc
+
+
+# ---------------------------------------------------------------------------
+# cryptoai db-truncate <table> --confirm
+# ---------------------------------------------------------------------------
+
+
+@cli.command("db-truncate")
+@click.argument("table")
+@click.option("--confirm", is_flag=True, default=False, help="Required to actually truncate.")
+def db_truncate(table: str, confirm: bool) -> None:
+    """Truncate a specific data table. Requires --confirm."""
+    if table not in ALLOWED_TABLES:
+        click.echo(
+            f"Error: '{table}' is not an allowed table.\n" f"Allowed: {', '.join(ALLOWED_TABLES)}",
+            err=True,
+        )
+        raise SystemExit(1)
+
+    if not confirm:
+        click.echo(
+            f"⚠️  This will delete all data from '{table}'. Pass --confirm to proceed.", err=True
+        )
+        raise SystemExit(1)
+
+    try:
+        asyncio.run(truncate_table(table))
+        click.echo(f"Table '{table}' truncated successfully.")
+    except Exception as exc:
+        click.echo(f"Error: {exc}", err=True)
+        raise SystemExit(1) from exc
+
+
+# ---------------------------------------------------------------------------
+# cryptoai seed <target>
+# ---------------------------------------------------------------------------
+
+
+@cli.command("seed")
+@click.argument("target")
+def seed(target: str) -> None:
+    """Run seed scripts. TARGET: rankings, narratives, or all."""
+    if target not in _SEED_TARGETS:
+        click.echo(
+            f"Error: invalid target '{target}'. Must be one of: {', '.join(sorted(_SEED_TARGETS))}",
+            err=True,
+        )
+        raise SystemExit(1)
+
+    click.echo(f"Seeding '{target}'...")
+    try:
+        asyncio.run(run_seed(target))
+        click.echo(f"Seed '{target}' completed successfully.")
     except Exception as exc:
         click.echo(f"Error: {exc}", err=True)
         raise SystemExit(1) from exc

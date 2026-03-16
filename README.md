@@ -170,6 +170,10 @@ docker compose -f infra/docker-compose.yml exec backend python -m app.cli collec
 # Output: "Done — N tokens collected, scored and persisted."
 ```
 
+You can also trigger collection from the **GUI**: click the **"Collect Now"**
+button in the top-right corner of the Rankings page. It shows a spinner
+while running and a status message when done.
+
 > The scheduler also runs `daily_collection_job` automatically, but `collect-now`
 > lets you populate the DB immediately after a fresh deploy.
 

@@ -4,6 +4,7 @@ import { fetchRankingOpportunities } from "@/services/tokens.service";
 import { TokenCard } from "@/features/tokens/components/TokenCard";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CycleIndicator } from "@/components/Dashboard/CycleIndicator";
+import { CollectNowButton } from "@/components/Dashboard/CollectNowButton";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
@@ -29,7 +30,12 @@ export function Home() {
       <PageHeader
         title="Top Opportunities"
         description={`${opportunities.length} tokens analysed — updated daily`}
-        actions={<CycleIndicator />}
+        actions={
+          <div className="flex items-center gap-2">
+            <CollectNowButton />
+            <CycleIndicator />
+          </div>
+        }
       />
 
       {/* ── Loading state ─────────────────────────────────────────── */}

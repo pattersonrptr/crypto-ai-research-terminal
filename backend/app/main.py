@@ -10,6 +10,7 @@ from app.api.routes import (
     graph,
     market,
     narratives,
+    pipeline,
     rankings,
     reports,
     scheduler,
@@ -40,6 +41,7 @@ app.include_router(backtesting.router, prefix="/backtesting", tags=["backtesting
 app.include_router(graph.router, prefix="/graph", tags=["graph"])
 app.include_router(market.router, prefix="/market", tags=["market"])
 app.include_router(scheduler.router, prefix="/scheduler", tags=["scheduler"])
+app.include_router(pipeline.router, prefix="/pipeline", tags=["pipeline"])
 
 
 @app.get("/health", tags=["health"])
