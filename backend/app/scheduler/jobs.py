@@ -16,6 +16,7 @@ import structlog
 from app.alerts.alert_evaluator import AlertEvaluator
 from app.analysis.narrative_persister import NarrativePersister
 from app.collectors.coingecko_collector import CoinGeckoCollector
+from app.collectors.subreddit_map import get_subreddit
 from app.config import Settings
 from app.models.market_data import MarketData
 from app.models.score import TokenScore
@@ -148,6 +149,76 @@ async def get_job_status(
 # ---------------------------------------------------------------------------
 
 _JOB_NAME = "daily_collection_job"
+
+
+# ---------------------------------------------------------------------------
+# Phase 13: Social + CMC data collection helpers
+# ---------------------------------------------------------------------------
+
+
+async def collect_social_data(
+    symbols: list[str],
+    *,
+    reddit_collector: Any | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Collect Reddit social metrics for token symbols with known subreddits.
+
+    Args:
+        symbols: List of uppercase token symbols.
+        reddit_collector: Optional pre-built SocialCollector (for testing).
+            When ``None``, creates one internally.
+
+    Returns:
+        Dict keyed by symbol → Reddit metrics dict.
+    """
+    from app.collectors.social_collector import SocialCollector  # noqa: PLC0415
+
+    result: dict[str, dict[str, Any]] = {}
+
+    for symbol in symbols:
+        subreddit = get_subreddit(symbol)
+        if not subreddit:
+            continue
+        try:
+            if reddit_collector is not None:
+                data = await reddit_collector.collect_single(subreddit)
+            else:
+                async with SocialCollector() as sc:
+                    data = await sc.collect_single(subreddit)
+            result[symbol] = data
+        except Exception:
+            logger.exception("collect_social_data.error", symbol=symbol, subreddit=subreddit)
+
+    return result
+
+
+async def collect_cmc_data(
+    *,
+    cmc_collector: Any | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Collect CoinMarketCap data and index by symbol.
+
+    Args:
+        cmc_collector: Optional pre-built CoinMarketCapCollector (for testing).
+            When ``None``, creates one internally.
+
+    Returns:
+        Dict keyed by uppercase symbol → CMC record dict.
+    """
+    from app.collectors.coinmarketcap_collector import CoinMarketCapCollector  # noqa: PLC0415
+
+    try:
+        if cmc_collector is not None:
+            records = await cmc_collector.collect(symbols=[])
+        else:
+            settings = Settings()
+            async with CoinMarketCapCollector(api_key=settings.coinmarketcap_api_key) as cmc:
+                records = await cmc.collect(symbols=[])
+
+        return {r["symbol"].upper(): r for r in records}
+    except Exception:
+        logger.exception("collect_cmc_data.error")
+        return {}
 
 
 async def daily_collection_job(

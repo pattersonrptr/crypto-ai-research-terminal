@@ -22,6 +22,10 @@ import type {
   EcosystemSnapshot,
 } from "@/services/graph.service";
 import type { MarketCycleResponse } from "@/services/market.service";
+import type {
+  CollectNowResponse,
+  PipelineStatusResponse,
+} from "@/services/pipeline.service";
 
 // ── Shared mock data factories ─────────────────────────────────────────────
 
@@ -418,6 +422,43 @@ export function marketCycleHandler(
 export function marketCycleErrorHandler() {
   return http.get("/api/market/cycle", () =>
     HttpResponse.json({ detail: "Internal server error" }, { status: 500 }),
+  );
+}
+
+// ── Pipeline handler factories ────────────────────────────────────────────
+
+const MOCK_COLLECT_NOW: CollectNowResponse = {
+  job_id: "test-job-123",
+  status: "pending",
+};
+
+const MOCK_PIPELINE_STATUS: PipelineStatusResponse = {
+  job_id: "test-job-123",
+  status: "completed",
+  detail: "42 tokens collected",
+};
+
+export function collectNowHandler(
+  data: CollectNowResponse = MOCK_COLLECT_NOW,
+) {
+  return http.post("/api/pipeline/collect-now", () => HttpResponse.json(data, { status: 202 }));
+}
+
+export function collectNowErrorHandler() {
+  return http.post("/api/pipeline/collect-now", () =>
+    HttpResponse.json({ detail: "Internal server error" }, { status: 500 }),
+  );
+}
+
+export function pipelineStatusHandler(
+  data: PipelineStatusResponse = MOCK_PIPELINE_STATUS,
+) {
+  return http.get("/api/pipeline/status/:jobId", () => HttpResponse.json(data));
+}
+
+export function pipelineStatusNotFoundHandler() {
+  return http.get("/api/pipeline/status/:jobId", () =>
+    HttpResponse.json({ detail: "job not found" }, { status: 404 }),
   );
 }
 

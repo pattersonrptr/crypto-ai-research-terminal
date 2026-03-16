@@ -10,6 +10,50 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Phase 13 — Ranking Foundation: Data Quality & Feedback Loop
+
+#### Added
+- **CLI database management** — `cryptoai db-status`, `db-clean --confirm`,
+  `db-truncate <table> --confirm`, `seed [rankings|narratives|all]` commands
+  for inspecting and managing the database without restarting containers.
+- **Twitter/X collector** — `TwitterTwikitCollector` using the `twikit`
+  library (free, async, no paid API). Supports login with cookies persistence,
+  `collect_mentions(symbol)` for mention count + engagement + raw texts.
+- **Sentiment analyzer** — keyword-based `SentimentAnalyzer` in
+  `processors/sentiment_analyzer.py`. Returns score (-1..1), label
+  (positive/negative/neutral), and per-category counts. Ready for LLM
+  upgrade in Phase 15+.
+- **Subreddit mapping** — `collectors/subreddit_map.py` with 34 symbol →
+  subreddit mappings (BTC→Bitcoin, ETH→ethereum, SOL→solana, etc.).
+- **Pipeline social/CMC helpers** — `collect_social_data()` and
+  `collect_cmc_data()` async functions in `scheduler/jobs.py` for
+  orchestrating Reddit and CoinMarketCap collection in the pipeline.
+- **Real data scoring** — `PipelineScorer` now uses real social data
+  (`_score_adoption`), dev activity (`_score_dev_activity`), and CMC data
+  (`_score_technology`) when available. Falls back to heuristic when absent.
+- **Whitepaper cache** — `WhitepaperCacheService` with 7-day TTL for caching
+  whitepaper analyses in the `ai_analyses` table.
+- **Collect Now API** — `POST /pipeline/collect-now` triggers async collection,
+  `GET /pipeline/status/{job_id}` returns job progress. In-memory job registry.
+- **Collect Now UI** — `CollectNowButton` component on the Home (Rankings)
+  page. Shows collecting/done/failed states with disabled button while running.
+- **Pipeline service** — `pipeline.service.ts` with `triggerCollectNow()` and
+  `fetchPipelineStatus()` API functions + MSW handlers.
+
+#### Changed
+- **entrypoint.sh** now checks `AUTO_SEED` env var before running seed_data.py.
+  Default is `false` — no more automatic seeding on container start.
+- **pyproject.toml** — added `twikit = "^2.3.0"` dependency.
+- **main.py** — registered `/pipeline` router.
+- **Home.tsx** — added `CollectNowButton` next to `CycleIndicator` in header.
+
+#### Tests
+- 59 new backend tests (CLI: 22, Twitter: 14, sentiment: 11, pipeline: 10,
+  scorer: 9, whitepaper cache: 8, collect-now API: 7).
+  Total: **1191 backend tests**, all green.
+- 8 new frontend tests (pipeline service: 4, CollectNowButton: 4).
+  Total: **152 frontend tests**, all green.
+
 ### Planning — Phases 13–15 (Ranking Foundation, Multi-Cycle Backtesting, Ranking Polish)
 
 - **Diagnosed ranking quality issues:** Rankings are unreliable because 9 of 11

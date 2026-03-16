@@ -155,17 +155,24 @@ class PipelineScorer:
         )
         sources["cycle_leader_prob"] = cycle_src
 
-        # ── Fundamental sub-pillars (always from heuristic for now) ──
-        sources["technology_score"] = "heuristic"
+        # ── Fundamental sub-pillars ─────────────────────────────────
+        # Phase 13: use real social/dev/CMC data when available.
+        adoption_score, adoption_src = cls._score_adoption(data, heuristic.adoption_score)
+        sources["adoption_score"] = adoption_src
+
+        dev_score, dev_src = cls._score_dev_activity(data, heuristic.dev_activity_score)
+        sources["dev_activity_score"] = dev_src
+
+        tech_score, tech_src = cls._score_technology(data, heuristic.technology_score)
+        sources["technology_score"] = tech_src
+
         sources["tokenomics_score"] = "heuristic"
-        sources["adoption_score"] = "heuristic"
-        sources["dev_activity_score"] = "heuristic"
 
         return PipelineScorerResult(
-            technology_score=heuristic.technology_score,
+            technology_score=tech_score,
             tokenomics_score=heuristic.tokenomics_score,
-            adoption_score=heuristic.adoption_score,
-            dev_activity_score=heuristic.dev_activity_score,
+            adoption_score=adoption_score,
+            dev_activity_score=dev_score,
             narrative_score=narrative_score,
             growth_score=growth_score,
             risk_score=risk_score,
@@ -244,6 +251,88 @@ class PipelineScorer:
 
         score = clamp(base_score + cluster_bonus, 0.0, 1.0)
         return score, "category"
+
+    # ── Phase 13: Real data scorers ───────────────────────────────
+
+    @staticmethod
+    def _score_adoption(data: dict[str, Any], fallback: float) -> tuple[float, str]:
+        """Score adoption from real social metrics when available.
+
+        Uses reddit_subscribers (normalised to 0-10M range) and
+        reddit_posts_24h as activity signal. Falls back to heuristic.
+        """
+        required = {"reddit_subscribers", "reddit_posts_24h"}
+        if not required.issubset(data.keys()):
+            return fallback, "heuristic"
+
+        subs = float(data.get("reddit_subscribers", 0))
+        posts = float(data.get("reddit_posts_24h", 0))
+        sentiment = float(data.get("sentiment_score", 0.0))
+
+        # Normalise: 0-10M subscribers → 0-1 range
+        sub_score = min_max_normalize(subs, 0.0, 10_000_000.0)
+        # Posts: 0-200 per day → 0-1
+        post_score = min_max_normalize(posts, 0.0, 200.0)
+        # Sentiment: -1..1 → 0..1
+        sent_score = (sentiment + 1.0) / 2.0
+
+        # Weighted combination → scale to 0-10
+        raw = (sub_score * 0.5 + post_score * 0.3 + sent_score * 0.2) * 10.0
+        return clamp(raw, 0.0, 10.0), "social"
+
+    @staticmethod
+    def _score_dev_activity(data: dict[str, Any], fallback: float) -> tuple[float, str]:
+        """Score dev activity from real GitHub metrics when available.
+
+        Uses commits_30d, contributors, stars, forks. Falls back to heuristic.
+        """
+        required = {"commits_30d", "contributors", "stars", "forks"}
+        if not required.issubset(data.keys()):
+            return fallback, "heuristic"
+
+        commits = float(data.get("commits_30d", 0))
+        contributors = float(data.get("contributors", 0))
+        stars = float(data.get("stars", 0))
+        forks = float(data.get("forks", 0))
+
+        # Normalise each: realistic maxes for top crypto projects
+        commit_score = min_max_normalize(commits, 0.0, 500.0)
+        contrib_score = min_max_normalize(contributors, 0.0, 200.0)
+        star_score = min_max_normalize(stars, 0.0, 50_000.0)
+        fork_score = min_max_normalize(forks, 0.0, 20_000.0)
+
+        # Weighted combination → scale to 0-10
+        raw = (commit_score * 0.35 + contrib_score * 0.25 + star_score * 0.25 + fork_score * 0.15) * 10.0
+        return clamp(raw, 0.0, 10.0), "dev"
+
+    @staticmethod
+    def _score_technology(data: dict[str, Any], fallback: float) -> tuple[float, str]:
+        """Score technology from CMC tags and category when available.
+
+        Uses cmc_rank (higher rank = more established), tag count,
+        and specific tag categories. Falls back to heuristic.
+        """
+        required = {"cmc_rank", "cmc_tags"}
+        if not required.issubset(data.keys()):
+            return fallback, "heuristic"
+
+        cmc_rank = int(data.get("cmc_rank", 500))
+        tags = data.get("cmc_tags", [])
+        if not isinstance(tags, list):
+            tags = []
+        category = str(data.get("cmc_category", ""))
+
+        # Rank score: rank 1 → 1.0, rank 200+ → 0.1
+        rank_score = max(0.1, 1.0 - min_max_normalize(float(cmc_rank), 1.0, 200.0) * 0.9)
+
+        # Tag count score: 0 tags → 0, 5+ → 1
+        tag_score = min_max_normalize(float(len(tags)), 0.0, 5.0)
+
+        # Category bonus
+        cat_bonus = 0.15 if category else 0.0
+
+        raw = (rank_score * 0.4 + tag_score * 0.4 + cat_bonus) * 10.0
+        return clamp(raw, 0.0, 10.0), "cmc"
 
     @staticmethod
     def _score_cycle_leader(

@@ -54,6 +54,9 @@ pypdf = "^6.8.0"
 markdown = "^3.10.2"
 python-louvain = "^0.16"
 
+# Social scraping
+twikit = "^2.3.0"
+
 
 [tool.poetry.group.dev.dependencies]
 # Tests
