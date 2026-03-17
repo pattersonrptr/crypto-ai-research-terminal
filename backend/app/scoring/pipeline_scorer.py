@@ -276,9 +276,9 @@ class PipelineScorer:
         # Sentiment: -1..1 → 0..1
         sent_score = (sentiment + 1.0) / 2.0
 
-        # Weighted combination → scale to 0-10
-        raw = (sub_score * 0.5 + post_score * 0.3 + sent_score * 0.2) * 10.0
-        return clamp(raw, 0.0, 10.0), "social"
+        # Weighted combination in [0, 1]
+        raw = sub_score * 0.5 + post_score * 0.3 + sent_score * 0.2
+        return clamp(raw, 0.0, 1.0), "social"
 
     @staticmethod
     def _score_dev_activity(data: dict[str, Any], fallback: float) -> tuple[float, str]:
@@ -301,11 +301,9 @@ class PipelineScorer:
         star_score = min_max_normalize(stars, 0.0, 50_000.0)
         fork_score = min_max_normalize(forks, 0.0, 20_000.0)
 
-        # Weighted combination → scale to 0-10
-        raw = (
-            commit_score * 0.35 + contrib_score * 0.25 + star_score * 0.25 + fork_score * 0.15
-        ) * 10.0
-        return clamp(raw, 0.0, 10.0), "dev"
+        # Weighted combination in [0, 1]
+        raw = commit_score * 0.35 + contrib_score * 0.25 + star_score * 0.25 + fork_score * 0.15
+        return clamp(raw, 0.0, 1.0), "dev"
 
     @staticmethod
     def _score_technology(data: dict[str, Any], fallback: float) -> tuple[float, str]:
@@ -333,8 +331,8 @@ class PipelineScorer:
         # Category bonus
         cat_bonus = 0.15 if category else 0.0
 
-        raw = (rank_score * 0.4 + tag_score * 0.4 + cat_bonus) * 10.0
-        return clamp(raw, 0.0, 10.0), "cmc"
+        raw = rank_score * 0.4 + tag_score * 0.4 + cat_bonus
+        return clamp(raw, 0.0, 1.0), "cmc"
 
     @staticmethod
     def _score_cycle_leader(

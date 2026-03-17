@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.scoring.fundamental_scorer import FundamentalScorer
 from app.scoring.pipeline_scorer import PipelineScorer
 
 
@@ -60,7 +61,7 @@ class TestPipelineScorerWithSocialData:
         assert result_high.adoption_score > result_low.adoption_score
 
     def test_adoption_score_still_in_range(self) -> None:
-        """Adoption score must be in [0.0, 10.0]."""
+        """Adoption score must be in [0.0, 1.0] for FundamentalScorer compatibility."""
         data = _base_data()
         data["reddit_subscribers"] = 10_000_000
         data["reddit_posts_24h"] = 500
@@ -68,7 +69,7 @@ class TestPipelineScorerWithSocialData:
 
         result = PipelineScorer.score(data)
 
-        assert 0.0 <= result.adoption_score <= 10.0
+        assert 0.0 <= result.adoption_score <= 1.0
 
 
 class TestPipelineScorerWithDevData:
@@ -107,7 +108,7 @@ class TestPipelineScorerWithDevData:
         assert result_active.dev_activity_score > result_inactive.dev_activity_score
 
     def test_dev_activity_score_in_range(self) -> None:
-        """dev_activity_score must be in [0.0, 10.0]."""
+        """dev_activity_score must be in [0.0, 1.0] for FundamentalScorer compatibility."""
         data = _base_data()
         data["commits_30d"] = 500
         data["contributors"] = 100
@@ -116,7 +117,7 @@ class TestPipelineScorerWithDevData:
 
         result = PipelineScorer.score(data)
 
-        assert 0.0 <= result.dev_activity_score <= 10.0
+        assert 0.0 <= result.dev_activity_score <= 1.0
 
 
 class TestPipelineScorerWithCmcData:
@@ -170,3 +171,112 @@ class TestPipelineScorerFallbackPreserved:
         assert result.sources.get("technology_score") == "heuristic"
         assert result.sources.get("adoption_score") == "heuristic"
         assert result.sources.get("dev_activity_score") == "heuristic"
+
+
+class TestPipelineScorerTechnologyRange:
+    """technology_score from CMC data must be in [0, 1]."""
+
+    def test_technology_score_in_range(self) -> None:
+        """technology_score must be in [0.0, 1.0] for FundamentalScorer compatibility."""
+        data = _base_data()
+        data["cmc_rank"] = 1
+        data["cmc_tags"] = ["smart-contracts", "layer-1", "defi", "staking", "web3"]
+        data["cmc_category"] = "Smart Contract Platform"
+
+        result = PipelineScorer.score(data)
+
+        assert 0.0 <= result.technology_score <= 1.0
+
+
+class TestPipelineScorerFundamentalIntegration:
+    """PipelineScorer sub-scores must be consumable by FundamentalScorer
+    without raising ScoringError — i.e. all in [0, 1]."""
+
+    def test_real_social_data_passes_fundamental_scorer(self) -> None:
+        """adoption_score from social data must not raise ScoringError."""
+        data = _base_data()
+        data["reddit_subscribers"] = 5_000_000
+        data["reddit_posts_24h"] = 100
+        data["sentiment_score"] = 0.8
+
+        result = PipelineScorer.score(data)
+
+        # Must not raise
+        FundamentalScorer.sub_pillar_score(
+            technology=result.technology_score,
+            tokenomics=result.tokenomics_score,
+            adoption=result.adoption_score,
+            dev_activity=result.dev_activity_score,
+            narrative=result.narrative_score,
+        )
+
+    def test_real_dev_data_passes_fundamental_scorer(self) -> None:
+        """dev_activity_score from GitHub data must not raise ScoringError."""
+        data = _base_data()
+        data["commits_30d"] = 500
+        data["contributors"] = 200
+        data["stars"] = 50_000
+        data["forks"] = 20_000
+
+        result = PipelineScorer.score(data)
+
+        FundamentalScorer.sub_pillar_score(
+            technology=result.technology_score,
+            tokenomics=result.tokenomics_score,
+            adoption=result.adoption_score,
+            dev_activity=result.dev_activity_score,
+            narrative=result.narrative_score,
+        )
+
+    def test_real_cmc_data_passes_fundamental_scorer(self) -> None:
+        """technology_score from CMC data must not raise ScoringError."""
+        data = _base_data()
+        data["cmc_rank"] = 1
+        data["cmc_tags"] = ["smart-contracts", "layer-1", "defi", "staking", "web3"]
+        data["cmc_category"] = "Smart Contract Platform"
+
+        result = PipelineScorer.score(data)
+
+        FundamentalScorer.sub_pillar_score(
+            technology=result.technology_score,
+            tokenomics=result.tokenomics_score,
+            adoption=result.adoption_score,
+            dev_activity=result.dev_activity_score,
+            narrative=result.narrative_score,
+        )
+
+    def test_all_real_data_passes_fundamental_scorer(self) -> None:
+        """All real data sources combined must produce [0,1] scores."""
+        data = _base_data()
+        data["reddit_subscribers"] = 10_000_000
+        data["reddit_posts_24h"] = 500
+        data["sentiment_score"] = 1.0
+        data["commits_30d"] = 500
+        data["contributors"] = 200
+        data["stars"] = 50_000
+        data["forks"] = 20_000
+        data["cmc_rank"] = 1
+        data["cmc_tags"] = ["smart-contracts", "layer-1", "defi", "staking", "web3"]
+        data["cmc_category"] = "Smart Contract Platform"
+
+        result = PipelineScorer.score(data)
+
+        # Every sub-pillar score must be in [0, 1]
+        for field_name in (
+            "technology_score",
+            "tokenomics_score",
+            "adoption_score",
+            "dev_activity_score",
+            "narrative_score",
+        ):
+            value = getattr(result, field_name)
+            assert 0.0 <= value <= 1.0, f"{field_name}={value} not in [0, 1]"
+
+        # Must not raise ScoringError
+        FundamentalScorer.sub_pillar_score(
+            technology=result.technology_score,
+            tokenomics=result.tokenomics_score,
+            adoption=result.adoption_score,
+            dev_activity=result.dev_activity_score,
+            narrative=result.narrative_score,
+        )
