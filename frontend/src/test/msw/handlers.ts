@@ -13,6 +13,7 @@ import type {
   TokenWithScore,
   TokenScore,
   RankingOpportunity,
+  ExplanationResponse,
 } from "@/services/tokens.service";
 import type { Alert, AlertStats } from "@/services/alerts.service";
 import type { NarrativeCluster } from "@/services/narratives.service";
@@ -515,6 +516,62 @@ export function pipelineStatusNotFoundHandler() {
   );
 }
 
+// ── Token explanation mock data ────────────────────────────────────────────
+
+export const MOCK_EXPLANATION: ExplanationResponse = {
+  symbol: "BTC",
+  name: "Bitcoin",
+  opportunity_score: 0.71,
+  explanations: [
+    {
+      pillar: "fundamental",
+      score: 0.76,
+      explanation: "Fundamental score is strong (76%). Strongest sub-pillar: technology (100%).",
+    },
+    {
+      pillar: "growth",
+      score: 0.33,
+      explanation: "Growth/momentum score is weak (33%). 24h volume: $62B.",
+    },
+    {
+      pillar: "narrative",
+      score: 0.38,
+      explanation: "Narrative/social score is weak (38%). Reddit: 8M subscribers.",
+    },
+    {
+      pillar: "listing",
+      score: 1.0,
+      explanation: "Listing probability is very strong (100%).",
+    },
+    {
+      pillar: "risk",
+      score: 0.91,
+      explanation: "Risk-adjusted score is very strong (91%). Low risk profile.",
+    },
+    {
+      pillar: "overall",
+      score: 0.71,
+      explanation: "BTC has a strong overall opportunity score (71%).",
+    },
+  ],
+};
+
+// ── Token explanation handler factories ───────────────────────────────────
+
+export function tokenExplanationHandler(
+  data: ExplanationResponse = MOCK_EXPLANATION,
+) {
+  return http.get("/api/tokens/:symbol/explanation", () =>
+    HttpResponse.json(data),
+  );
+}
+
+export function tokenExplanationErrorHandler() {
+  return http.get("/api/tokens/:symbol/explanation", () =>
+    HttpResponse.json({ detail: "Token not found" }, { status: 404 }),
+  );
+}
+
 // ── Default handlers (happy-path baseline) ────────────────────────────────
 
 export const handlers = [
@@ -537,4 +594,5 @@ export const handlers = [
   backtestCyclesHandler(),
   backtestWeightsHandler(),
   marketCycleHandler(),
+  tokenExplanationHandler(),
 ];
