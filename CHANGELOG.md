@@ -10,6 +10,19 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Bug fix — PipelineScorer sub-pillar scores clamped to [0, 1]
+
+- **`pipeline_scorer.py`** — `_score_adoption()`, `_score_dev_activity()`, and
+  `_score_technology()` incorrectly multiplied by 10.0 and clamped to [0, 10]
+  instead of [0, 1]. This caused `FundamentalScorer.sub_pillar_score()` to raise
+  `ScoringError` for every token with real social, dev, or CMC data (BTC, ETH,
+  XRP, etc. — ~29 tokens failed per run). Removed the `* 10.0` multiplier and
+  changed `clamp(…, 0.0, 10.0)` → `clamp(…, 0.0, 1.0)`.
+- **`test_pipeline_scorer_real_data.py`** — updated range assertions from [0, 10]
+  to [0, 1]; added 5 new integration tests verifying that PipelineScorer output
+  is directly consumable by `FundamentalScorer.sub_pillar_score()` without error.
+- Pipeline now scores **250 tokens** (up from 221) with **0 token errors**.
+
 ### Ranking Quality Loop — Pragmatic sprint
 
 > Replaces the original Phase 15 plan. Attacks the 6 concrete blockers
