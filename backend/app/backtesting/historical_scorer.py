@@ -155,12 +155,12 @@ def score_historical_snapshots(
         w_listing = weights.listing
         w_risk = weights.risk
     else:
-        # Phase 9 defaults
-        w_fund = 0.30
-        w_growth = 0.25
-        w_narrative = 0.20
-        w_listing = 0.15
-        w_risk = 0.10
+        # Rebalanced defaults — risk-heavy distribution
+        w_fund = 0.25
+        w_growth = 0.20
+        w_narrative = 0.15
+        w_listing = 0.10
+        w_risk = 0.30
 
     scored: list[HistoricalScoredToken] = []
 

@@ -26,18 +26,18 @@ class TestGetActiveWeights:
 
     @pytest.mark.asyncio()
     async def test_get_active_weights_returns_defaults_when_no_db_row(self) -> None:
-        """Must return Phase 9 defaults when no active row in DB."""
+        """Must return rebalanced defaults when no active row in DB."""
         mock_session = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute.return_value = mock_result
 
         result = await get_active_weights(session=mock_session)
-        assert result["fundamental"] == pytest.approx(0.30)
-        assert result["growth"] == pytest.approx(0.25)
-        assert result["narrative"] == pytest.approx(0.20)
-        assert result["listing"] == pytest.approx(0.15)
-        assert result["risk"] == pytest.approx(0.10)
+        assert result["fundamental"] == pytest.approx(0.25)
+        assert result["growth"] == pytest.approx(0.20)
+        assert result["narrative"] == pytest.approx(0.15)
+        assert result["listing"] == pytest.approx(0.10)
+        assert result["risk"] == pytest.approx(0.30)
         assert result["source"] == "default_phase9"
 
     @pytest.mark.asyncio()
@@ -231,8 +231,8 @@ class TestOpportunityEngineCustomWeights:
             listing=0.0,
             risk=0.0,
         )
-        # Default: fundamental weight is 0.30
-        assert default_score == pytest.approx(0.30, abs=0.01)
+        # Default: fundamental weight is 0.25
+        assert default_score == pytest.approx(0.25, abs=0.01)
 
         custom_score = OpportunityEngine.full_composite_score(
             fundamental=1.0,

@@ -220,11 +220,13 @@ class PipelineScorer:
 
     @staticmethod
     def _score_narrative(data: dict[str, Any], fallback: float) -> tuple[float, str]:
-        """Score narrative from categories and narrative clusters.
+        """Score narrative from categories, narrative clusters, and social data.
 
         Uses a lightweight category-based approach (no LLM required):
         - Base score from number of categories (more = more narrative fit)
         - Bonus if token appears in active narrative clusters
+        - Social bonus from Reddit subscribers + sentiment (moved here from
+          adoption — social buzz is narrative, not adoption)
         """
         if not _NARRATIVE_FIELDS.issubset(data.keys()):
             return fallback, "heuristic"
@@ -249,36 +251,58 @@ class PipelineScorer:
 
         cluster_bonus = min(cluster_bonus, 0.4)
 
-        score = clamp(base_score + cluster_bonus, 0.0, 1.0)
+        # Social bonus: Reddit subscribers + sentiment (moved from adoption)
+        social_bonus = 0.0
+        reddit_subs = float(data.get("reddit_subscribers", 0))
+        reddit_posts = float(data.get("reddit_posts_24h", 0))
+        sentiment = float(data.get("sentiment_score", 0.0))
+        if reddit_subs > 0 or reddit_posts > 0:
+            sub_norm = min_max_normalize(reddit_subs, 0.0, 10_000_000.0)
+            post_norm = min_max_normalize(reddit_posts, 0.0, 200.0)
+            sent_norm = (sentiment + 1.0) / 2.0
+            social_bonus = (sub_norm * 0.4 + post_norm * 0.3 + sent_norm * 0.3) * 0.3
+
+        score = clamp(base_score + cluster_bonus + social_bonus, 0.0, 1.0)
         return score, "category"
 
     # ── Phase 13: Real data scorers ───────────────────────────────
 
     @staticmethod
     def _score_adoption(data: dict[str, Any], fallback: float) -> tuple[float, str]:
-        """Score adoption from real social metrics when available.
+        """Score adoption from market position and ecosystem breadth.
 
-        Uses reddit_subscribers (normalised to 0-10M range) and
-        reddit_posts_24h as activity signal. Falls back to heuristic.
+        Uses CoinGecko rank (established user base), market cap (sustained
+        value = real users), and category count (ecosystem breadth) as
+        adoption proxies.  Social data (Reddit, sentiment) is intentionally
+        excluded — it belongs in the narrative pillar.
         """
-        required = {"reddit_subscribers", "reddit_posts_24h"}
-        if not required.issubset(data.keys()):
+        import math
+
+        rank = data.get("rank")
+        mcap = float(data.get("market_cap_usd", 0))
+
+        if rank is None and mcap <= 0:
             return fallback, "heuristic"
 
-        subs = float(data.get("reddit_subscribers", 0))
-        posts = float(data.get("reddit_posts_24h", 0))
-        sentiment = float(data.get("sentiment_score", 0.0))
+        # Rank score: rank 1 → 1.0, rank 500+ → ~0.0
+        rank_score = 0.2  # conservative default for unknown rank
+        if rank is not None and rank > 0:
+            rank_score = clamp(1.0 - (rank - 1) / 499.0, 0.0, 1.0)
 
-        # Normalise: 0-10M subscribers → 0-1 range
-        sub_score = min_max_normalize(subs, 0.0, 10_000_000.0)
-        # Posts: 0-200 per day → 0-1
-        post_score = min_max_normalize(posts, 0.0, 200.0)
-        # Sentiment: -1..1 → 0..1
-        sent_score = (sentiment + 1.0) / 2.0
+        # Market cap score: log10 scale, $10k → 0.0, $1T → 1.0
+        mcap_score = 0.0
+        if mcap > 0:
+            log_mcap = math.log10(max(mcap, 1.0))
+            mcap_score = min_max_normalize(log_mcap, 4.0, 12.0)
 
-        # Weighted combination in [0, 1]
-        raw = sub_score * 0.5 + post_score * 0.3 + sent_score * 0.2
-        return clamp(raw, 0.0, 1.0), "social"
+        # Category/ecosystem breadth: 0 cats → 0.0, 5+ → 1.0
+        categories = data.get("categories", [])
+        cat_count = len(categories) if isinstance(categories, list) else 0
+        cat_score = min_max_normalize(float(cat_count), 0.0, 5.0)
+
+        # Weighted: rank 45%, mcap 35%, ecosystem breadth 20%
+        raw = rank_score * 0.45 + mcap_score * 0.35 + cat_score * 0.20
+        return clamp(raw, 0.0, 1.0), "market"
 
     @staticmethod
     def _score_dev_activity(data: dict[str, Any], fallback: float) -> tuple[float, str]:

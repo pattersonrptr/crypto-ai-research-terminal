@@ -28,6 +28,8 @@ from app.processors.market_processor import MarketProcessor
 from app.scoring.fundamental_scorer import FundamentalScorer
 from app.scoring.opportunity_engine import OpportunityEngine
 from app.scoring.pipeline_scorer import PipelineScorer
+from app.scoring.token_category import TokenCategoryClassifier
+from app.scoring.weight_service import get_active_weights
 
 if TYPE_CHECKING:
     import redis.asyncio as aioredis
@@ -202,28 +204,53 @@ async def collect_twitter_data(
 ) -> dict[str, dict[str, Any]]:
     """Collect Twitter/X mention metrics for token symbols.
 
+    When *twitter_collector* is ``None`` (production path), credentials are
+    read from ``Settings``.  If any of ``twitter_username``,
+    ``twitter_email`` or ``twitter_password`` is blank the function returns
+    ``{}`` immediately — avoiding hundreds of futile login attempts that
+    slow the pipeline down.
+
     Args:
         symbols: List of uppercase token symbols.
         twitter_collector: Optional pre-built TwitterTwikitCollector
-            (for testing). When ``None``, creates one internally.
+            (for testing). When ``None``, creates one internally using
+            credentials from ``Settings``.
 
     Returns:
         Dict keyed by symbol → Twitter metrics dict.
     """
     result: dict[str, dict[str, Any]] = {}
 
+    # When no collector is injected, resolve credentials from Settings.
+    if twitter_collector is None:
+        from app.collectors.twitter_twikit_collector import (  # noqa: PLC0415
+            TwitterTwikitCollector,
+        )
+
+        settings = Settings()
+        if not all(
+            [
+                settings.twitter_username,
+                settings.twitter_email,
+                settings.twitter_password,
+            ]
+        ):
+            logger.info(
+                "collect_twitter_data.skipped",
+                reason="twitter credentials not configured",
+            )
+            return result
+
+        twitter_collector = TwitterTwikitCollector(
+            username=settings.twitter_username,
+            email=settings.twitter_email,
+            password=settings.twitter_password,
+        )
+        await twitter_collector.login()
+
     for symbol in symbols:
         try:
-            if twitter_collector is not None:
-                data = await twitter_collector.collect_mentions(symbol)
-            else:
-                from app.collectors.twitter_twikit_collector import (  # noqa: PLC0415
-                    TwitterTwikitCollector,
-                )
-
-                collector = TwitterTwikitCollector()
-                await collector.login()
-                data = await collector.collect_mentions(symbol)
+            data = await twitter_collector.collect_mentions(symbol)
             result[symbol] = data
         except Exception:
             logger.exception("collect_twitter_data.error", symbol=symbol)
@@ -398,6 +425,33 @@ async def daily_collection_job(
         # Detect market cycle phase once per run
         cycle_phase = await detect_cycle_phase()
 
+        # Load active scoring weights from DB/cache (fallback: Phase 9 defaults)
+        active_weights: dict[str, Any] | None = None
+        try:
+            from app.db.session import _SessionLocal  # noqa: PLC0415
+
+            async with _SessionLocal() as weight_session:
+                active_weights = await get_active_weights(
+                    session=weight_session,
+                    redis=redis,
+                )
+            log.info(
+                "daily_collection_job.weights_loaded",
+                source=active_weights.get("source", "unknown"),
+            )
+        except Exception:
+            log.exception("daily_collection_job.weights_load_error")
+            active_weights = None
+
+        # Build weights dict for OpportunityEngine (strip non-pillar keys)
+        pillar_weights: dict[str, float] | None = None
+        if active_weights is not None:
+            pillar_weights = {
+                k: float(v)
+                for k, v in active_weights.items()
+                if k in {"fundamental", "growth", "narrative", "listing", "risk"}
+            }
+
         results: list[dict[str, Any]] = []
         for raw in raw_data:
             try:
@@ -433,6 +487,7 @@ async def daily_collection_job(
                     listing=sub_scores.listing_probability,
                     risk=sub_scores.risk_score,
                     cycle_leader_prob=sub_scores.cycle_leader_prob,
+                    weights=pillar_weights,
                 )
 
                 # Apply cycle-phase adjustment
@@ -440,11 +495,20 @@ async def daily_collection_job(
                     opportunity_score, cycle_phase
                 )
 
+                # Apply category-based risk multiplier
+                token_category = TokenCategoryClassifier.classify(
+                    symbol=symbol,
+                    categories=processed.get("categories"),
+                )
+                category_mult = TokenCategoryClassifier.risk_multiplier(token_category)
+                opportunity_score = opportunity_score * category_mult
+
                 results.append(
                     {
                         **processed,
                         "fundamental_score": fundamental_score,
                         "opportunity_score": opportunity_score,
+                        "token_category": token_category.value,
                         "cycle_phase": cycle_phase.value if cycle_phase else None,
                         **sub_scores.to_dict(),
                     }

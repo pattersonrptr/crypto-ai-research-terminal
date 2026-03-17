@@ -29,36 +29,45 @@ def _base_data() -> dict[str, Any]:
 
 
 class TestPipelineScorerWithSocialData:
-    """When reddit_subscribers and reddit_posts_24h are present,
-    adoption_score should use real data, not heuristic."""
+    """Reddit/social data now boosts narrative_score, not adoption_score.
 
-    def test_adoption_score_from_real_social_data(self) -> None:
-        """With reddit data, adoption_score source must be 'social'."""
+    Adoption is driven by rank + market cap + categories instead.
+    """
+
+    def test_social_data_boosts_narrative_not_adoption(self) -> None:
+        """With Reddit data, narrative source is 'category' and adoption is 'market'."""
         data = _base_data()
         data["reddit_subscribers"] = 5_000_000
         data["reddit_posts_24h"] = 50
         data["sentiment_score"] = 0.7
+        data["categories"] = ["Layer 1"]
+        data["token_symbol"] = "SOL"
 
         result = PipelineScorer.score(data)
 
-        assert result.sources.get("adoption_score") == "social"
+        assert result.sources.get("adoption_score") == "market"
+        assert result.sources.get("narrative_score") == "category"
 
-    def test_adoption_score_higher_with_more_subscribers(self) -> None:
-        """Token with 5M subscribers should score higher than one with 1K."""
+    def test_narrative_higher_with_more_subscribers(self) -> None:
+        """Token with 5M subscribers should have higher narrative than one with 1K."""
         data_high = _base_data()
         data_high["reddit_subscribers"] = 5_000_000
         data_high["reddit_posts_24h"] = 100
         data_high["sentiment_score"] = 0.5
+        data_high["categories"] = ["Layer 1"]
+        data_high["token_symbol"] = "SOL"
 
         data_low = _base_data()
         data_low["reddit_subscribers"] = 1_000
         data_low["reddit_posts_24h"] = 2
         data_low["sentiment_score"] = 0.5
+        data_low["categories"] = ["Layer 1"]
+        data_low["token_symbol"] = "SOL"
 
         result_high = PipelineScorer.score(data_high)
         result_low = PipelineScorer.score(data_low)
 
-        assert result_high.adoption_score > result_low.adoption_score
+        assert result_high.narrative_score > result_low.narrative_score
 
     def test_adoption_score_still_in_range(self) -> None:
         """Adoption score must be in [0.0, 1.0] for FundamentalScorer compatibility."""
@@ -160,16 +169,17 @@ class TestPipelineScorerWithCmcData:
 
 
 class TestPipelineScorerFallbackPreserved:
-    """Without real data, heuristic fallback must still work."""
+    """Without real data, heuristic fallback must still work for dev/tech."""
 
     def test_heuristic_fallback_when_no_extra_data(self) -> None:
-        """With only market data, all scores should use 'heuristic'."""
+        """With only market data, dev/tech use 'heuristic', adoption uses 'market'."""
         data = _base_data()
 
         result = PipelineScorer.score(data)
 
         assert result.sources.get("technology_score") == "heuristic"
-        assert result.sources.get("adoption_score") == "heuristic"
+        # Adoption now always uses rank+mcap (market data) instead of heuristic
+        assert result.sources.get("adoption_score") == "market"
         assert result.sources.get("dev_activity_score") == "heuristic"
 
 

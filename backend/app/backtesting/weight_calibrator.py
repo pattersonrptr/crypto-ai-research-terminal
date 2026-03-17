@@ -26,12 +26,12 @@ if TYPE_CHECKING:
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
-# Default weights (Phase 9 — OpportunityEngine)
-_DEFAULT_FUNDAMENTAL = 0.30
-_DEFAULT_GROWTH = 0.25
-_DEFAULT_NARRATIVE = 0.20
-_DEFAULT_LISTING = 0.15
-_DEFAULT_RISK = 0.10
+# Rebalanced default weights — risk-heavy distribution
+_DEFAULT_FUNDAMENTAL = 0.25
+_DEFAULT_GROWTH = 0.20
+_DEFAULT_NARRATIVE = 0.15
+_DEFAULT_LISTING = 0.10
+_DEFAULT_RISK = 0.30
 
 
 # ---------------------------------------------------------------------------

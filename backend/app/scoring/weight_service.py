@@ -22,13 +22,13 @@ if TYPE_CHECKING:
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
-# Phase 9 hardcoded defaults — used when no calibrated weights exist.
+# Rebalanced defaults — risk-heavy to properly penalise speculative tokens.
 DEFAULT_WEIGHTS: dict[str, float] = {
-    "fundamental": 0.30,
-    "growth": 0.25,
-    "narrative": 0.20,
-    "listing": 0.15,
-    "risk": 0.10,
+    "fundamental": 0.25,
+    "growth": 0.20,
+    "narrative": 0.15,
+    "listing": 0.10,
+    "risk": 0.30,
 }
 
 _CACHE_KEY = "scoring:active_weights"

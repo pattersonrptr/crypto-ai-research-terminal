@@ -114,7 +114,7 @@ class HeuristicSubScorer:
         return SubScoreResult(
             technology_score=cls._technology(mcap_norm, rank_norm),
             tokenomics_score=cls._tokenomics(mcap, supply, mcap_norm),
-            adoption_score=cls._adoption(rank_norm, vol_norm),
+            adoption_score=cls._adoption(rank_norm, mcap_norm),
             dev_activity_score=cls._dev_activity(mcap_norm, rank_norm),
             narrative_score=cls._narrative(vol_norm, velocity, ath_dist),
             growth_score=cls._growth(velocity, vol_norm),
@@ -171,13 +171,15 @@ class HeuristicSubScorer:
         return clamp(0.5 * mcap_norm + 0.5 * supply_factor, 0.0, 1.0)
 
     @staticmethod
-    def _adoption(rank_norm: float, vol_norm: float) -> float:
-        """Heuristic: high rank + high trading activity = strong adoption.
+    def _adoption(rank_norm: float, mcap_norm: float) -> float:
+        """Heuristic: high rank + high market cap = strong adoption.
 
         Rank is the strongest signal (60%) since CoinGecko rank correlates
-        with real user adoption; volume ratio (40%) adds trading depth signal.
+        with real user adoption; market cap (40%) reflects sustained ecosystem
+        size.  Volume is intentionally excluded — speculative volume spikes
+        (common in memecoins) do not indicate real adoption.
         """
-        return clamp(0.6 * rank_norm + 0.4 * vol_norm, 0.0, 1.0)
+        return clamp(0.6 * rank_norm + 0.4 * mcap_norm, 0.0, 1.0)
 
     @staticmethod
     def _dev_activity(mcap_norm: float, rank_norm: float) -> float:

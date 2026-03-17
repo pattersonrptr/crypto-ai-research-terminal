@@ -107,9 +107,10 @@ class TestDailyCollectionJob:
 
     @pytest.mark.asyncio
     async def test_daily_collection_job_calls_opportunity_engine(self) -> None:
-        """daily_collection_job must call full_composite_score for each token."""
+        """daily_collection_job must call full_composite_score with DB-loaded weights."""
         from app.scheduler.jobs import daily_collection_job  # noqa: PLC0415
         from app.scoring.pipeline_scorer import PipelineScorerResult
+        from app.scoring.weight_service import DEFAULT_WEIGHTS
 
         sub = PipelineScorerResult(
             technology_score=0.5,
@@ -122,6 +123,7 @@ class TestDailyCollectionJob:
             listing_probability=0.3,
             cycle_leader_prob=0.1,
         )
+        default_with_source = {**DEFAULT_WEIGHTS, "source": "default_phase9"}
         cls_mock, _ = _make_collector_mock()
         with (
             patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
@@ -130,6 +132,11 @@ class TestDailyCollectionJob:
             patch("app.scheduler.jobs.FundamentalScorer") as mock_scorer,
             patch("app.scheduler.jobs.OpportunityEngine") as mock_engine,
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
+            patch(
+                "app.scheduler.jobs.get_active_weights",
+                new_callable=AsyncMock,
+                return_value=default_with_source,
+            ),
         ):
             mock_processor.process = MagicMock(return_value=_PROCESSED)
             mock_pipeline.score = MagicMock(return_value=sub)
@@ -144,6 +151,7 @@ class TestDailyCollectionJob:
             listing=sub.listing_probability,
             risk=sub.risk_score,
             cycle_leader_prob=sub.cycle_leader_prob,
+            weights=DEFAULT_WEIGHTS,
         )
 
     @pytest.mark.asyncio
@@ -189,7 +197,8 @@ class TestDailyCollectionJob:
         assert len(call_args) == 1
         assert call_args[0]["symbol"] == "BTC"
         assert call_args[0]["fundamental_score"] == 0.75
-        assert call_args[0]["opportunity_score"] == 0.82
+        # BTC without CoinGecko categories → UNKNOWN (0.90 multiplier)
+        assert call_args[0]["opportunity_score"] == pytest.approx(0.82 * 0.90)
         assert call_args[0]["growth_score"] == 0.7
         assert call_args[0]["narrative_score"] == 0.6
 
