@@ -10,6 +10,21 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Frontend — "Why this score?" on Token Detail
+
+- **`ScoreExplanation.tsx`** — new component that fetches
+  `GET /tokens/:symbol/explanation` and renders per-pillar score explanations
+  with colour-coded percentage badges and a summary card. Gracefully hidden
+  when the API returns an error.
+- **`tokens.service.ts`** — added `ExplanationResponse`, `PillarExplanation`
+  types and `fetchTokenExplanation(symbol)` service function.
+- **`TokenDetail.tsx`** — wired `ScoreExplanation` into the page grid
+  (full-width, below market metrics).
+- **MSW handlers** — added `tokenExplanationHandler` and
+  `tokenExplanationErrorHandler` with `MOCK_EXPLANATION` fixture.
+- **Tests** — 7 component tests (`ScoreExplanation.test.tsx`), 2 service tests,
+  1 integration test in `TokenDetail.test.tsx`. All 168 frontend tests pass.
+
 ### Bug fix — PipelineScorer sub-pillar scores clamped to [0, 1]
 
 - **`pipeline_scorer.py`** — `_score_adoption()`, `_score_dev_activity()`, and

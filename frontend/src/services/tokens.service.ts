@@ -57,6 +57,19 @@ export interface RankingsParams {
   category?: string;
 }
 
+export interface PillarExplanation {
+  pillar: string;
+  score: number;
+  explanation: string;
+}
+
+export interface ExplanationResponse {
+  symbol: string;
+  name: string;
+  opportunity_score: number;
+  explanations: PillarExplanation[];
+}
+
 // ── Service functions ──────────────────────────────────────────────────────
 
 export async function fetchTokens(
@@ -81,6 +94,15 @@ export async function fetchRankingOpportunities(
   const res: AxiosResponse<RankingOpportunity[]> = await apiClient.get(
     "/rankings/opportunities",
     { params },
+  );
+  return res.data;
+}
+
+export async function fetchTokenExplanation(
+  symbol: string,
+): Promise<ExplanationResponse> {
+  const res: AxiosResponse<ExplanationResponse> = await apiClient.get(
+    `/tokens/${symbol}/explanation`,
   );
   return res.data;
 }

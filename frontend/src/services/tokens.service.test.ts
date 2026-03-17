@@ -12,13 +12,16 @@ import {
   tokensHandler,
   tokenDetailHandler,
   rankingsHandler,
+  tokenExplanationHandler,
   MOCK_TOKEN_BTC,
   MOCK_OPPORTUNITIES,
+  MOCK_EXPLANATION,
 } from "@/test/msw/handlers";
 import {
   fetchTokens,
   fetchToken,
   fetchRankingOpportunities,
+  fetchTokenExplanation,
 } from "./tokens.service";
 
 describe("tokens.service", () => {
@@ -56,5 +59,21 @@ describe("tokens.service", () => {
     server.use(rankingsHandler(MOCK_OPPORTUNITIES.slice(0, 3)));
     const result = await fetchRankingOpportunities({ limit: 3, min_score: 50 });
     expect(result).toHaveLength(3);
+  });
+
+  it("fetchTokenExplanation_returns_explanation_with_pillar_list", async () => {
+    server.use(tokenExplanationHandler(MOCK_EXPLANATION));
+    const result = await fetchTokenExplanation("BTC");
+    expect(result.symbol).toBe("BTC");
+    expect(result.explanations).toHaveLength(6);
+    expect(result.explanations[0].pillar).toBe("fundamental");
+  });
+
+  it("fetchTokenExplanation_includes_overall_score", async () => {
+    server.use(tokenExplanationHandler(MOCK_EXPLANATION));
+    const result = await fetchTokenExplanation("BTC");
+    const overall = result.explanations.find((e) => e.pillar === "overall");
+    expect(overall).toBeDefined();
+    expect(overall!.score).toBe(0.71);
   });
 });

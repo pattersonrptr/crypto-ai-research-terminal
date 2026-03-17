@@ -15,6 +15,7 @@ import {
   type ReportFormat,
 } from "@/services/reports.service";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ScoreExplanation } from "@/features/tokens/components/ScoreExplanation";
 import { cn, formatUsd, formatScore, scoreColour, formatPct } from "@/lib/utils";
 
 /**
@@ -225,6 +226,13 @@ export function TokenDetail() {
             ))}
           </dl>
         </section>
+
+        {/* ── Why this score? ──────────────────────────────────────── */}
+        {symbol && (
+          <div className="lg:col-span-2">
+            <ScoreExplanation symbol={symbol} />
+          </div>
+        )}
       </div>
     </div>
   );

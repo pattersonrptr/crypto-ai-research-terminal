@@ -174,6 +174,15 @@ describe("TokenDetail", () => {
     });
   });
 
+  // ── Score explanation section ─────────────────────────────────────────────
+
+  it("renders_why_this_score_section_when_data_loads", async () => {
+    renderTokenDetail("BTC");
+    await waitFor(() => {
+      expect(screen.getByText(/why this score/i)).toBeInTheDocument();
+    });
+  });
+
   // ── Report download ──────────────────────────────────────────────────────
 
   it("calls_fetchTokenReport_when_markdown_button_is_clicked", async () => {
