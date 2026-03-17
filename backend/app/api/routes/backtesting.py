@@ -27,6 +27,7 @@ from app.backtesting.validation_metrics import (
     generate_validation_report,
 )
 from app.backtesting.weight_calibrator import calibrate_weights
+from app.scoring.weight_service import apply_weights_to_db, get_active_weights
 
 router = APIRouter()
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
@@ -259,6 +260,26 @@ class CalibrateResponse(BaseModel):
     improved: bool
 
 
+class ApplyWeightsRequest(BaseModel):
+    """Request body for POST /backtesting/apply-weights."""
+
+    fundamental: float = Field(ge=0.0, le=1.0)
+    growth: float = Field(ge=0.0, le=1.0)
+    narrative: float = Field(ge=0.0, le=1.0)
+    listing: float = Field(ge=0.0, le=1.0)
+    risk: float = Field(ge=0.0, le=1.0)
+    source_cycle: str | None = Field(default=None, max_length=60)
+    precision_at_k: float | None = Field(default=None, ge=0.0, le=1.0)
+    k: int | None = Field(default=None, ge=1, le=100)
+
+    def model_post_init(self, __context: object) -> None:
+        """Validate that the five weights sum to ~1.0."""
+        total = self.fundamental + self.growth + self.narrative + self.listing + self.risk
+        if not 0.95 <= total <= 1.05:
+            msg = f"Weights must sum to ~1.0, got {total:.4f}"
+            raise ValueError(msg)
+
+
 # ---------------------------------------------------------------------------
 # Phase 12 — Route handlers
 # ---------------------------------------------------------------------------
@@ -383,15 +404,6 @@ class ActiveWeightsResponse(BaseModel):
 # Phase 14 — Route handlers
 # ---------------------------------------------------------------------------
 
-# Default Phase 9 weights — used when no calibrated weights exist.
-_DEFAULT_PHASE9_WEIGHTS = {
-    "fundamental": 0.30,
-    "growth": 0.25,
-    "narrative": 0.20,
-    "listing": 0.15,
-    "risk": 0.10,
-}
-
 
 @router.get("/cycles", response_model=list[CycleInfoResponse])
 async def list_cycles() -> list[CycleInfoResponse]:
@@ -416,18 +428,60 @@ async def list_cycles() -> list[CycleInfoResponse]:
 
 
 @router.get("/weights", response_model=ActiveWeightsResponse)
-async def get_active_weights() -> ActiveWeightsResponse:
+async def get_weights() -> ActiveWeightsResponse:
     """Get the currently active scoring weights.
 
-    Returns the Phase 9 defaults if no calibrated weights have been
-    applied yet.
+    Reads from the weight service (DB → Redis cache → defaults).
 
     Returns:
         An :class:`ActiveWeightsResponse`.
     """
-    # Phase 14: for now return defaults.  When a calibration is applied
-    # and persisted to the DB, this route will read from scoring_weights.
+    from app.db.session import _SessionLocal  # noqa: PLC0415
+
+    async with _SessionLocal() as session:
+        weights = await get_active_weights(session=session)
+    return ActiveWeightsResponse(**weights)
+
+
+@router.post("/apply-weights", response_model=ActiveWeightsResponse)
+async def apply_weights(request: ApplyWeightsRequest) -> ActiveWeightsResponse:
+    """Persist calibrated weights and activate them for live scoring.
+
+    Deactivates the previously active weight set (if any) and inserts
+    a new row with ``is_active=True``.  Invalidates Redis cache.
+
+    Args:
+        request: The pillar weights and optional metadata.
+
+    Returns:
+        An :class:`ActiveWeightsResponse` confirming the applied weights.
+    """
+    from app.db.session import _SessionLocal  # noqa: PLC0415
+
+    async with _SessionLocal() as session:
+        result = await apply_weights_to_db(
+            session=session,
+            fundamental=request.fundamental,
+            growth=request.growth,
+            narrative=request.narrative,
+            listing=request.listing,
+            risk=request.risk,
+            source_cycle=request.source_cycle,
+            precision_at_k=request.precision_at_k,
+            k=request.k,
+        )
+
+    logger.info(
+        "backtesting.apply_weights",
+        fundamental=request.fundamental,
+        growth=request.growth,
+    )
+
     return ActiveWeightsResponse(
-        **_DEFAULT_PHASE9_WEIGHTS,
-        source="default_phase9",
+        fundamental=result["fundamental"],
+        growth=result["growth"],
+        narrative=result["narrative"],
+        listing=result["listing"],
+        risk=result["risk"],
+        source="calibrated",
     )

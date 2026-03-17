@@ -808,12 +808,14 @@ token scores high.
 - ✅ Tests: 11 new tests (8 persist + 3 collect_twitter_data) — TDD.
 
 ### Item 3 — Connect calibrated weights to live scoring
-- 🔲 `POST /backtesting/apply-weights` — persists calibrated weights to
+- ✅ `POST /backtesting/apply-weights` — persists calibrated weights to
   `scoring_weights` table and sets `is_active=True` (deactivates previous).
-- 🔲 `OpportunityEngine.full_composite_score()` reads active weights from
-  DB (via Redis cache, 5 min TTL) instead of hardcoded constants.
-- 🔲 Fallback: if no active weights in DB, use Phase 9 defaults.
-- 🔲 Tests for weight application and dynamic scoring (TDD).
+- ✅ `OpportunityEngine.full_composite_score()` accepts optional `weights`
+  dict — callers can pass DB-loaded weights instead of hardcoded constants.
+- ✅ `weight_service.py` — `get_active_weights()` reads from DB via Redis
+  cache (5 min TTL), falls back to Phase 9 defaults.
+- ✅ `GET /backtesting/weights` now reads from weight service (DB → cache → defaults).
+- ✅ Tests: 20 new tests (10 weight_service + 8 API apply-weights + 2 OpportunityEngine custom weights) — TDD.
 
 ### Item 4 — Run real backtesting + calibrate weights
 - 🔲 CLI command: `cryptoai backtest-collect [cycle]` — fetches real

@@ -18,10 +18,27 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 #### Planned
 - **Item 1:** Filter stablecoins, wrapped tokens, dead projects from rankings
 - **Item 2:** Persist Twitter/Reddit data to `social_data` table
-- **Item 3:** Connect calibrated weights to live `OpportunityEngine`
+- ~~**Item 3:** Connect calibrated weights to live `OpportunityEngine`~~
 - **Item 4:** Run real backtesting with CoinGecko data + calibrate weights
 - **Item 5:** Wire `CycleDetector` into live scoring pipeline
 - **Item 6:** Score explanation on Token Detail page
+
+#### Item 3 — Connect calibrated weights to live scoring
+- **`weight_service.py`** — `get_active_weights(session, redis)` reads
+  active weights from `scoring_weights` table via Redis cache (5 min TTL),
+  falls back to Phase 9 defaults. `apply_weights_to_db()` persists new
+  weights and deactivates previous. `invalidate_weight_cache()` clears Redis.
+- **`POST /backtesting/apply-weights`** — persists calibrated weights to DB,
+  sets `is_active=True`, deactivates previous active row. Validates weights
+  sum to ~1.0 and each is in [0, 1].
+- **`GET /backtesting/weights`** — now reads from weight service (DB → cache
+  → defaults) instead of returning hardcoded values.
+- **`OpportunityEngine.full_composite_score()`** — accepts optional `weights`
+  dict parameter; callers can pass DB-loaded weights instead of using
+  hardcoded Phase 9 constants.
+- **Tests:** 20 new tests (10 weight service, 8 API apply-weights,
+  2 OpportunityEngine custom weights). 4 existing tests updated for mocked
+  weight service. Backend total: 1363.
 
 ---
 
