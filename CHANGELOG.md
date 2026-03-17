@@ -21,7 +21,7 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 - ~~**Item 3:** Connect calibrated weights to live `OpportunityEngine`~~
 - ~~**Item 4:** Run real backtesting with CoinGecko data + calibrate weights~~
 - ~~**Item 5:** Wire `CycleDetector` into live scoring pipeline~~
-- **Item 6:** Score explanation on Token Detail page
+- ~~**Item 6:** Score explanation on Token Detail page~~
 
 #### Item 3 — Connect calibrated weights to live scoring
 - **`weight_service.py`** — `get_active_weights(session, redis)` reads
@@ -66,6 +66,19 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 - **Tests:** 8 new tests (5 `cycle_adjusted_score` integration,
   3 `detect_cycle_phase`). 1 existing test updated to mock
   `detect_cycle_phase`. Backend total: 1380.
+
+#### Item 6 — Score explanation on Token Detail
+- **`scoring/score_explainer.py`** — `ScoreExplainer.explain(token_data)`
+  generates 1-2 sentence explanations per scoring pillar (fundamental,
+  growth, narrative, listing, risk) plus overall summary. Uses frozen
+  `PillarExplanation` dataclass with `to_dict()`. Explains strongest/
+  weakest sub-pillars, references market/social data when available.
+- **`GET /tokens/{symbol}/explanation`** — new API endpoint. Fetches
+  token + latest score + market data + social data via
+  `_fetch_token_with_details()` helper. Returns `TokenExplanationSchema`
+  with 6 pillar explanations. 404 when token or score not found.
+- **Tests:** 21 new tests (14 ScoreExplainer + 7 API endpoint).
+  Backend total: 1401.
 
 ---
 

@@ -840,13 +840,18 @@ token scores high.
 - 🔲 Display current cycle phase on Rankings page header (frontend).
 
 ### Item 6 — Score explanation on Token Detail
-- 🔲 `scoring/score_explainer.py` — `ScoreExplainer.explain(token_data)`
-  generates 1-2 sentence explanation per pillar based on the actual data
-  that drove the score (e.g., "Adoption: 7.2/10 — Reddit grew 15% in
-  30 days. Twitter mentions 2x above average.").
-- 🔲 `GET /tokens/{symbol}/explanation` API endpoint.
+- ✅ `scoring/score_explainer.py` — `ScoreExplainer.explain(token_data)`
+  generates human-readable 1-2 sentence explanation per pillar
+  (fundamental, growth, narrative, listing, risk) + overall summary.
+  Uses `PillarExplanation` frozen dataclass with `to_dict()`.
+- ✅ `GET /tokens/{symbol}/explanation` API endpoint — fetches token +
+  latest score + market data + social data, passes to `ScoreExplainer`,
+  returns `TokenExplanationSchema` (symbol, name, opportunity_score,
+  list of pillar explanations). 404 when token or score not found.
+- ✅ `_fetch_token_with_details()` helper — joins Token, TokenScore,
+  MarketData, SocialData with latest-row subqueries.
+- ✅ Tests: 14 ScoreExplainer + 7 API endpoint = 21 new tests — TDD.
 - 🔲 Frontend: "Why this score?" section on Token Detail page.
-- 🔲 Tests for explanation generation (TDD).
 
 ### Remaining deferred items (from Phases 13-14, low priority)
 - 🔲 Token Detail "Download PDF" generates real Gemini analysis (Phase 13)
