@@ -10,6 +10,49 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Ranking Credibility Sprint (PR #28)
+
+> 6 targeted fixes + 1 bug fix so that memecoins no longer dominate the
+> opportunity ranking. Result: FARTCOIN #1→#201, PEPE #2→#167, BTC→#1, ETH→#2.
+
+#### Added
+- **`scoring/token_category.py`** — new module: `TokenCategory` enum (MEMECOIN,
+  L1, L2, DEFI, INFRASTRUCTURE, GAMING, AI, RWA, PRIVACY, UNKNOWN),
+  `TokenCategoryClassifier.classify()` using CoinGecko categories with symbol
+  fallback, `risk_multiplier()` per category (MEMECOIN 0.70×, UNKNOWN 0.90×).
+- **`backtesting/real_cycle_prices.py`** — real historical bottom/top prices for
+  3 BTC market cycles (2015–2018, 2019–2021, 2022–2025) covering 69 tokens.
+  `get_real_ground_truth()` builds `CycleGroundTruth` from real data.
+- **6 new test files** — `test_pipeline_active_weights.py` (3),
+  `test_pipeline_category.py` (2), `test_token_category.py` (30),
+  `test_adoption_scoring_fix.py` (10), `test_rebalanced_weights.py` (8),
+  `test_real_cycle_prices.py` (9), `test_twitter_skip_empty_creds.py` (6).
+
+#### Changed
+- **`scheduler/jobs.py`** — `daily_collection_job` now loads active weights via
+  `get_active_weights()` and passes `pillar_weights` to `full_composite_score()`.
+  Classifies each token with `TokenCategoryClassifier` and applies category risk
+  multiplier to `opportunity_score`. `collect_twitter_data()` rewritten: reads
+  credentials from `Settings()`, short-circuits immediately when blank (avoids
+  ~300 futile login attempts), reuses single collector across all symbols.
+- **`scoring/pipeline_scorer.py`** — `_score_adoption()` rewritten: uses rank +
+  market_cap + categories (source="market") instead of Reddit subscribers.
+  `_score_narrative()` enhanced: incorporates Reddit/social data as bonus signal.
+- **`scoring/heuristic_sub_scorer.py`** — `_adoption()` uses `mcap_norm` instead
+  of `vol_norm` (volume removed from adoption calculation).
+- **`scoring/opportunity_engine.py`** — pillar weights rebalanced: fundamental
+  0.25, growth 0.20, narrative 0.15, listing 0.10, **risk 0.30** (3× increase).
+- **`scoring/weight_service.py`** — `DEFAULT_WEIGHTS` updated to match rebalanced
+  weights.
+- **`scoring/token_filter.py`** — added exotic stablecoins (RLUSD, AUSD, EURC,
+  BFUSD, USYC) and non-crypto tokens (XAUT, PAXG, WBT) to exclusion lists.
+- **`backtesting/weight_calibrator.py`** and **`historical_scorer.py`** — updated
+  default weight constants to match rebalanced values.
+
+#### Tests
+- 84 new backend tests. **Total: 1483 backend tests, 92.04% coverage.**
+- 168 frontend tests (unchanged).
+
 ### Frontend — "Why this score?" on Token Detail
 
 - **`ScoreExplanation.tsx`** — new component that fetches

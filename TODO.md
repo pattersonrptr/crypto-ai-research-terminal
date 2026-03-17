@@ -582,8 +582,9 @@ manage the database, and no way to trigger collection from the GUI.
     configurable delay between searches.
 - ✅ `processors/sentiment_analyzer.py` — simple keyword-based sentiment
   scoring (positive/negative/neutral). Phase 15+ can upgrade to LLM.
-- 🔲 Persist Twitter data to `social_data` table (twitter_mentions_24h,
+- ✅ Persist Twitter data to `social_data` table (twitter_mentions_24h,
   twitter_sentiment columns already exist in the schema).
+  → Done in Ranking Quality Loop Item 2 (PR #25).
 - ✅ Tests for TwitterTwikitCollector (mocked twikit client, TDD). — 14 tests
 - ✅ Tests for SentimentAnalyzer (TDD). — 11 tests
 
@@ -592,8 +593,9 @@ manage the database, and no way to trigger collection from the GUI.
   `daily_collection_job` after CoinGecko collection.
 - ✅ Map token symbols to subreddit names (e.g., BTC → r/Bitcoin,
   ETH → r/ethereum). Configurable mapping in `collectors/subreddit_map.py`.
-- 🔲 Persist Reddit data to `social_data` table (reddit_posts_7d,
+- ✅ Persist Reddit data to `social_data` table (reddit_posts_7d,
   reddit_subscribers, reddit_growth_pct).
+  → Done in Ranking Quality Loop Item 2 (PR #25).
 - ✅ Tests for Reddit pipeline integration (TDD). — 4 subreddit_map + 3 collect_social_data tests
 
 ### Wire CoinMarketCap collector into pipeline
@@ -624,10 +626,12 @@ manage the database, and no way to trigger collection from the GUI.
   - Score breakdown with explanations
   - Risk assessment
   - Market metrics snapshot
+  → Deferred to Future Phase: Gemini-Powered Analysis.
 - ✅ Cache analysis in `ai_analyses` table (TTL 7 days) via
   `WhitepaperCacheService`. Only re-analyse if cache is stale.
 - 🔲 `fundamental_score` optionally incorporates Gemini's analysis
   (innovation_score, token_utility assessment) when available.
+  → Deferred to Future Phase: Gemini-Powered Analysis.
 - ✅ Tests for whitepaper cache service (TDD). — 8 tests
 
 ### "Collect Now" button in GUI
@@ -744,13 +748,17 @@ formula would have identified winners **before** they pumped.
 - ✅ `fetchCycles()` + `fetchActiveWeights()` service functions. 6 tests.
 - ✅ MSW handlers for new endpoints.
 - 🔲 Cycle selector dropdown: "2015-2018", "2019-2021", "2022-2025", "All"
+  → Deferred to Phase 16.
 - 🔲 Precision/Recall/HitRate per cycle displayed as cards.
+  → Deferred to Phase 16.
 - 🔲 Token breakdown table per cycle.
+  → Deferred to Phase 16.
 - 🔲 "Apply Best Weights" button + confirmation dialog.
-  (Deferred — requires POST /apply-weights backend route.)
+  → Deferred to Phase 16.
 
 ### CI quality gate
 - 🔲 Add backtesting validation to CI pipeline (optional, slow job).
+  → Deferred to Future Phase.
 
 ### Tests summary
 - ✅ ~114 new backend tests (21+16+4+28+9+11+7+5+3+4+6 = 114)
@@ -789,7 +797,7 @@ token scores high.
   more), dead tokens (volume < $10k or missing volume data).
 - ✅ Rankings API applies filter before returning results (post-query).
 - 🔲 Frontend: filter chips for category (DeFi, AI, L1, L2, Meme, etc.)
-  and market cap range (micro/small/mid/large).
+  and market cap range (micro/small/mid/large). → **Deferred to Phase 15 (DataTable rework)**
 - ✅ Tests for filtering logic — 27 unit tests + 6 API tests (TDD).
 
 ### Item 2 — Persist Twitter/Reddit data to social_data table
@@ -838,6 +846,7 @@ token scores high.
 - ✅ Tests: 8 new tests (5 cycle_adjusted_score + 3 detect_cycle_phase)
   + 1 existing test updated to mock detect_cycle_phase — TDD.
 - 🔲 Display current cycle phase on Rankings page header (frontend).
+  → Deferred to Phase 15 (DataTable rework).
 
 ### Item 6 — Score explanation on Token Detail
 - ✅ `scoring/score_explainer.py` — `ScoreExplainer.explain(token_data)`
@@ -852,34 +861,192 @@ token scores high.
   MarketData, SocialData with latest-row subqueries.
 - ✅ Tests: 14 ScoreExplainer + 7 API endpoint = 21 new tests — TDD.
 - 🔲 Frontend: "Why this score?" section on Token Detail page.
+  → Deferred to Phase 16 (Token Detail UX).
 
-### Remaining deferred items (from Phases 13-14, low priority)
-- 🔲 Token Detail "Download PDF" generates real Gemini analysis (Phase 13)
-- 🔲 `fundamental_score` optionally incorporates Gemini analysis (Phase 13)
-- 🔲 Backtesting UI: cycle selector, per-cycle metrics cards, "Apply Best
-  Weights" button (Phase 14 frontend items)
-- 🔲 CI quality gate for backtesting validation (Phase 14)
+### Ranking Credibility Sprint (PR #28)
+- ✅ Wire active weights into pipeline (`get_active_weights()` → `full_composite_score()`)
+- ✅ Expand TokenFilter (exotic stables, gold-backed, non-crypto tokens)
+- ✅ Token category classifier + risk multiplier (memecoin 0.70×, unknown 0.90×)
+- ✅ Fix adoption scoring (rank+mcap+categories, social→narrative)
+- ✅ Rebalance pillar weights (risk 0.10→0.30)
+- ✅ Seed real backtest data (3 cycles, 69 tokens, real prices)
+- ✅ Fix Twitter collector (short-circuit on empty credentials, pass Settings)
+- ✅ Tests: 84 new tests (1483 total, 92.04% coverage)
+- ✅ **Result:** FARTCOIN #1→#201, PEPE #2→#167, BTC→#1, ETH→#2
 
-### Tests summary (estimated)
-- 🔲 ~50-60 new backend tests
-- 🔲 ~15-20 new frontend tests
-- 🔲 All existing tests must continue to pass (1299 backend + 158 frontend)
+### Tests summary (actual)
+- ✅ 105 new backend tests (Items 1-6 + Credibility Sprint + Twitter fix)
+- ✅ 10 new frontend tests (Score Explanation + pipeline service)
+- ✅ All existing tests pass. **1483 backend tests, 168 frontend tests.**
 
 **Deliverable:** Rankings show only actionable altcoins (no stablecoins, no
 wrapped tokens). Scores use real social data and calibrated weights. Cycle
 phase influences ranking. User understands why each token scores high.
 The system can answer: "Which cryptos could perform well in the next bull run?"
+✅ COMPLETE
 
 ---
 
-## Future Phases (planned after Ranking Quality Loop is solid)
+## Phase 15 — Category-Based Filtering + Professional DataTable (target: ~2–3 weeks)
 
-### Phase 16 — Narratives & Ecosystems (target: TBD)
+> **Goal:** Replace the card grid with a professional data table powered by
+> live token categories from CoinGecko. Users can filter by category, sort
+> by any column, search by name/symbol, and configure which columns to show.
+> No more hardcoded exclusion lists — filtering is entirely category-driven.
+
+### Problem statement
+Rankings still show FIGR_HELOC (#3), USDS (#4), USDE (#5) — stablecoins and
+RWA tokens that pass the hardcoded `TokenFilter`. The `category` column on
+the Token model is always `null`. The Home page uses a card grid with simple
+client-side pagination — no sorting, no filtering, no search. With 200+
+tokens, this is unusable. Users cannot filter by token type (L1, DeFi, Meme)
+or exclude categories they don't care about (stablecoins, wrapped).
+
+### Persist token categories from CoinGecko
+- 🔲 Add `category` column to `Token` model (VARCHAR 50, nullable, indexed).
+  Alembic migration.
+- 🔲 `daily_collection_job` calls `CoinGeckoCollector.collect_categories()`
+  for all tokens and persists the **primary** category (first non-null from
+  CoinGecko's category list, classified via `TokenCategoryClassifier`).
+- 🔲 Backfill: on first run, populate categories for all existing tokens.
+- 🔲 Tests for category persistence in pipeline (TDD).
+
+### Backend: server-side filtering, sorting, pagination, search
+- 🔲 Refactor `GET /rankings/opportunities` to support query params:
+  - `categories` — comma-separated list of categories to include
+    (e.g. `?categories=l1,defi,ai`). Empty = all categories.
+  - `exclude_categories` — comma-separated list to exclude
+    (e.g. `?exclude_categories=memecoin,rwa`). Applied after include.
+  - `sort` — column to sort by (default: `opportunity_score`).
+    Allowed: all score columns + `rank`, `market_cap`, `volume_24h`, `name`.
+  - `order` — `asc` or `desc` (default: `desc`).
+  - `search` — text search on `symbol` and `name` (case-insensitive ILIKE).
+  - `page` / `page_size` — server-side pagination (default: page=1, size=50).
+  - Response includes `total_count` for pagination UI.
+- 🔲 Replace hardcoded `TokenFilter.should_exclude()` with category-based
+  filtering: exclude tokens whose category is in `exclude_categories`.
+  Keep `TokenFilter` only for truly broken data (null volume, dead tokens).
+- 🔲 `GET /rankings/categories` — returns list of all distinct categories
+  in the database with token counts (for filter UI).
+- 🔲 Tests for all new query params and edge cases (TDD).
+
+### Frontend: TanStack Table + category filters
+- 🔲 Install `@tanstack/react-table` (free, MIT, headless — style with
+  shadcn/Tailwind). Already using `@tanstack/react-query` from same ecosystem.
+- 🔲 Replace card grid on Home page with a professional `DataTable` component:
+  - **Column sorting** — click header to sort asc/desc. Server-side.
+  - **Category filter** — multi-select chip bar (DeFi, L1, L2, AI, Meme,
+    Gaming, RWA, Privacy, Infrastructure, Unknown). Toggle on/off.
+  - **Default excluded categories** — stablecoins, wrapped tokens excluded
+    by default. User can re-enable. Preference saved to localStorage.
+  - **Global search** — text input that searches symbol/name. Debounced,
+    server-side.
+  - **Column visibility** — toggle columns on/off (extend existing
+    `useTableStore`). Some columns hidden by default (e.g. listing_probability).
+  - **Column reordering** — drag-and-drop column headers (TanStack supports
+    this natively).
+  - **Server-side pagination** — page controls at bottom. Page size selector
+    (25 / 50 / 100).
+  - **Cycle phase indicator** — show current market phase in table header
+    area (moved from deferred Item 5).
+- 🔲 `tokens.service.ts` — update `fetchRankingOpportunities()` to accept
+  filter/sort/pagination params and return `{ data, totalCount }`.
+- 🔲 Expand `useTableStore` with `categoryFilter`, `excludedCategories`,
+  `defaultExcludedCategories`, `searchQuery` state.
+- 🔲 Tests for DataTable (sorting, filtering, pagination, column toggle,
+  search) with MSW mocks (TDD).
+
+### Reddit collector short-circuit
+- 🔲 Same pattern as Twitter fix: `collect_social_data()` checks if Reddit
+  is being rate-limited (403 responses) and short-circuits early instead
+  of retrying for every token. Log informative skip message.
+- 🔲 Tests (TDD).
+
+### Documentation
+- 🔲 Update `README.md` with new query params, category system.
+- 🔲 Update `CHANGELOG.md` with Phase 15 entries.
+
+### Tests summary (estimated)
+- 🔲 ~40-50 new backend tests (categories, filtering, sorting, pagination, search, Reddit fix)
+- 🔲 ~30-40 new frontend tests (DataTable, filters, column toggle, search, pagination)
+- 🔲 All existing tests must continue to pass (1483 backend + 168 frontend)
+
+**Deliverable:** Rankings page is a professional data table with server-side
+sorting, filtering by category, search, column configuration, and pagination.
+Token categories populated from CoinGecko (no hardcoded lists). User can
+configure default excluded categories. Reddit collector handles rate limits
+gracefully.
+
+---
+
+## Phase 16 — Backtest Validation + Token Detail UX (target: ~2–3 weeks)
+
+> **Goal:** Make backtesting produce actionable results. Improve the Token
+> Detail page with an actions menu and richer data display.
+
+### Problem statement
+The backtesting infrastructure has real cycle price data (`real_cycle_prices.py`)
+but has never been executed end-to-end. The Weight Calibrator can suggest
+better weights but results are never automatically validated. The Token Detail
+page has two separate download buttons (MD + PDF) and no room for future
+actions. The radar chart shows 5 sub-pillars of Fundamental but users don't
+understand this distinction vs the 5 main scoring pillars.
+
+### Run and validate backtesting with real data
+- 🔲 Execute `real_cycle_prices.py` ground truth for all 3 cycles.
+- 🔲 Run `calibrate_weights_with_rescoring()` with real data.
+- 🔲 Validate Precision@K across cycles. Document results.
+- 🔲 If calibrated weights improve precision, apply via API and update
+  defaults in `weight_service.py`.
+- 🔲 Backtesting UI: cycle selector dropdown, per-cycle metrics cards,
+  token breakdown table, "Apply Best Weights" button + confirmation
+  (deferred from Phase 14).
+- 🔲 Tests for end-to-end backtest flow (TDD).
+
+### Token Detail UX improvements
+- 🔲 Replace download buttons with **actions dropdown menu** (Radix
+  `DropdownMenu`, already in dependencies). Actions: Download PDF,
+  Download Markdown, future-proof for more actions.
+- 🔲 Frontend: "Why this score?" section on Token Detail page (deferred
+  from Ranking Quality Loop Item 6 — backend already done).
+- 🔲 Clarify radar chart: rename "Score Breakdown" → "Fundamental
+  Sub-Pillars" or add a tooltip explaining the distinction vs the 5
+  main scoring pillars shown in Detailed Scores.
+- 🔲 Show token category badge on Token Detail header.
+- 🔲 Show risk multiplier if applicable (e.g. "Memecoin: 0.70× penalty").
+- 🔲 Tests for new Token Detail components (TDD).
+
+### Documentation
+- 🔲 Update `README.md` and `CHANGELOG.md` with Phase 16 entries.
+
+### Tests summary (estimated)
+- 🔲 ~20-30 new backend tests (backtest validation flow)
+- 🔲 ~20-25 new frontend tests (actions menu, score explanation, category badge)
+- 🔲 All existing tests must continue to pass
+
+**Deliverable:** Backtesting produces validated precision metrics across 3
+real BTC cycles. Token Detail page has an actions menu, score explanations,
+category badge, and clear radar chart labelling.
+
+---
+
+## Future Phases (planned — not yet numbered)
+
+### Narratives & Ecosystems (target: TBD)
 > Rebuild Narratives page with real social data from Twitter + Reddit.
 > Rebuild Ecosystems with real graph edges (shared categories, price
 > correlation, blockchain ecosystem). Make both pages useful.
 
-### Phase 17 — Alerts Tuning (target: TBD)
+### Alerts Tuning (target: TBD)
 > Reduce alert volume from 300+ to ~10-20 per day. Smart thresholds
 > based on historical alert accuracy. Only high-confidence alerts
 > sent to Telegram.
+
+### Gemini-Powered Analysis (target: TBD)
+> Token Detail "Download PDF" generates real analysis via Gemini.
+> `fundamental_score` optionally incorporates Gemini's assessment
+> (innovation_score, token_utility). CI quality gate for backtesting.
+
+### Remaining deferred items
+- 🔲 CI quality gate for backtesting validation (from Phase 14)
+- 🔲 `fundamental_score` optionally incorporates Gemini analysis (from Phase 13)

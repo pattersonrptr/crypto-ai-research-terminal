@@ -496,35 +496,35 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 | 12 | Backtesting Validation — historical data, precision metrics | ✅ Complete |
 | 13 | **Ranking Foundation** — real social data, wire CMC, CLI db mgmt, Gemini whitepapers | ✅ Complete |
 | 14 | **Multi-Cycle Backtesting** — 3 BTC cycles, weight calibration feedback loop | ✅ Complete |
-| — | **Ranking Quality Loop** — filter noise, persist social data, calibrate weights, cycle-aware scoring, score explanations | � In Progress |
-| 16 | Narratives & Ecosystems — real social-driven narratives, real graph edges | 🔲 Future |
-| 17 | Alerts Tuning — smart thresholds, reduce volume | 🔲 Future |
+| — | **Ranking Quality Loop** — filter noise, calibrate weights, cycle-aware scoring, score explanations, credibility sprint | ✅ Complete |
+| 15 | **Category Filtering + DataTable** — persist categories, server-side filtering/sorting/search, TanStack Table, Reddit fix | 🔲 Next |
+| 16 | **Backtest Validation + Token Detail UX** — run real backtest, calibrate, actions menu, category badges | 🔲 Planned |
+| — | Narratives & Ecosystems — real social-driven narratives, real graph edges | 🔲 Future |
+| — | Alerts Tuning — smart thresholds, reduce volume | 🔲 Future |
+| — | Gemini-Powered Analysis — LLM-generated PDFs, fundamental AI assessment | 🔲 Future |
 
-### Current Status & Known Limitations
+### Current Status
 
-Phases 1–14 are complete (1299 backend tests, 158 frontend tests, full Docker
-stack, real CoinGecko data). The infrastructure is solid. The main gap is
-**ranking quality** — sub-scores rely on heuristic guesses because social and
-dev data collectors aren't wired into the scoring pipeline, and calibrated
-weights are not applied to live scoring.
+Phases 1–14 + Ranking Quality Loop + Credibility Sprint are complete.
+**1483 backend tests (92% coverage), 168 frontend tests.** Full Docker stack.
+
+**Ranking quality (PR #28):** FARTCOIN dropped from #1 to #201, BTC is #1.
+Memecoins get 0.70× risk multiplier, risk weight tripled (0.30), adoption
+uses rank+mcap instead of Reddit, real backtest prices seeded for 3 cycles.
 
 **What works:**
 - Full Docker stack (`docker compose up` → all services healthy)
-- CoinGecko collection: 250 real tokens, scored and persisted
+- CoinGecko collection: 216 real tokens, scored and persisted
+- Token category classification (runtime) with risk multipliers
 - Cycle detection: BTC dominance, Fear & Greed, market phase classification
 - Alert generation: fires alerts from scores, Telegram delivery
-- Multi-cycle backtesting: 3 BTC cycles (2015-2025), 50 tokens, ground truth, weight calibration engine
-- Frontend: 5 pages (Rankings, Token Detail, Narratives, Ecosystems, Backtesting, Alerts)
+- Multi-cycle backtesting: 3 BTC cycles (2015-2025), 69 tokens, real prices
+- Frontend: 6 pages (Rankings, Token Detail, Narratives, Ecosystems, Backtesting, Alerts)
+- Score explanations: per-pillar "Why this score?" on Token Detail
 
-**Known limitations (addressed by Ranking Quality Loop):**
-- **Stablecoins in top rankings:** No filter excludes USDT, USDC, FDUSD from results.
-- **Scoring weights are hardcoded guesses:** 0.30/0.25/0.20/0.15/0.10 were never
-  validated against historical data. The calibrator exists but its results
-  aren't applied to the live `OpportunityEngine`.
-- **Social data not persisted:** Twitter and Reddit collectors run but don't
-  save to `social_data` table, so the scorer falls back to heuristics.
-- **Cycle detection not wired:** `CycleDetector` and `cycle_adjusted_score()`
-  exist but are never called in the scoring pipeline.
-- **No score explanations:** User can't understand why a token ranks high.
+**Next priority (Phase 15):** Replace card grid with professional DataTable
+(TanStack Table). Persist token categories from CoinGecko. Server-side
+filtering by category, sorting, search, pagination. Users can exclude
+categories (stablecoins OFF by default). Reddit collector short-circuit.
 
-**Current test counts:** 1299 backend + 158 frontend = **1 457 total tests**
+**Current test counts:** 1483 backend + 168 frontend = **1 651 total tests**
