@@ -190,5 +190,5 @@ class TestCalibrateWeights:
     def test_calibrate_empty_outcomes_returns_default_weights(self) -> None:
         """calibrate_weights with empty outcomes must return default weights."""
         result = calibrate_weights([], k=5, step=0.50)
-        assert result.best_weights.fundamental == pytest.approx(0.30)
+        assert result.best_weights.fundamental == pytest.approx(0.25)
         assert result.best_precision_at_k == pytest.approx(0.0)

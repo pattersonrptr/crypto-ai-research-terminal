@@ -5,12 +5,13 @@ Phase 2: adds growth_score from dev and social metrics.
 Phase 9: full 5-pillar formula with cycle-leader boost.
 Phase 10: cycle-aware scoring adjustment (bear → dampen, bull → boost).
 
-.. note:: **Phase 12 tuning reminder**
+.. note:: **Ranking Credibility Sprint — rebalanced weights**
 
-   Current weights (risk=10%, growth=25%) may under-penalise speculative
-   tokens and over-reward volume-driven momentum.  Phase 12 backtesting
-   should evaluate alternative weight distributions.  See also the
-   ``HeuristicSubScorer`` module docstring for related concerns.
+   Weights were rebalanced to risk=30%, fundamental=25%, growth=20%,
+   narrative=15%, listing=10%.  Higher risk weight properly penalises
+   speculative tokens (memecoins, micro-caps) that previously ranked
+   too high with risk at only 10%.  Future backtesting (Phase 12) may
+   further refine these values.
 """
 
 from __future__ import annotations
@@ -23,12 +24,12 @@ from app.processors.normalizer import clamp
 _WEIGHT_FUNDAMENTAL = 0.60
 _WEIGHT_GROWTH = 0.40
 
-# Phase 9 weights (must sum to 1.0)
-_W_FUNDAMENTAL = 0.30
-_W_GROWTH = 0.25
-_W_NARRATIVE = 0.20
-_W_LISTING = 0.15
-_W_RISK_ADJ = 0.10
+# Rebalanced weights (must sum to 1.0) — risk-heavy distribution
+_W_FUNDAMENTAL = 0.25
+_W_GROWTH = 0.20
+_W_NARRATIVE = 0.15
+_W_LISTING = 0.10
+_W_RISK_ADJ = 0.30
 
 # Maximum cycle-leader boost: 10 %
 _CYCLE_BOOST_MAX = 0.10

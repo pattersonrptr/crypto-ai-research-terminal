@@ -82,24 +82,24 @@ class TestScoreWithWeights:
         assert isinstance(result, HistoricalScoringResult)
         assert len(result.ranked_tokens) == 3
 
-    def test_default_weights_match_phase9(self) -> None:
-        """Without explicit weights, results must equal the default Phase 9 behavior."""
+    def test_default_weights_match_rebalanced(self) -> None:
+        """Without explicit weights, results must equal the rebalanced defaults."""
         snapshots = _make_snapshot_data()
         result_default = score_historical_snapshots(
             snapshots,
             snapshot_date=date(2020, 1, 15),
         )
-        phase9_ws = WeightSet(
-            fundamental=0.30,
-            growth=0.25,
-            narrative=0.20,
-            listing=0.15,
-            risk=0.10,
+        rebalanced_ws = WeightSet(
+            fundamental=0.25,
+            growth=0.20,
+            narrative=0.15,
+            listing=0.10,
+            risk=0.30,
         )
         result_explicit = score_historical_snapshots(
             snapshots,
             snapshot_date=date(2020, 1, 15),
-            weights=phase9_ws,
+            weights=rebalanced_ws,
         )
         for d, e in zip(
             result_default.ranked_tokens,

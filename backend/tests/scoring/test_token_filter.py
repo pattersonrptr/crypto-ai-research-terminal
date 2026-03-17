@@ -181,3 +181,50 @@ class TestTokenFilterExcludedSymbols:
     def test_excluded_symbols_is_frozen_set(self) -> None:
         tf = TokenFilter()
         assert isinstance(tf.excluded_symbols, frozenset)
+
+
+# ---------------------------------------------------------------------------
+# Gold-backed, exotic stables, non-crypto exclusions
+# ---------------------------------------------------------------------------
+
+
+class TestTokenFilterGoldAndExoticExclusions:
+    """Gold-backed tokens, exotic stablecoins, and non-crypto assets must be excluded."""
+
+    def test_is_excluded_gold_backed_xaut(self) -> None:
+        tf = TokenFilter()
+        assert tf.is_excluded("XAUT") is True
+
+    def test_is_excluded_gold_backed_paxg(self) -> None:
+        tf = TokenFilter()
+        assert tf.is_excluded("PAXG") is True
+
+    def test_is_excluded_exotic_stable_rlusd(self) -> None:
+        tf = TokenFilter()
+        assert tf.is_excluded("RLUSD") is True
+
+    def test_is_excluded_exotic_stable_ausd(self) -> None:
+        tf = TokenFilter()
+        assert tf.is_excluded("AUSD") is True
+
+    def test_is_excluded_exotic_stable_eurc(self) -> None:
+        tf = TokenFilter()
+        assert tf.is_excluded("EURC") is True
+
+    def test_is_excluded_exotic_stable_bfusd(self) -> None:
+        tf = TokenFilter()
+        assert tf.is_excluded("BFUSD") is True
+
+    def test_is_excluded_exotic_stable_usyc(self) -> None:
+        tf = TokenFilter()
+        assert tf.is_excluded("USYC") is True
+
+    def test_is_excluded_non_crypto_wbt(self) -> None:
+        tf = TokenFilter()
+        assert tf.is_excluded("WBT") is True
+
+    def test_is_excluded_normal_altcoins_not_affected(self) -> None:
+        """Real altcoins must NOT be excluded by these additions."""
+        tf = TokenFilter()
+        for sym in ("BTC", "ETH", "SOL", "AVAX", "LINK", "PEPE", "DOGE"):
+            assert tf.is_excluded(sym) is False, f"{sym} should not be excluded"

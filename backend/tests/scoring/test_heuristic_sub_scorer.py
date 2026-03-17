@@ -84,15 +84,15 @@ class TestHeuristicSubScorerScoresInRange:
 
 
 class TestHeuristicAdoptionScore:
-    """Adoption score driven by rank and volume/mcap ratio."""
+    """Adoption score driven by rank and market cap (no volume)."""
 
     def test_top_rank_gives_high_adoption(self) -> None:
         data = _make_market_data(rank=1, volume_mcap_ratio=0.5)
         result = HeuristicSubScorer.score(data)
         assert result.adoption_score > 0.7
 
-    def test_low_rank_gives_lower_adoption(self) -> None:
-        data = _make_market_data(rank=500, volume_mcap_ratio=0.01)
+    def test_low_rank_low_mcap_gives_lower_adoption(self) -> None:
+        data = _make_market_data(rank=800, market_cap_usd=1_000_000.0, volume_mcap_ratio=0.01)
         result = HeuristicSubScorer.score(data)
         assert result.adoption_score < 0.4
 

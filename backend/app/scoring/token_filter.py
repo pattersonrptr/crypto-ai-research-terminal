@@ -42,6 +42,12 @@ _DEFAULT_STABLECOINS: frozenset[str] = frozenset(
         "BIDR",
         "IDRT",
         "UST",
+        # Exotic stables / yield-bearing stables
+        "RLUSD",
+        "AUSD",
+        "EURC",
+        "BFUSD",
+        "USYC",
     }
 )
 
@@ -69,6 +75,17 @@ _DEFAULT_WRAPPED: frozenset[str] = frozenset(
     }
 )
 
+# Gold-backed tokens and non-crypto assets that shouldn't rank alongside altcoins.
+_DEFAULT_NON_CRYPTO: frozenset[str] = frozenset(
+    {
+        # Gold-backed
+        "XAUT",
+        "PAXG",
+        # Non-crypto / tokenised traditional assets
+        "WBT",
+    }
+)
+
 _DEFAULT_MIN_VOLUME_24H: float = 10_000.0
 
 
@@ -83,18 +100,20 @@ class TokenFilter:
             ...
     """
 
-    __slots__ = ("stablecoins", "wrapped", "extra_exclude", "min_volume_24h")
+    __slots__ = ("stablecoins", "wrapped", "non_crypto", "extra_exclude", "min_volume_24h")
 
     def __init__(
         self,
         *,
         stablecoins: frozenset[str] | None = None,
         wrapped: frozenset[str] | None = None,
+        non_crypto: frozenset[str] | None = None,
         extra_exclude: set[str] | None = None,
         min_volume_24h: float = _DEFAULT_MIN_VOLUME_24H,
     ) -> None:
         self.stablecoins = stablecoins if stablecoins is not None else _DEFAULT_STABLECOINS
         self.wrapped = wrapped if wrapped is not None else _DEFAULT_WRAPPED
+        self.non_crypto = non_crypto if non_crypto is not None else _DEFAULT_NON_CRYPTO
         self.extra_exclude = extra_exclude or set()
         self.min_volume_24h = min_volume_24h
 
@@ -108,6 +127,7 @@ class TokenFilter:
         return (
             upper in self.stablecoins
             or upper in self.wrapped
+            or upper in self.non_crypto
             or upper in {s.upper() for s in self.extra_exclude}
         )
 
@@ -139,4 +159,9 @@ class TokenFilter:
     @property
     def excluded_symbols(self) -> frozenset[str]:
         """Union of all symbol-based exclusion sets (upper-case)."""
-        return self.stablecoins | self.wrapped | frozenset(s.upper() for s in self.extra_exclude)
+        return (
+            self.stablecoins
+            | self.wrapped
+            | self.non_crypto
+            | frozenset(s.upper() for s in self.extra_exclude)
+        )
