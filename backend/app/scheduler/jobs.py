@@ -14,12 +14,15 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from app.alerts.alert_evaluator import AlertEvaluator
+from app.analysis.cycle_data_collector import CycleDataCollector
+from app.analysis.cycle_detector import CycleDetector, CyclePhase
 from app.analysis.narrative_persister import NarrativePersister
 from app.collectors.coingecko_collector import CoinGeckoCollector
 from app.collectors.subreddit_map import get_subreddit
 from app.config import Settings
 from app.models.market_data import MarketData
 from app.models.score import TokenScore
+from app.models.social_data import SocialData
 from app.models.token import Token
 from app.processors.market_processor import MarketProcessor
 from app.scoring.fundamental_scorer import FundamentalScorer
@@ -192,6 +195,104 @@ async def collect_social_data(
     return result
 
 
+async def collect_twitter_data(
+    symbols: list[str],
+    *,
+    twitter_collector: Any | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Collect Twitter/X mention metrics for token symbols.
+
+    Args:
+        symbols: List of uppercase token symbols.
+        twitter_collector: Optional pre-built TwitterTwikitCollector
+            (for testing). When ``None``, creates one internally.
+
+    Returns:
+        Dict keyed by symbol → Twitter metrics dict.
+    """
+    result: dict[str, dict[str, Any]] = {}
+
+    for symbol in symbols:
+        try:
+            if twitter_collector is not None:
+                data = await twitter_collector.collect_mentions(symbol)
+            else:
+                from app.collectors.twitter_twikit_collector import (  # noqa: PLC0415
+                    TwitterTwikitCollector,
+                )
+
+                collector = TwitterTwikitCollector()
+                await collector.login()
+                data = await collector.collect_mentions(symbol)
+            result[symbol] = data
+        except Exception:
+            logger.exception("collect_twitter_data.error", symbol=symbol)
+
+    return result
+
+
+async def persist_social_data(
+    *,
+    reddit_data: dict[str, dict[str, Any]],
+    twitter_data: dict[str, dict[str, Any]],
+    session: AsyncSession | None = None,
+) -> None:
+    """Persist Reddit + Twitter social metrics to the ``social_data`` table.
+
+    Merges Reddit and Twitter data per symbol into a single ``SocialData``
+    row. Skips symbols whose token is not found in the database.
+
+    Args:
+        reddit_data: Dict keyed by symbol → Reddit collector output.
+        twitter_data: Dict keyed by symbol → Twitter collector output.
+        session: Optional externally-managed session (for testing).
+    """
+    from sqlalchemy import select as sa_select  # noqa: PLC0415
+
+    own_session = False
+    if session is None:
+        from app.db.session import _SessionLocal  # noqa: PLC0415
+
+        session = _SessionLocal()
+        own_session = True
+
+    try:
+        all_symbols = set(reddit_data.keys()) | set(twitter_data.keys())
+
+        for symbol in all_symbols:
+            stmt = sa_select(Token).where(Token.symbol == symbol.upper())
+            token: Token | None = (await session.execute(stmt)).scalars().first()
+            if token is None:
+                logger.warning("persist_social_data.token_not_found", symbol=symbol)
+                continue
+
+            reddit = reddit_data.get(symbol, {})
+            twitter = twitter_data.get(symbol, {})
+
+            social = SocialData(
+                token_id=token.id,
+                reddit_subscribers=int(reddit.get("subscribers", 0)),
+                reddit_posts_24h=int(reddit.get("posts_24h", 0)),
+                sentiment_score=float(reddit.get("avg_score", 0.0)),
+                twitter_mentions_24h=int(twitter.get("mention_count", 0)),
+                twitter_engagement=int(twitter.get("total_engagement", 0)),
+            )
+            session.add(social)
+
+        await session.commit()
+        logger.info(
+            "persist_social_data.committed",
+            symbols=len(all_symbols),
+        )
+    except Exception:
+        await session.rollback()
+        logger.exception("persist_social_data.failed")
+        raise
+    finally:
+        if own_session:
+            await session.close()
+
+
 async def collect_cmc_data(
     *,
     cmc_collector: Any | None = None,
@@ -221,6 +322,41 @@ async def collect_cmc_data(
         return {}
 
 
+# ---------------------------------------------------------------------------
+# Cycle detection
+# ---------------------------------------------------------------------------
+
+# Default BTC dominance 30d ago when we don't have historical data.
+_DEFAULT_BTC_DOM_30D = 50.0
+
+
+async def detect_cycle_phase() -> CyclePhase | None:
+    """Detect the current market cycle phase.
+
+    Uses :class:`CycleDataCollector` to fetch Fear & Greed index and
+    BTC dominance, then :class:`CycleDetector` to classify.
+
+    Returns:
+        Detected :class:`CyclePhase` or ``None`` on failure.
+    """
+    log = logger.bind(job=_JOB_NAME)
+    try:
+        collector = CycleDataCollector()
+        indicators = await collector.collect_indicators(
+            btc_dominance_30d_ago=_DEFAULT_BTC_DOM_30D,
+        )
+        result = CycleDetector.classify(indicators)
+        log.info(
+            "detect_cycle_phase.done",
+            phase=result.phase.value,
+            confidence=result.confidence,
+        )
+        return result.phase
+    except Exception:
+        log.exception("detect_cycle_phase.error")
+        return None
+
+
 async def daily_collection_job(
     redis: aioredis.Redis[bytes] | None = None,
 ) -> None:
@@ -246,10 +382,39 @@ async def daily_collection_job(
         async with CoinGeckoCollector(api_key=api_key) as collector:
             raw_data = await collector.collect(symbols=[])
 
+        # Collect social data upfront so it can be merged into scoring
+        all_symbols = [str(r.get("symbol", "")).upper() for r in raw_data if r.get("symbol")]
+        try:
+            reddit_data = await collect_social_data(all_symbols)
+        except Exception:
+            log.exception("daily_collection_job.reddit_collection_error")
+            reddit_data = {}
+        try:
+            twitter_data = await collect_twitter_data(all_symbols)
+        except Exception:
+            log.exception("daily_collection_job.twitter_collection_error")
+            twitter_data = {}
+
+        # Detect market cycle phase once per run
+        cycle_phase = await detect_cycle_phase()
+
         results: list[dict[str, Any]] = []
         for raw in raw_data:
             try:
                 processed = MarketProcessor.process(raw)
+
+                # Merge social data into processed dict for PipelineScorer
+                symbol = str(raw.get("symbol", "")).upper()
+                reddit = reddit_data.get(symbol, {})
+                twitter = twitter_data.get(symbol, {})
+                if reddit:
+                    processed["reddit_subscribers"] = reddit.get("subscribers", 0)
+                    processed["reddit_posts_24h"] = reddit.get("posts_24h", 0)
+                    processed["sentiment_score"] = reddit.get("avg_score", 0.0)
+                if twitter:
+                    processed["twitter_mentions_24h"] = twitter.get("mention_count", 0)
+                    processed["twitter_engagement"] = twitter.get("total_engagement", 0)
+
                 sub_scores = PipelineScorer.score(processed)
 
                 # Phase 9: use 5-sub-pillar model when sub-scores available
@@ -269,11 +434,18 @@ async def daily_collection_job(
                     risk=sub_scores.risk_score,
                     cycle_leader_prob=sub_scores.cycle_leader_prob,
                 )
+
+                # Apply cycle-phase adjustment
+                opportunity_score = OpportunityEngine.cycle_adjusted_score(
+                    opportunity_score, cycle_phase
+                )
+
                 results.append(
                     {
                         **processed,
                         "fundamental_score": fundamental_score,
                         "opportunity_score": opportunity_score,
+                        "cycle_phase": cycle_phase.value if cycle_phase else None,
                         **sub_scores.to_dict(),
                     }
                 )
@@ -282,6 +454,20 @@ async def daily_collection_job(
 
         log.info("daily_collection_job.scored", count=len(results))
         await _persist_results(results)
+
+        # Persist social data (already collected above)
+        try:
+            await persist_social_data(
+                reddit_data=reddit_data,
+                twitter_data=twitter_data,
+            )
+            log.info(
+                "daily_collection_job.social_data_persisted",
+                reddit=len(reddit_data),
+                twitter=len(twitter_data),
+            )
+        except Exception:
+            log.exception("daily_collection_job.social_data_error")
 
         # Build and persist narrative snapshots from token categories
         try:

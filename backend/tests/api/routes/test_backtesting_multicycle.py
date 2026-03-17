@@ -5,6 +5,8 @@ TDD: RED phase — tests written first.
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -63,11 +65,35 @@ class TestGetWeights:
     """Tests for GET /backtesting/weights — returns current active weights."""
 
     def test_get_weights_returns_200(self, client: TestClient) -> None:
-        response = client.get("/backtesting/weights")
+        with patch(
+            "app.api.routes.backtesting.get_active_weights",
+            new_callable=AsyncMock,
+            return_value={
+                "fundamental": 0.30,
+                "growth": 0.25,
+                "narrative": 0.20,
+                "listing": 0.15,
+                "risk": 0.10,
+                "source": "default_phase9",
+            },
+        ):
+            response = client.get("/backtesting/weights")
         assert response.status_code == 200
 
     def test_get_weights_response_has_fields(self, client: TestClient) -> None:
-        data = client.get("/backtesting/weights").json()
+        with patch(
+            "app.api.routes.backtesting.get_active_weights",
+            new_callable=AsyncMock,
+            return_value={
+                "fundamental": 0.30,
+                "growth": 0.25,
+                "narrative": 0.20,
+                "listing": 0.15,
+                "risk": 0.10,
+                "source": "default_phase9",
+            },
+        ):
+            data = client.get("/backtesting/weights").json()
         assert "fundamental" in data
         assert "growth" in data
         assert "narrative" in data
@@ -77,11 +103,35 @@ class TestGetWeights:
 
     def test_get_weights_default_source_is_phase9(self, client: TestClient) -> None:
         """Before any calibration, source should be 'default_phase9'."""
-        data = client.get("/backtesting/weights").json()
+        with patch(
+            "app.api.routes.backtesting.get_active_weights",
+            new_callable=AsyncMock,
+            return_value={
+                "fundamental": 0.30,
+                "growth": 0.25,
+                "narrative": 0.20,
+                "listing": 0.15,
+                "risk": 0.10,
+                "source": "default_phase9",
+            },
+        ):
+            data = client.get("/backtesting/weights").json()
         assert data["source"] == "default_phase9"
 
     def test_get_weights_sum_to_one(self, client: TestClient) -> None:
-        data = client.get("/backtesting/weights").json()
+        with patch(
+            "app.api.routes.backtesting.get_active_weights",
+            new_callable=AsyncMock,
+            return_value={
+                "fundamental": 0.30,
+                "growth": 0.25,
+                "narrative": 0.20,
+                "listing": 0.15,
+                "risk": 0.10,
+                "source": "default_phase9",
+            },
+        ):
+            data = client.get("/backtesting/weights").json()
         total = (
             data["fundamental"]
             + data["growth"]

@@ -76,12 +76,13 @@ class OpportunityEngine:
         listing: float,
         risk: float,
         cycle_leader_prob: float = 0.0,
+        weights: dict[str, float] | None = None,
     ) -> float:
         """Return the full 5-pillar composite opportunity score in [0, 1].
 
         Formula (SCOPE.md §9):
-            base = 0.30×fundamental + 0.25×growth + 0.20×narrative
-                   + 0.15×listing + 0.10×risk
+            base = w_f×fundamental + w_g×growth + w_n×narrative
+                   + w_l×listing + w_r×risk
             composite = base × (1 + cycle_leader_prob × CYCLE_BOOST_MAX)
             clamped to [0, 1]
 
@@ -93,6 +94,9 @@ class OpportunityEngine:
             risk: Risk-adjusted score in [0, 1] (higher = safer).
             cycle_leader_prob: ML cycle-leader probability in [0, 1].
                 Defaults to 0.0 (no boost).
+            weights: Optional dict with keys ``fundamental``, ``growth``,
+                ``narrative``, ``listing``, ``risk``. When ``None``,
+                hardcoded Phase 9 defaults are used.
 
         Raises:
             ScoringError: If any input is outside [0, 1].
@@ -104,13 +108,13 @@ class OpportunityEngine:
         _validate_score("risk", risk)
         _validate_score("cycle_leader_prob", cycle_leader_prob)
 
-        base = (
-            _W_FUNDAMENTAL * fundamental
-            + _W_GROWTH * growth
-            + _W_NARRATIVE * narrative
-            + _W_LISTING * listing
-            + _W_RISK_ADJ * risk
-        )
+        w_f = weights["fundamental"] if weights else _W_FUNDAMENTAL
+        w_g = weights["growth"] if weights else _W_GROWTH
+        w_n = weights["narrative"] if weights else _W_NARRATIVE
+        w_l = weights["listing"] if weights else _W_LISTING
+        w_r = weights["risk"] if weights else _W_RISK_ADJ
+
+        base = w_f * fundamental + w_g * growth + w_n * narrative + w_l * listing + w_r * risk
 
         boost = 1.0 + cycle_leader_prob * _CYCLE_BOOST_MAX
         return clamp(base * boost, 0.0, 1.0)

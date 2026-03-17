@@ -1,6 +1,6 @@
-"""Token route handlers — GET /tokens and GET /tokens/{symbol}."""
+"""Token route handlers — GET /tokens, GET /tokens/{symbol}, GET /tokens/{symbol}/explanation."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,7 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models.market_data import MarketData
 from app.models.score import TokenScore
+from app.models.social_data import SocialData
 from app.models.token import Token
+from app.scoring.score_explainer import ScoreExplainer
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
@@ -59,6 +61,23 @@ class TokenWithScoreSchema(BaseModel):
     volume_24h: float | None = None
     price_change_7d: float | None = None
     rank: int | None = None
+
+
+class PillarExplanationSchema(BaseModel):
+    """Schema for a single pillar explanation."""
+
+    pillar: str
+    score: float
+    explanation: str
+
+
+class TokenExplanationSchema(BaseModel):
+    """Schema for GET /tokens/{symbol}/explanation response."""
+
+    symbol: str
+    name: str
+    opportunity_score: float
+    explanations: list[PillarExplanationSchema]
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +203,126 @@ async def get_token_by_symbol(symbol: str, db: DbDep) -> TokenWithScoreSchema:
         raise HTTPException(status_code=404, detail=f"Token '{symbol}' not found.")
     token, score, md = row
     return _build_token_schema(token, score, md)
+
+
+# ---------------------------------------------------------------------------
+# Token detail helpers
+# ---------------------------------------------------------------------------
+
+
+async def _fetch_token_with_details(
+    symbol: str, db: AsyncSession
+) -> tuple[Token, TokenScore | None, MarketData | None, SocialData | None] | None:
+    """Fetch token, latest score, market data, and social data.
+
+    Returns:
+        Tuple of (token, score, market_data, social_data) or ``None``
+        if the token is not found.
+    """
+    latest_score_sq = (
+        select(func.max(TokenScore.id).label("max_id"))
+        .group_by(TokenScore.token_id)
+        .subquery("latest_score")
+    )
+    latest_md_sq = (
+        select(func.max(MarketData.id).label("max_id"))
+        .group_by(MarketData.token_id)
+        .subquery("latest_md")
+    )
+    latest_sd_sq = (
+        select(func.max(SocialData.id).label("max_id"))
+        .group_by(SocialData.token_id)
+        .subquery("latest_sd")
+    )
+
+    stmt = (
+        select(Token, TokenScore, MarketData, SocialData)
+        .outerjoin(TokenScore, TokenScore.token_id == Token.id)
+        .outerjoin(latest_score_sq, TokenScore.id == latest_score_sq.c.max_id)
+        .outerjoin(MarketData, MarketData.token_id == Token.id)
+        .outerjoin(latest_md_sq, MarketData.id == latest_md_sq.c.max_id)
+        .outerjoin(SocialData, SocialData.token_id == Token.id)
+        .outerjoin(latest_sd_sq, SocialData.id == latest_sd_sq.c.max_id)
+        .where(Token.symbol == symbol.upper())
+        .where(
+            (TokenScore.id == None) | (latest_score_sq.c.max_id != None)  # noqa: E711
+        )
+        .where(
+            (MarketData.id == None) | (latest_md_sq.c.max_id != None)  # noqa: E711
+        )
+        .where(
+            (SocialData.id == None) | (latest_sd_sq.c.max_id != None)  # noqa: E711
+        )
+    )
+    result = await db.execute(stmt)
+    row = result.first()
+    if row is None:
+        return None
+    return row[0], row[1], row[2], row[3]
+
+
+def _build_explainer_data(
+    token: Token,
+    score: TokenScore,
+    md: MarketData | None,
+    sd: SocialData | None,
+) -> dict[str, Any]:
+    """Build the dict that ScoreExplainer.explain() expects."""
+    data: dict[str, Any] = {
+        "symbol": token.symbol,
+        "name": token.name,
+        "fundamental_score": score.fundamental_score,
+        "technology_score": score.technology_score,
+        "tokenomics_score": score.tokenomics_score,
+        "adoption_score": score.adoption_score,
+        "dev_activity_score": score.dev_activity_score,
+        "narrative_score": score.narrative_score,
+        "growth_score": score.growth_score,
+        "risk_score": score.risk_score,
+        "listing_probability": score.listing_probability,
+        "cycle_leader_prob": score.cycle_leader_prob,
+        "opportunity_score": score.opportunity_score,
+    }
+    if md is not None:
+        data["price_usd"] = md.price_usd
+        data["market_cap_usd"] = md.market_cap_usd
+        data["volume_24h_usd"] = md.volume_24h_usd
+        data["price_change_7d"] = getattr(md, "price_change_7d", None)
+    if sd is not None:
+        data["reddit_subscribers"] = sd.reddit_subscribers
+        data["reddit_posts_24h"] = sd.reddit_posts_24h
+        data["sentiment_score"] = sd.sentiment_score
+        data["twitter_mentions_24h"] = sd.twitter_mentions_24h
+        data["twitter_engagement"] = sd.twitter_engagement
+    return data
+
+
+@router.get(
+    "/{symbol}/explanation",
+    response_model=TokenExplanationSchema,
+)
+async def get_token_explanation(symbol: str, db: DbDep) -> TokenExplanationSchema:
+    """Return a human-readable score explanation for a token, or 404."""
+    details = await _fetch_token_with_details(symbol, db)
+    if details is None:
+        raise HTTPException(status_code=404, detail=f"Token '{symbol}' not found.")
+
+    token, score, md, sd = details
+    if score is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No scores available for '{symbol}'.",
+        )
+
+    explainer_data = _build_explainer_data(token, score, md, sd)
+    explanations = ScoreExplainer.explain(explainer_data)
+
+    return TokenExplanationSchema(
+        symbol=token.symbol,
+        name=token.name,
+        opportunity_score=score.opportunity_score,
+        explanations=[PillarExplanationSchema(**e.to_dict()) for e in explanations],
+    )
 
 
 # Keep the dependency importable for test overrides (re-exported from session)

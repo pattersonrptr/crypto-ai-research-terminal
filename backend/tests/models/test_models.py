@@ -124,6 +124,8 @@ class TestSocialDataModel:
             "reddit_subscribers",
             "reddit_posts_24h",
             "sentiment_score",
+            "twitter_mentions_24h",
+            "twitter_engagement",
             "collected_at",
         }.issubset(column_names)
 
