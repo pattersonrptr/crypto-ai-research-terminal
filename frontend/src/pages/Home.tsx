@@ -1,35 +1,68 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchRankingOpportunities } from "@/services/tokens.service";
-import { TokenCard } from "@/features/tokens/components/TokenCard";
+import { RankingsTable } from "@/features/tokens/components/RankingsTable";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CycleIndicator } from "@/components/Dashboard/CycleIndicator";
 import { CollectNowButton } from "@/components/Dashboard/CollectNowButton";
+import { useTableStore } from "@/store/tableStore";
+import type { SortOrder } from "@/store/tableStore";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 10;
-
 /**
- * Home page — paginated rankings grid.
- * Each page shows 10 TokenCards (airy layout).
+ * Home page — server-side paginated rankings table.
+ * Query state (search, categories, sort, page) lives in the tableStore and is
+ * forwarded as API query params so filtering + sorting happen on the backend.
  */
 export function Home() {
-  const [page, setPage] = useState(1);
+  const {
+    search,
+    setSearch,
+    categories,
+    excludeCategories,
+    sort,
+    order,
+    setSort,
+    page,
+    setPage,
+    pageSize,
+  } = useTableStore();
 
-  const { data: opportunities = [], isLoading, isError } = useQuery({
-    queryKey: ["rankings"],
-    queryFn: () => fetchRankingOpportunities({ limit: 100 }),
+  const { data: response, isLoading, isError } = useQuery({
+    queryKey: [
+      "rankings",
+      { search, categories, excludeCategories, sort, order, page, pageSize },
+    ],
+    queryFn: () =>
+      fetchRankingOpportunities({
+        search: search || undefined,
+        categories: categories.length ? categories.join(",") : undefined,
+        exclude_categories: excludeCategories.length
+          ? excludeCategories.join(",")
+          : undefined,
+        sort,
+        order,
+        page,
+        page_size: pageSize,
+      }),
     refetchInterval: 30_000,
   });
 
-  const totalPages = Math.max(1, Math.ceil(opportunities.length / PAGE_SIZE));
-  const pageItems = opportunities.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const opportunities = response?.data ?? [];
+  const totalCount = response?.total_count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  function handleSortChange(column: string) {
+    // Toggle direction if same column, default to desc for new column
+    const newOrder: SortOrder =
+      sort === column && order === "desc" ? "asc" : "desc";
+    setSort(column, newOrder);
+  }
 
   return (
     <div>
       <PageHeader
         title="Top Opportunities"
-        description={`${opportunities.length} tokens analysed — updated daily`}
+        description={`${totalCount} tokens analysed — updated daily`}
         actions={
           <div className="flex items-center gap-2">
             <CollectNowButton />
@@ -38,13 +71,27 @@ export function Home() {
         }
       />
 
+      {/* ── Search bar ────────────────────────────────────────────── */}
+      <div className="mb-4">
+        <input
+          type="search"
+          placeholder="Search tokens…"
+          aria-label="Search tokens"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-sm rounded-md border border-border bg-background px-3 py-2
+                     text-sm placeholder:text-muted-foreground
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+      </div>
+
       {/* ── Loading state ─────────────────────────────────────────── */}
       {isLoading && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
-              className="h-52 animate-pulse rounded-xl border border-border bg-card"
+              className="h-10 animate-pulse rounded border border-border bg-card"
               aria-hidden="true"
             />
           ))}
@@ -58,27 +105,25 @@ export function Home() {
         </p>
       )}
 
-      {/* ── Cards grid ────────────────────────────────────────────── */}
+      {/* ── Table ─────────────────────────────────────────────────── */}
       {!isLoading && !isError && (
         <>
-          <div
-            className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
-            aria-label="Token rankings"
-          >
-            {pageItems.map((opp) => (
-              <TokenCard key={opp.token.symbol} opportunity={opp} />
-            ))}
-          </div>
+          <RankingsTable
+            data={opportunities}
+            sort={sort}
+            order={order}
+            onSortChange={handleSortChange}
+          />
 
           {/* ── Pagination ──────────────────────────────────────────── */}
           {totalPages > 1 && (
             <nav
-              className="mt-8 flex items-center justify-center gap-2"
+              className="mt-4 flex items-center justify-center gap-2"
               aria-label="Rankings pagination"
             >
               <button
                 type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => setPage(Math.max(1, page - 1))}
                 disabled={page === 1}
                 aria-label="Previous page"
                 className={cn(
@@ -89,27 +134,13 @@ export function Home() {
                 ← Prev
               </button>
 
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPage(p)}
-                  aria-label={`Go to page ${p}`}
-                  aria-current={page === p ? "page" : undefined}
-                  className={cn(
-                    "rounded-md border px-3 py-1.5 text-sm transition-colors",
-                    page === p
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-accent",
-                  )}
-                >
-                  {p}
-                </button>
-              ))}
+              <span className="text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </span>
 
               <button
                 type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
                 disabled={page === totalPages}
                 aria-label="Next page"
                 className={cn(

@@ -46,20 +46,49 @@ const DEFAULT_VISIBLE = new Set<ColumnId>(
   ALL_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.id),
 );
 
+/** Categories excluded from rankings by default. */
+const DEFAULT_EXCLUDE_CATEGORIES = ["stablecoin", "wrapped-tokens"];
+
+export type SortOrder = "asc" | "desc";
+
 interface TableState {
+  // ── Column visibility ───────────────────────────────────────────────
   visibleColumns: Set<ColumnId>;
   toggleColumn: (id: ColumnId) => void;
   resetColumns: () => void;
+
+  // ── Server-side query state ─────────────────────────────────────────
+  search: string;
+  setSearch: (value: string) => void;
+
+  categories: string[];
+  setCategories: (value: string[]) => void;
+
+  excludeCategories: string[];
+  setExcludeCategories: (value: string[]) => void;
+
+  sort: string;
+  order: SortOrder;
+  setSort: (column: string, order: SortOrder) => void;
+
+  page: number;
+  setPage: (page: number) => void;
+
+  pageSize: number;
+  setPageSize: (size: number) => void;
+
+  resetFilters: () => void;
 }
 
 export const useTableStore = create<TableState>()(
   persist(
     (set) => ({
+      // ── Column visibility ─────────────────────────────────────────
       visibleColumns: DEFAULT_VISIBLE,
 
       toggleColumn(id) {
         const col = ALL_COLUMNS.find((c) => c.id === id);
-        if (!col?.hideable) return; // non-hideable columns are always shown
+        if (!col?.hideable) return;
         set((s) => {
           const next = new Set(s.visibleColumns);
           if (next.has(id)) next.delete(id);
@@ -70,6 +99,47 @@ export const useTableStore = create<TableState>()(
 
       resetColumns() {
         set({ visibleColumns: new Set(DEFAULT_VISIBLE) });
+      },
+
+      // ── Server-side query state ───────────────────────────────────
+      search: "",
+      setSearch(value) {
+        set({ search: value, page: 1 });
+      },
+
+      categories: [],
+      setCategories(value) {
+        set({ categories: value, page: 1 });
+      },
+
+      excludeCategories: [...DEFAULT_EXCLUDE_CATEGORIES],
+      setExcludeCategories(value) {
+        set({ excludeCategories: value });
+      },
+
+      sort: "opportunity_score",
+      order: "desc" as SortOrder,
+      setSort(column, order) {
+        set({ sort: column, order, page: 1 });
+      },
+
+      page: 1,
+      setPage(page) {
+        set({ page });
+      },
+
+      pageSize: 50,
+      setPageSize(size) {
+        set({ pageSize: size, page: 1 });
+      },
+
+      resetFilters() {
+        set({
+          search: "",
+          categories: [],
+          excludeCategories: [...DEFAULT_EXCLUDE_CATEGORIES],
+          page: 1,
+        });
       },
     }),
     {
