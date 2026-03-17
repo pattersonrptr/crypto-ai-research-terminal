@@ -828,11 +828,16 @@ token scores high.
 - ✅ Tests: 9 new tests (4 backtest-collect + 5 backtest-calibrate) — TDD.
 
 ### Item 5 — Wire CycleDetector into live scoring pipeline
-- 🔲 `daily_collection_job` calls `CycleDetector.classify()` once per run.
-- 🔲 `OpportunityEngine.cycle_adjusted_score()` applied to every token
+- ✅ `daily_collection_job` calls `detect_cycle_phase()` once per run
+  (uses `CycleDataCollector` + `CycleDetector.classify()`).
+- ✅ `OpportunityEngine.cycle_adjusted_score()` applied to every token
   (bull=+10%, bear=−25%, accumulation=neutral, distribution=−10%).
-- 🔲 Display current cycle phase on Rankings page header.
-- 🔲 Tests for cycle integration in pipeline (TDD).
+- ✅ `cycle_phase` included in scored results dict for downstream use.
+- ✅ Graceful fallback: if cycle detection fails, phase is `None` and
+  scores remain unchanged (no adjustment).
+- ✅ Tests: 8 new tests (5 cycle_adjusted_score + 3 detect_cycle_phase)
+  + 1 existing test updated to mock detect_cycle_phase — TDD.
+- 🔲 Display current cycle phase on Rankings page header (frontend).
 
 ### Item 6 — Score explanation on Token Detail
 - 🔲 `scoring/score_explainer.py` — `ScoreExplainer.explain(token_data)`

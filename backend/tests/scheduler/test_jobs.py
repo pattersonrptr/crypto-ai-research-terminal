@@ -171,11 +171,17 @@ class TestDailyCollectionJob:
             patch("app.scheduler.jobs.FundamentalScorer") as mock_scorer,
             patch("app.scheduler.jobs.OpportunityEngine") as mock_engine,
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock) as mock_persist,
+            patch(
+                "app.scheduler.jobs.detect_cycle_phase",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             mock_processor.process = MagicMock(return_value=_PROCESSED)
             mock_pipeline.score = MagicMock(return_value=sub)
             mock_scorer.sub_pillar_score = MagicMock(return_value=0.75)
             mock_engine.full_composite_score = MagicMock(return_value=0.82)
+            mock_engine.cycle_adjusted_score = MagicMock(return_value=0.82)
             await daily_collection_job()
 
         mock_persist.assert_awaited_once()

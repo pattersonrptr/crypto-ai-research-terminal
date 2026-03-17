@@ -20,7 +20,7 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 - **Item 2:** Persist Twitter/Reddit data to `social_data` table
 - ~~**Item 3:** Connect calibrated weights to live `OpportunityEngine`~~
 - ~~**Item 4:** Run real backtesting with CoinGecko data + calibrate weights~~
-- **Item 5:** Wire `CycleDetector` into live scoring pipeline
+- ~~**Item 5:** Wire `CycleDetector` into live scoring pipeline~~
 - **Item 6:** Score explanation on Token Detail page
 
 #### Item 3 — Connect calibrated weights to live scoring
@@ -51,6 +51,21 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
   and prints a curl command to apply weights via API.
 - **Tests:** 9 new tests (4 backtest-collect, 5 backtest-calibrate).
   Backend total: 1372.
+
+#### Item 5 — Wire CycleDetector into live scoring pipeline
+- **`detect_cycle_phase()`** — new async helper in `scheduler/jobs.py`.
+  Calls `CycleDataCollector.collect_indicators()` → `CycleDetector.classify()`
+  once per pipeline run. Returns `CyclePhase` or `None` on failure.
+- **`daily_collection_job`** now calls `detect_cycle_phase()` before the
+  scoring loop and applies `OpportunityEngine.cycle_adjusted_score()` to
+  every token's opportunity score. Bull phase boosts +10%, bear dampens
+  −25%, distribution −10%, accumulation neutral. Graceful fallback: if
+  detection fails, scores remain unchanged.
+- **`cycle_phase`** field included in scored results dict for downstream
+  persistence and API exposure.
+- **Tests:** 8 new tests (5 `cycle_adjusted_score` integration,
+  3 `detect_cycle_phase`). 1 existing test updated to mock
+  `detect_cycle_phase`. Backend total: 1380.
 
 ---
 

@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from app.alerts.alert_evaluator import AlertEvaluator
+from app.analysis.cycle_data_collector import CycleDataCollector
+from app.analysis.cycle_detector import CycleDetector, CyclePhase
 from app.analysis.narrative_persister import NarrativePersister
 from app.collectors.coingecko_collector import CoinGeckoCollector
 from app.collectors.subreddit_map import get_subreddit
@@ -320,6 +322,41 @@ async def collect_cmc_data(
         return {}
 
 
+# ---------------------------------------------------------------------------
+# Cycle detection
+# ---------------------------------------------------------------------------
+
+# Default BTC dominance 30d ago when we don't have historical data.
+_DEFAULT_BTC_DOM_30D = 50.0
+
+
+async def detect_cycle_phase() -> CyclePhase | None:
+    """Detect the current market cycle phase.
+
+    Uses :class:`CycleDataCollector` to fetch Fear & Greed index and
+    BTC dominance, then :class:`CycleDetector` to classify.
+
+    Returns:
+        Detected :class:`CyclePhase` or ``None`` on failure.
+    """
+    log = logger.bind(job=_JOB_NAME)
+    try:
+        collector = CycleDataCollector()
+        indicators = await collector.collect_indicators(
+            btc_dominance_30d_ago=_DEFAULT_BTC_DOM_30D,
+        )
+        result = CycleDetector.classify(indicators)
+        log.info(
+            "detect_cycle_phase.done",
+            phase=result.phase.value,
+            confidence=result.confidence,
+        )
+        return result.phase
+    except Exception:
+        log.exception("detect_cycle_phase.error")
+        return None
+
+
 async def daily_collection_job(
     redis: aioredis.Redis[bytes] | None = None,
 ) -> None:
@@ -358,6 +395,9 @@ async def daily_collection_job(
             log.exception("daily_collection_job.twitter_collection_error")
             twitter_data = {}
 
+        # Detect market cycle phase once per run
+        cycle_phase = await detect_cycle_phase()
+
         results: list[dict[str, Any]] = []
         for raw in raw_data:
             try:
@@ -394,11 +434,18 @@ async def daily_collection_job(
                     risk=sub_scores.risk_score,
                     cycle_leader_prob=sub_scores.cycle_leader_prob,
                 )
+
+                # Apply cycle-phase adjustment
+                opportunity_score = OpportunityEngine.cycle_adjusted_score(
+                    opportunity_score, cycle_phase
+                )
+
                 results.append(
                     {
                         **processed,
                         "fundamental_score": fundamental_score,
                         "opportunity_score": opportunity_score,
+                        "cycle_phase": cycle_phase.value if cycle_phase else None,
                         **sub_scores.to_dict(),
                     }
                 )
