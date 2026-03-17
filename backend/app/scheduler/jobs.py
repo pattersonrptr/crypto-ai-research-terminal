@@ -204,28 +204,53 @@ async def collect_twitter_data(
 ) -> dict[str, dict[str, Any]]:
     """Collect Twitter/X mention metrics for token symbols.
 
+    When *twitter_collector* is ``None`` (production path), credentials are
+    read from ``Settings``.  If any of ``twitter_username``,
+    ``twitter_email`` or ``twitter_password`` is blank the function returns
+    ``{}`` immediately — avoiding hundreds of futile login attempts that
+    slow the pipeline down.
+
     Args:
         symbols: List of uppercase token symbols.
         twitter_collector: Optional pre-built TwitterTwikitCollector
-            (for testing). When ``None``, creates one internally.
+            (for testing). When ``None``, creates one internally using
+            credentials from ``Settings``.
 
     Returns:
         Dict keyed by symbol → Twitter metrics dict.
     """
     result: dict[str, dict[str, Any]] = {}
 
+    # When no collector is injected, resolve credentials from Settings.
+    if twitter_collector is None:
+        from app.collectors.twitter_twikit_collector import (  # noqa: PLC0415
+            TwitterTwikitCollector,
+        )
+
+        settings = Settings()
+        if not all(
+            [
+                settings.twitter_username,
+                settings.twitter_email,
+                settings.twitter_password,
+            ]
+        ):
+            logger.info(
+                "collect_twitter_data.skipped",
+                reason="twitter credentials not configured",
+            )
+            return result
+
+        twitter_collector = TwitterTwikitCollector(
+            username=settings.twitter_username,
+            email=settings.twitter_email,
+            password=settings.twitter_password,
+        )
+        await twitter_collector.login()
+
     for symbol in symbols:
         try:
-            if twitter_collector is not None:
-                data = await twitter_collector.collect_mentions(symbol)
-            else:
-                from app.collectors.twitter_twikit_collector import (  # noqa: PLC0415
-                    TwitterTwikitCollector,
-                )
-
-                collector = TwitterTwikitCollector()
-                await collector.login()
-                data = await collector.collect_mentions(symbol)
+            data = await twitter_collector.collect_mentions(symbol)
             result[symbol] = data
         except Exception:
             logger.exception("collect_twitter_data.error", symbol=symbol)
