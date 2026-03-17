@@ -621,6 +621,7 @@ async def _persist_results(
             symbol = str(item["symbol"])
             coingecko_id = str(item["coingecko_id"])
             name = str(item["name"])
+            token_category = item.get("token_category") or None
 
             # Upsert token (get-or-create by coingecko_id, fallback by symbol)
             stmt = select(Token).where(Token.coingecko_id == coingecko_id)
@@ -634,6 +635,7 @@ async def _persist_results(
                     symbol=symbol.upper(),
                     name=name,
                     coingecko_id=coingecko_id,
+                    category=token_category,
                 )
                 session.add(token)
                 await session.flush()  # generate token.id
@@ -647,6 +649,10 @@ async def _persist_results(
                         incoming_id=coingecko_id,
                     )
                     continue
+
+                # Backfill category if token has none yet
+                if token.category is None and token_category is not None:
+                    token.category = token_category
 
             # Insert score snapshot
             score = TokenScore(

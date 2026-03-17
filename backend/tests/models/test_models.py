@@ -27,7 +27,9 @@ class TestTokenModel:
 
         mapper = inspect(Token)
         column_names = {col.key for col in mapper.mapper.column_attrs}
-        assert {"id", "symbol", "name", "coingecko_id", "created_at"}.issubset(column_names)
+        assert {"id", "symbol", "name", "coingecko_id", "category", "created_at"}.issubset(
+            column_names
+        )
 
     def test_token_model_inherits_base(self) -> None:
         from app.models.token import Token
