@@ -19,7 +19,7 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 - **Item 1:** Filter stablecoins, wrapped tokens, dead projects from rankings
 - **Item 2:** Persist Twitter/Reddit data to `social_data` table
 - ~~**Item 3:** Connect calibrated weights to live `OpportunityEngine`~~
-- **Item 4:** Run real backtesting with CoinGecko data + calibrate weights
+- ~~**Item 4:** Run real backtesting with CoinGecko data + calibrate weights~~
 - **Item 5:** Wire `CycleDetector` into live scoring pipeline
 - **Item 6:** Score explanation on Token Detail page
 
@@ -39,6 +39,18 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 - **Tests:** 20 new tests (10 weight service, 8 API apply-weights,
   2 OpportunityEngine custom weights). 4 existing tests updated for mocked
   weight service. Backend total: 1363.
+
+#### Item 4 — Run real backtesting + calibrate weights
+- **`cryptoai backtest-collect <cycle>`** — CLI command that fetches real
+  CoinGecko historical data (via httpx) for all tokens in a market cycle
+  using `MultiCycleCollector`. Persists snapshots to `historical_snapshots`
+  table with `cycle_tag`. Validates cycle name, reports progress and errors.
+- **`cryptoai backtest-calibrate [--cycle all] [--step 0.10] [--k 10]`** —
+  CLI command that runs `calibrate_weights_with_rescoring()` against
+  historical snapshot data from DB. Reports best weights, Precision@K,
+  and prints a curl command to apply weights via API.
+- **Tests:** 9 new tests (4 backtest-collect, 5 backtest-calibrate).
+  Backend total: 1372.
 
 ---
 

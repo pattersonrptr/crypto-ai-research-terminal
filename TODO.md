@@ -818,14 +818,14 @@ token scores high.
 - ✅ Tests: 20 new tests (10 weight_service + 8 API apply-weights + 2 OpportunityEngine custom weights) — TDD.
 
 ### Item 4 — Run real backtesting + calibrate weights
-- 🔲 CLI command: `cryptoai backtest-collect [cycle]` — fetches real
-  CoinGecko historical data for the specified cycle using
-  `MultiCycleCollector`. Persists to `historical_snapshots` with cycle_tag.
-- 🔲 CLI command: `cryptoai backtest-calibrate [--cycles all]` — runs
-  `calibrate_weights_with_rescoring()` against real historical data.
-  Reports best weights and precision@K per cycle.
-- 🔲 After calibration, user can apply weights via API or CLI.
-- 🔲 Tests for CLI commands (TDD).
+- ✅ CLI command: `cryptoai backtest-collect <cycle>` — fetches real
+  CoinGecko historical data via httpx, persists to `historical_snapshots`
+  with cycle_tag. Validates cycle name, reports progress and errors.
+- ✅ CLI command: `cryptoai backtest-calibrate [--cycle all] [--step 0.10] [--k 10]`
+  — runs `calibrate_weights_with_rescoring()` against real historical data.
+  Reports best weights, precision@K, and provides curl command to apply.
+- ✅ After calibration, user can apply weights via `POST /backtesting/apply-weights`.
+- ✅ Tests: 9 new tests (4 backtest-collect + 5 backtest-calibrate) — TDD.
 
 ### Item 5 — Wire CycleDetector into live scoring pipeline
 - 🔲 `daily_collection_job` calls `CycleDetector.classify()` once per run.
