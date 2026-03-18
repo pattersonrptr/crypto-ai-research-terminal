@@ -104,7 +104,7 @@ class TestGetRankingsOpportunities:
         assert response.status_code == 200
 
     def test_get_opportunities_returns_list(self) -> None:
-        """GET /rankings/opportunities must return a JSON array."""
+        """GET /rankings/opportunities must return a paginated response with data array."""
         from app.api.routes.rankings import get_db  # noqa: PLC0415
 
         rows = [
@@ -121,9 +121,11 @@ class TestGetRankingsOpportunities:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 2
+        body = response.json()
+        assert "data" in body
+        assert "total_count" in body
+        assert isinstance(body["data"], list)
+        assert len(body["data"]) == 2
 
     def test_get_opportunities_item_has_required_fields(self) -> None:
         """Each ranking item must contain symbol, name, opportunity_score, fundamental_score."""
@@ -140,7 +142,7 @@ class TestGetRankingsOpportunities:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        item = response.json()[0]
+        item = response.json()["data"][0]
         assert item["symbol"] == "BTC"
         assert item["name"] == "Bitcoin"
         assert item["opportunity_score"] == pytest.approx(0.80)
@@ -164,12 +166,12 @@ class TestGetRankingsOpportunities:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        data = response.json()
+        data = response.json()["data"]
         scores = [item["opportunity_score"] for item in data]
         assert scores == sorted(scores, reverse=True)
 
-    def test_get_opportunities_limit_param(self) -> None:
-        """GET /rankings/opportunities?limit=1 must return at most 1 result."""
+    def test_get_opportunities_page_size_param(self) -> None:
+        """GET /rankings/opportunities?page_size=1 must return at most 1 result."""
         from app.api.routes.rankings import get_db  # noqa: PLC0415
 
         rows = [_make_score(1, 1, "BTC", "Bitcoin", 0.8, 0.8, volume_24h=5e9)]
@@ -180,11 +182,11 @@ class TestGetRankingsOpportunities:
 
         app.dependency_overrides[get_db] = _override
         client = TestClient(app)
-        response = client.get("/rankings/opportunities?limit=1")
+        response = client.get("/rankings/opportunities?page_size=1")
         app.dependency_overrides.clear()
 
         assert response.status_code == 200
-        assert len(response.json()) <= 1
+        assert len(response.json()["data"]) <= 1
 
     def test_get_opportunities_empty_db_returns_empty_list(self) -> None:
         """GET /rankings/opportunities must return [] when no scores exist."""
@@ -201,7 +203,9 @@ class TestGetRankingsOpportunities:
         app.dependency_overrides.clear()
 
         assert response.status_code == 200
-        assert response.json() == []
+        body = response.json()
+        assert body["data"] == []
+        assert body["total_count"] == 0
 
     def test_get_opportunities_item_has_rank_field(self) -> None:
         """Each ranking item must contain a 'rank' integer starting at 1."""
@@ -221,7 +225,7 @@ class TestGetRankingsOpportunities:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        data = response.json()
+        data = response.json()["data"]
         assert data[0]["rank"] == 1
         assert data[1]["rank"] == 2
 
@@ -240,7 +244,7 @@ class TestGetRankingsOpportunities:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        item = response.json()[0]
+        item = response.json()["data"][0]
         assert "token" in item
         assert item["token"]["id"] == 42
         assert item["token"]["symbol"] == "BTC"
@@ -261,7 +265,7 @@ class TestGetRankingsOpportunities:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        item = response.json()[0]
+        item = response.json()["data"][0]
         assert "signals" in item
         assert isinstance(item["signals"], list)
 
@@ -280,7 +284,7 @@ class TestGetRankingsOpportunities:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        token = response.json()[0]["token"]
+        token = response.json()["data"][0]["token"]
         assert token["latest_score"] is not None
         assert token["latest_score"]["fundamental_score"] == pytest.approx(0.75)
         assert token["latest_score"]["opportunity_score"] == pytest.approx(0.85)
@@ -292,10 +296,10 @@ class TestGetRankingsOpportunities:
 
 
 class TestGetRankingsOpportunitiesFiltering:
-    """Rankings must exclude stablecoins, wrapped tokens, and dead projects."""
+    """Rankings volume-based filtering (dead tokens) and category-based exclusion."""
 
-    def test_get_opportunities_excludes_stablecoins(self) -> None:
-        """USDT and USDC must never appear in the rankings."""
+    def test_get_opportunities_stablecoins_included_without_exclude_param(self) -> None:
+        """Without exclude_categories, stablecoins appear (category-based filtering now)."""
         from app.api.routes.rankings import get_db  # noqa: PLC0415
 
         rows = [
@@ -314,16 +318,15 @@ class TestGetRankingsOpportunitiesFiltering:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        data = response.json()
+        data = response.json()["data"]
         symbols = [item["symbol"] for item in data]
-        assert "USDT" not in symbols
-        assert "USDC" not in symbols
+        # Without exclude_categories, all tokens with valid volume appear
         assert "BTC" in symbols
         assert "ETH" in symbols
-        assert len(data) == 2
+        assert len(data) == 4
 
-    def test_get_opportunities_excludes_wrapped_tokens(self) -> None:
-        """WBTC, WETH, stETH must be excluded."""
+    def test_get_opportunities_wrapped_tokens_included_without_exclude_param(self) -> None:
+        """Without exclude_categories, wrapped tokens appear (category-based filtering now)."""
         from app.api.routes.rankings import get_db  # noqa: PLC0415
 
         rows = [
@@ -341,12 +344,12 @@ class TestGetRankingsOpportunitiesFiltering:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        data = response.json()
+        data = response.json()["data"]
         symbols = [item["symbol"] for item in data]
-        assert "WBTC" not in symbols
-        assert "STETH" not in symbols
         assert "SOL" in symbols
-        assert len(data) == 1
+        assert "WBTC" in symbols
+        assert "STETH" in symbols
+        assert len(data) == 3
 
     def test_get_opportunities_excludes_dead_tokens_low_volume(self) -> None:
         """Tokens with volume < $10k should be excluded."""
@@ -366,7 +369,7 @@ class TestGetRankingsOpportunitiesFiltering:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        data = response.json()
+        data = response.json()["data"]
         symbols = [item["symbol"] for item in data]
         assert "DEADCOIN" not in symbols
         assert "BTC" in symbols
@@ -390,7 +393,7 @@ class TestGetRankingsOpportunitiesFiltering:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        data = response.json()
+        data = response.json()["data"]
         symbols = [item["symbol"] for item in data]
         assert "GHOST" not in symbols
         assert len(data) == 1
@@ -400,10 +403,9 @@ class TestGetRankingsOpportunitiesFiltering:
         from app.api.routes.rankings import get_db  # noqa: PLC0415
 
         rows = [
-            _make_score(1, 1, "USDT", "Tether", 0.95, 0.99, volume_24h=50e9),
-            _make_score(2, 2, "BTC", "Bitcoin", 0.8, 0.9, volume_24h=5e9),
-            _make_score(3, 3, "USDC", "USD Coin", 0.85, 0.88, volume_24h=10e9),
-            _make_score(4, 4, "ETH", "Ethereum", 0.7, 0.8, volume_24h=3e9),
+            _make_score(1, 1, "BTC", "Bitcoin", 0.8, 0.9, volume_24h=5e9),
+            _make_score(2, 2, "DEAD1", "Dead Token", 0.85, 0.88, volume_24h=100.0),
+            _make_score(3, 3, "ETH", "Ethereum", 0.7, 0.8, volume_24h=3e9),
         ]
         session = _mock_session_rows(rows)
 
@@ -415,14 +417,14 @@ class TestGetRankingsOpportunitiesFiltering:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        data = response.json()
+        data = response.json()["data"]
         ranks = [item["rank"] for item in data]
         assert ranks == [1, 2]
         assert data[0]["symbol"] == "BTC"
         assert data[1]["symbol"] == "ETH"
 
-    def test_get_opportunities_fdusd_and_usd1_excluded(self) -> None:
-        """FDUSD and USD1 (the specific stablecoins polluting our ranking) must be excluded."""
+    def test_get_opportunities_tokens_with_volume_not_excluded_by_symbol(self) -> None:
+        """Tokens are no longer excluded by symbol alone (category-based now)."""
         from app.api.routes.rankings import get_db  # noqa: PLC0415
 
         rows = [
@@ -440,8 +442,10 @@ class TestGetRankingsOpportunitiesFiltering:
         response = client.get("/rankings/opportunities")
         app.dependency_overrides.clear()
 
-        data = response.json()
+        data = response.json()["data"]
         symbols = [item["symbol"] for item in data]
-        assert "FDUSD" not in symbols
-        assert "USD1" not in symbols
-        assert symbols == ["AVAX"]
+        # Without exclude_categories, all tokens with valid volume appear
+        assert "FDUSD" in symbols
+        assert "USD1" in symbols
+        assert "AVAX" in symbols
+        assert len(data) == 3

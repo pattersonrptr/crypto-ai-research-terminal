@@ -14,6 +14,7 @@ import type {
   TokenScore,
   RankingOpportunity,
   ExplanationResponse,
+  CategoryCount,
 } from "@/services/tokens.service";
 import type { Alert, AlertStats } from "@/services/alerts.service";
 import type { NarrativeCluster } from "@/services/narratives.service";
@@ -156,19 +157,34 @@ export const MOCK_NARRATIVES: NarrativeCluster[] = [
   },
 ];
 
+/** Mock category counts for the categories endpoint. */
+export const MOCK_CATEGORIES = [
+  { category: "l1", count: 5 },
+  { category: "defi", count: 3 },
+  { category: "memecoin", count: 2 },
+];
+
 // ── Handler factories (for per-test overrides) ────────────────────────────
 
 export function rankingsHandler(
   data: RankingOpportunity[] = MOCK_OPPORTUNITIES,
 ) {
   return http.get("/api/rankings/opportunities", () =>
-    HttpResponse.json(data),
+    HttpResponse.json({ data, total_count: data.length }),
   );
 }
 
 export function rankingsErrorHandler() {
   return http.get("/api/rankings/opportunities", () =>
     HttpResponse.json({ detail: "Internal server error" }, { status: 500 }),
+  );
+}
+
+export function categoriesHandler(
+  data: CategoryCount[] = MOCK_CATEGORIES,
+) {
+  return http.get("/api/rankings/categories", () =>
+    HttpResponse.json(data),
   );
 }
 
@@ -576,6 +592,7 @@ export function tokenExplanationErrorHandler() {
 
 export const handlers = [
   rankingsHandler(),
+  categoriesHandler(),
   tokensHandler(),
   tokenDetailHandler(),
   alertsHandler(),

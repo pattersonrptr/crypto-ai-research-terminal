@@ -52,9 +52,23 @@ export interface TokensListParams {
 }
 
 export interface RankingsParams {
-  limit?: number;
-  min_score?: number;
-  category?: string;
+  categories?: string;
+  exclude_categories?: string;
+  sort?: string;
+  order?: "asc" | "desc";
+  search?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface PaginatedRankingsResponse {
+  data: RankingOpportunity[];
+  total_count: number;
+}
+
+export interface CategoryCount {
+  category: string;
+  count: number;
 }
 
 export interface PillarExplanation {
@@ -90,10 +104,17 @@ export async function fetchToken(symbol: string): Promise<TokenWithScore> {
 
 export async function fetchRankingOpportunities(
   params: RankingsParams = {},
-): Promise<RankingOpportunity[]> {
-  const res: AxiosResponse<RankingOpportunity[]> = await apiClient.get(
+): Promise<PaginatedRankingsResponse> {
+  const res: AxiosResponse<PaginatedRankingsResponse> = await apiClient.get(
     "/rankings/opportunities",
     { params },
+  );
+  return res.data;
+}
+
+export async function fetchCategories(): Promise<CategoryCount[]> {
+  const res: AxiosResponse<CategoryCount[]> = await apiClient.get(
+    "/rankings/categories",
   );
   return res.data;
 }

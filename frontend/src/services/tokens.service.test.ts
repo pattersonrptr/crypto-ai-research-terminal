@@ -13,15 +13,18 @@ import {
   tokenDetailHandler,
   rankingsHandler,
   tokenExplanationHandler,
+  categoriesHandler,
   MOCK_TOKEN_BTC,
   MOCK_OPPORTUNITIES,
   MOCK_EXPLANATION,
+  MOCK_CATEGORIES,
 } from "@/test/msw/handlers";
 import {
   fetchTokens,
   fetchToken,
   fetchRankingOpportunities,
   fetchTokenExplanation,
+  fetchCategories,
 } from "./tokens.service";
 
 describe("tokens.service", () => {
@@ -47,18 +50,34 @@ describe("tokens.service", () => {
     expect(result.name).toBe("Bitcoin");
   });
 
-  it("fetchRankingOpportunities_returns_array_of_RankingOpportunity", async () => {
+  it("fetchRankingOpportunities_returns_paginated_response", async () => {
     server.use(rankingsHandler(MOCK_OPPORTUNITIES));
     const result = await fetchRankingOpportunities();
-    expect(result).toHaveLength(15);
-    expect(result[0].rank).toBe(1);
-    expect(result[0].token.symbol).toBe("TKN1");
+    expect(result.data).toHaveLength(15);
+    expect(result.total_count).toBe(15);
+    expect(result.data[0].rank).toBe(1);
+    expect(result.data[0].token.symbol).toBe("TKN1");
   });
 
-  it("fetchRankingOpportunities_passes_limit_and_min_score_params", async () => {
+  it("fetchRankingOpportunities_passes_server_side_params", async () => {
     server.use(rankingsHandler(MOCK_OPPORTUNITIES.slice(0, 3)));
-    const result = await fetchRankingOpportunities({ limit: 3, min_score: 50 });
+    const result = await fetchRankingOpportunities({
+      page: 1,
+      page_size: 3,
+      sort: "opportunity_score",
+      order: "desc",
+    });
+    expect(result.data).toHaveLength(3);
+    expect(result.total_count).toBe(3);
+  });
+
+  it("fetchCategories_returns_array_of_CategoryCount", async () => {
+    server.use(categoriesHandler(MOCK_CATEGORIES));
+    const result = await fetchCategories();
     expect(result).toHaveLength(3);
+    expect(result[0]).toHaveProperty("category");
+    expect(result[0]).toHaveProperty("count");
+    expect(result[0].category).toBe("l1");
   });
 
   it("fetchTokenExplanation_returns_explanation_with_pillar_list", async () => {

@@ -5,9 +5,8 @@
  * MSW intercepts all `/api/rankings/opportunities` requests.
  */
 
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, waitFor, within, act } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -17,6 +16,7 @@ import {
   rankingsHandler,
   MOCK_OPPORTUNITIES,
 } from "@/test/msw/handlers";
+import { useTableStore } from "@/store/tableStore";
 import { Home } from "./Home";
 
 // ── Test helpers ─────────────────────────────────────────────────────────
@@ -44,104 +44,61 @@ function renderHome() {
   );
 }
 
-// ── Loading state ─────────────────────────────────────────────────────────
+// ── Tests ────────────────────────────────────────────────────────────────
 
 describe("Home", () => {
+  beforeEach(() => {
+    // Reset tableStore between tests so state doesn't leak
+    useTableStore.setState(useTableStore.getInitialState());
+  });
+
   afterEach(() => {
     vi.useRealTimers();
   });
 
+  // ── Loading state ───────────────────────────────────────────────────
+
   it("renders_loading_skeletons_while_fetching", async () => {
     renderHome();
-    // Skeletons are aria-hidden pulse divs rendered during loading
     const skeletons = document.querySelectorAll("[aria-hidden='true']");
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
-  // ── Happy path ──────────────────────────────────────────────────────────
+  // ── Happy path ──────────────────────────────────────────────────────
 
   it("renders_page_header_with_total_token_count_when_data_loads", async () => {
     renderHome();
-    // Wait for loading to finish and cards to appear
     await waitFor(() => {
       expect(screen.getByText("TKN1")).toBeInTheDocument();
     });
-    // Header shows "15 tokens analysed" (MOCK_OPPORTUNITIES has 15 items)
+    // MOCK_OPPORTUNITIES has 15 items -> total_count = 15
     expect(
       screen.getByText(/15 tokens analysed/i),
     ).toBeInTheDocument();
   });
 
-  it("renders_exactly_10_token_cards_on_page_1", async () => {
+  it("renders_a_table_with_token_symbols", async () => {
     renderHome();
     await waitFor(() => {
-      // The grid has aria-label="Token rankings"; each card is an <a> with aria-label="View TKNx details"
-      const grid = screen.getByLabelText("Token rankings");
-      const cards = within(grid).getAllByRole("link");
-      expect(cards).toHaveLength(10);
+      expect(screen.getByRole("table")).toBeInTheDocument();
     });
+    // All 15 on page 1 (pageSize=50)
+    expect(screen.getByText("TKN1")).toBeInTheDocument();
+    expect(screen.getByText("TKN15")).toBeInTheDocument();
   });
 
-  it("renders_token_symbols_for_first_page_items", async () => {
+  it("renders_search_input", async () => {
     renderHome();
-    await waitFor(() => {
-      // First 10 of 15 mock tokens are TKN1 ... TKN10
-      expect(screen.getByText("TKN1")).toBeInTheDocument();
-      expect(screen.getByText("TKN10")).toBeInTheDocument();
-    });
-    // TKN11 ... TKN15 should NOT be visible on page 1
-    expect(screen.queryByText("TKN11")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("searchbox", { name: /search tokens/i }),
+    ).toBeInTheDocument();
   });
 
-  // ── Pagination ──────────────────────────────────────────────────────────
-
-  it("renders_pagination_controls_when_total_exceeds_page_size", async () => {
-    renderHome();
-    await waitFor(() => {
-      expect(
-        screen.getByRole("navigation", { name: /rankings pagination/i }),
-      ).toBeInTheDocument();
-    });
-    // Should have "Prev" and "Next" buttons
-    expect(screen.getByRole("button", { name: /previous page/i })).toBeInTheDocument();
-  });
-
-  it("navigates_to_page_2_and_shows_remaining_tokens_when_next_clicked", async () => {
-    const user = userEvent.setup();
-    renderHome();
-
-    await waitFor(() => {
-      expect(screen.getByText("TKN1")).toBeInTheDocument();
-    });
-
-    const page2Btn = screen.getByRole("button", { name: /go to page 2/i });
-    await user.click(page2Btn);
-
-    await waitFor(() => {
-      expect(screen.getByText("TKN11")).toBeInTheDocument();
-      expect(screen.getByText("TKN15")).toBeInTheDocument();
-    });
-    // Page 1 tokens no longer visible
-    expect(screen.queryByText("TKN1")).not.toBeInTheDocument();
-  });
-
-  it("prev_button_is_disabled_on_first_page", async () => {
-    renderHome();
-    await waitFor(() => {
-      expect(screen.getByText("TKN1")).toBeInTheDocument();
-    });
-    const prevBtn = screen.getByRole("button", { name: /previous page/i });
-    expect(prevBtn).toBeDisabled();
-  });
+  // ── Pagination ──────────────────────────────────────────────────────
 
   it("does_not_render_pagination_when_results_fit_on_one_page", async () => {
-    // Override: return only 5 opportunities -- fits on one page
-    server.use(
-      rankingsHandler(MOCK_OPPORTUNITIES.slice(0, 5)),
-    );
-
+    // 15 items with pageSize=50 means 1 page — no pagination nav
     renderHome();
-
     await waitFor(() => {
       expect(screen.getByText("TKN1")).toBeInTheDocument();
     });
@@ -150,13 +107,33 @@ describe("Home", () => {
     ).not.toBeInTheDocument();
   });
 
-  // ── Error state ─────────────────────────────────────────────────────────
+  it("renders_pagination_when_total_count_exceeds_page_size", async () => {
+    // Override handler to return total_count > pageSize (50)
+    server.use(
+      http.get("/api/rankings/opportunities", () =>
+        HttpResponse.json({
+          data: MOCK_OPPORTUNITIES.slice(0, 15),
+          total_count: 100,
+        }),
+      ),
+    );
+
+    renderHome();
+    await waitFor(() => {
+      expect(
+        screen.getByRole("navigation", { name: /rankings pagination/i }),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /previous page/i })).toBeDisabled();
+    expect(screen.getByText(/page 1 of 2/i)).toBeInTheDocument();
+  });
+
+  // ── Error state ─────────────────────────────────────────────────────
 
   it("renders_error_message_when_api_returns_500", async () => {
     server.use(rankingsErrorHandler());
 
     renderHome();
-
     await waitFor(() => {
       expect(
         screen.getByRole("alert"),
@@ -164,22 +141,20 @@ describe("Home", () => {
     });
   });
 
-  it("renders_empty_grid_and_no_pagination_when_api_returns_empty_array", async () => {
+  it("renders_empty_message_when_api_returns_empty_data", async () => {
     server.use(rankingsHandler([]));
 
     renderHome();
-
     await waitFor(() => {
-      // Header shows "0 tokens analysed"
-      expect(screen.getByText(/0 tokens analysed/i)).toBeInTheDocument();
+      // Wait until loading finishes and table appears
+      expect(screen.getByRole("table")).toBeInTheDocument();
     });
-    // No pagination nav when list is empty
-    expect(
-      screen.queryByRole("navigation", { name: /rankings pagination/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText(/0 tokens analysed/i)).toBeInTheDocument();
+    // Table is shown but with "No results" message
+    expect(screen.getByText(/no results/i)).toBeInTheDocument();
   });
 
-  // ── Polling ─────────────────────────────────────────────────────────────
+  // ── Polling ─────────────────────────────────────────────────────────
 
   it("polls_rankings_api_every_30_seconds_via_refetch_interval", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -188,7 +163,10 @@ describe("Home", () => {
     server.use(
       http.get("/api/rankings/opportunities", () => {
         requestCount++;
-        return HttpResponse.json(MOCK_OPPORTUNITIES);
+        return HttpResponse.json({
+          data: MOCK_OPPORTUNITIES,
+          total_count: MOCK_OPPORTUNITIES.length,
+        });
       }),
     );
 
