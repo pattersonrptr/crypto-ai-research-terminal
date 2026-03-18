@@ -497,16 +497,22 @@ See [`TODO.md`](TODO.md) for the full phased roadmap.
 | 13 | **Ranking Foundation** — real social data, wire CMC, CLI db mgmt, Gemini whitepapers | ✅ Complete |
 | 14 | **Multi-Cycle Backtesting** — 3 BTC cycles, weight calibration feedback loop | ✅ Complete |
 | — | **Ranking Quality Loop** — filter noise, calibrate weights, cycle-aware scoring, score explanations, credibility sprint | ✅ Complete |
-| 15 | **Category Filtering + DataTable** — persist categories, server-side filtering/sorting/search, TanStack Table, Reddit fix | 🔲 Next |
-| 16 | **Backtest Validation + Token Detail UX** — run real backtest, calibrate, actions menu, category badges | 🔲 Planned |
+| 15 | **Category Filtering + DataTable** — persist categories, server-side filtering/sorting/search, TanStack Table, Reddit fix, category filter UI, page size selector | ✅ Complete |
+| 16 | **Backtest Validation + Token Detail UX** — run real backtest, calibrate, actions menu, category badges | 🔲 Next |
 | — | Narratives & Ecosystems — real social-driven narratives, real graph edges | 🔲 Future |
 | — | Alerts Tuning — smart thresholds, reduce volume | 🔲 Future |
 | — | Gemini-Powered Analysis — LLM-generated PDFs, fundamental AI assessment | 🔲 Future |
 
 ### Current Status
 
-Phases 1–14 + Ranking Quality Loop + Credibility Sprint are complete.
-**1483 backend tests (92% coverage), 168 frontend tests.** Full Docker stack.
+Phases 1–15 + Ranking Quality Loop + Credibility Sprint are complete.
+**1536 backend tests (92% coverage), 214 frontend tests.** Full Docker stack.
+
+**Phase 15 (complete):** Professional DataTable with TanStack Table, server-side
+filtering/sorting/search/pagination, category column, CategoryFilter chip bar
+(toggle exclude/include), PageSizeSelector (25/50/100), pipeline populates
+token categories from CoinGecko for ALL tokens, `_persist_results` always
+updates categories (except unknown→real downgrade), Reddit short-circuit fix.
 
 **Ranking quality (PR #28):** FARTCOIN dropped from #1 to #201, BTC is #1.
 Memecoins get 0.70× risk multiplier, risk weight tripled (0.30), adoption
@@ -515,16 +521,15 @@ uses rank+mcap instead of Reddit, real backtest prices seeded for 3 cycles.
 **What works:**
 - Full Docker stack (`docker compose up` → all services healthy)
 - CoinGecko collection: 216 real tokens, scored and persisted
-- Token category classification (runtime) with risk multipliers
+- Token category classification (runtime + pipeline persistence) with risk multipliers
 - Cycle detection: BTC dominance, Fear & Greed, market phase classification
 - Alert generation: fires alerts from scores, Telegram delivery
 - Multi-cycle backtesting: 3 BTC cycles (2015-2025), 69 tokens, real prices
 - Frontend: 6 pages (Rankings, Token Detail, Narratives, Ecosystems, Backtesting, Alerts)
 - Score explanations: per-pillar "Why this score?" on Token Detail
+- Category filter chips with toggle exclude/include and page size selector
 
-**Next priority (Phase 15):** Replace card grid with professional DataTable
-(TanStack Table). Persist token categories from CoinGecko. Server-side
-filtering by category, sorting, search, pagination. Users can exclude
-categories (stablecoins OFF by default). Reddit collector short-circuit.
+**Next priority (Phase 16):** Run real backtest, calibrate weights, actions
+menu, category badges on Token Detail.
 
-**Current test counts:** 1483 backend + 168 frontend = **1 651 total tests**
+**Current test counts:** 1536 backend + 214 frontend = **1 750 total tests**

@@ -4,6 +4,8 @@ import { RankingsTable } from "@/features/tokens/components/RankingsTable";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CycleIndicator } from "@/components/Dashboard/CycleIndicator";
 import { CollectNowButton } from "@/components/Dashboard/CollectNowButton";
+import { CategoryFilter } from "@/features/tokens/components/CategoryFilter";
+import { PageSizeSelector } from "@/features/tokens/components/PageSizeSelector";
 import { useTableStore } from "@/store/tableStore";
 import type { SortOrder } from "@/store/tableStore";
 import { cn } from "@/lib/utils";
@@ -71,8 +73,8 @@ export function Home() {
         }
       />
 
-      {/* ── Search bar ────────────────────────────────────────────── */}
-      <div className="mb-4">
+      {/* ── Search bar + page size ────────────────────────────────── */}
+      <div className="mb-4 flex flex-wrap items-center gap-4">
         <input
           type="search"
           placeholder="Search tokens…"
@@ -83,6 +85,12 @@ export function Home() {
                      text-sm placeholder:text-muted-foreground
                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
+        <PageSizeSelector />
+      </div>
+
+      {/* ── Category filter ───────────────────────────────────────── */}
+      <div className="mb-4">
+        <CategoryFilter />
       </div>
 
       {/* ── Loading state ─────────────────────────────────────────── */}
