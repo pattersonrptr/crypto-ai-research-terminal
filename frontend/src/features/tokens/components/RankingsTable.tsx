@@ -45,7 +45,7 @@ function ScoreCell({ value }: { value: number | null | undefined }) {
 const col = createColumnHelper<RankingOpportunity>();
 
 const SORTABLE_COLUMNS: Record<string, string> = {
-  rank: "token_rank",
+  rank: "rank",
   opportunity_score: "opportunity_score",
   fundamental_score: "fundamental_score",
   growth_score: "growth_score",
@@ -64,7 +64,7 @@ const columns = [
         {info.getValue()}
       </span>
     ),
-    meta: { sortKey: "token_rank" },
+    meta: { sortKey: "rank" },
   }),
   col.accessor((row) => row.token.symbol, {
     id: "symbol",
