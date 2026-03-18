@@ -425,6 +425,24 @@ async def daily_collection_job(
         # Detect market cycle phase once per run
         cycle_phase = await detect_cycle_phase()
 
+        # Fetch CoinGecko categories for ALL tokens (used for classification + narratives)
+        all_coingecko_ids = [
+            str(r.get("coingecko_id", "")) for r in raw_data if r.get("coingecko_id")
+        ]
+        categories_map: dict[str, list[str]] = {}
+        try:
+            if all_coingecko_ids:
+                async with CoinGeckoCollector(api_key=api_key) as cat_collector:
+                    categories_map = await cat_collector.collect_categories(all_coingecko_ids)
+            log.info(
+                "daily_collection_job.categories_fetched",
+                requested=len(all_coingecko_ids),
+                fetched=len(categories_map),
+            )
+        except Exception:
+            log.exception("daily_collection_job.category_collection_error")
+            categories_map = {}
+
         # Load active scoring weights from DB/cache (fallback: Phase 9 defaults)
         active_weights: dict[str, Any] | None = None
         try:
@@ -459,8 +477,14 @@ async def daily_collection_job(
 
                 # Merge social data into processed dict for PipelineScorer
                 symbol = str(raw.get("symbol", "")).upper()
+                coingecko_id = str(raw.get("coingecko_id", ""))
                 reddit = reddit_data.get(symbol, {})
                 twitter = twitter_data.get(symbol, {})
+
+                # Merge CoinGecko categories into processed dict
+                cg_cats = categories_map.get(coingecko_id, [])
+                if cg_cats:
+                    processed["categories"] = cg_cats
                 if reddit:
                     processed["reddit_subscribers"] = reddit.get("subscribers", 0)
                     processed["reddit_posts_24h"] = reddit.get("posts_24h", 0)
@@ -533,17 +557,8 @@ async def daily_collection_job(
         except Exception:
             log.exception("daily_collection_job.social_data_error")
 
-        # Build and persist narrative snapshots from token categories
+        # Build and persist narrative snapshots from already-fetched categories
         try:
-            # Fetch categories for top tokens via /coins/{id} detail endpoint
-            top_ids = [r.get("coingecko_id", "") for r in raw_data if r.get("coingecko_id")]
-            top_ids = top_ids[:_NARRATIVE_CATEGORY_LIMIT]
-
-            categories_map: dict[str, list[str]] = {}
-            if top_ids:
-                async with CoinGeckoCollector(api_key=api_key) as cat_collector:
-                    categories_map = await cat_collector.collect_categories(top_ids)
-
             narrative_data = [
                 {
                     "symbol": r.get("symbol", "").upper(),
@@ -621,7 +636,7 @@ async def _persist_results(
             symbol = str(item["symbol"])
             coingecko_id = str(item["coingecko_id"])
             name = str(item["name"])
-            token_category = item.get("token_category") or None
+            token_category = item.get("token_category") or None  # noqa: S105
 
             # Upsert token (get-or-create by coingecko_id, fallback by symbol)
             stmt = select(Token).where(Token.coingecko_id == coingecko_id)
@@ -650,8 +665,11 @@ async def _persist_results(
                     )
                     continue
 
-                # Backfill category if token has none yet
-                if token.category is None and token_category is not None:
+                # Update category: always overwrite unless new value is
+                # "unknown" (i.e., don't downgrade a real classification).
+                if token_category is not None and (
+                    token_category != "unknown" or token.category is None  # noqa: S105
+                ):
                     token.category = token_category
 
             # Insert score snapshot

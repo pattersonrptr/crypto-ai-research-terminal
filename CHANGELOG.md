@@ -10,6 +10,44 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Phase 15b — Category Filter UI + Pipeline Category Population
+
+> Pipeline now populates token categories from CoinGecko for ALL tokens
+> (previously only top-20 for narratives). CategoryFilter chip bar and
+> PageSizeSelector added to the Rankings page.
+
+#### Added
+- **`frontend/CategoryFilter.tsx`** — chip bar showing available categories from
+  `/rankings/categories`. Click to toggle exclude/include. Excluded categories
+  shown with `line-through opacity-50`. Includes "Reset filters" button.
+  8 tests.
+- **`frontend/PageSizeSelector.tsx`** — dropdown to choose rows per page
+  (25/50/100). Wired to `tableStore.setPageSize()`. 4 tests.
+- **`backend/test_pipeline_category_population.py`** — 7 new tests: verifies
+  pipeline fetches CoinGecko categories for ALL tokens before scoring,
+  categories flow to `TokenCategoryClassifier`, fallback on collection failure.
+- Home page integration tests: `renders_category_filter_chips_when_data_loads`,
+  `renders_page_size_selector_with_default_value_50`.
+
+#### Changed
+- **`scheduler/jobs.py`** — `collect_categories()` now called for ALL tokens
+  BEFORE the scoring loop (was only top-20, after scoring, for narratives).
+  Categories merged into `processed` dict so `TokenCategoryClassifier.classify()`
+  receives real CoinGecko data. `_persist_results` now always updates token
+  category (except when new value is "unknown" and existing is a real category).
+  Duplicate `collect_categories` call removed from narrative section.
+- **`pages/Home.tsx`** — wired `CategoryFilter` and `PageSizeSelector` between
+  search bar and table. Search bar and page size selector share a flex row.
+- **`test_persist_category.py`** — split
+  `test_persist_results_does_not_overwrite_existing_category` into two tests:
+  `test_persist_results_updates_real_category_over_existing` and
+  `test_persist_results_does_not_downgrade_to_unknown`.
+
+#### Test counts
+- Backend: **1 536 tests** (92% coverage)
+- Frontend: **214 tests** (23 test files)
+- **Total: 1 750 tests**
+
 ### Ranking Credibility Sprint (PR #28)
 
 > 6 targeted fixes + 1 bug fix so that memecoins no longer dominate the

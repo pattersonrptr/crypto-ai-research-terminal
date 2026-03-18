@@ -151,22 +151,41 @@ class TestCategoryPersistence:
         assert token.category == "l1"
 
     @pytest.mark.asyncio
-    async def test_persist_results_does_not_overwrite_existing_category(
+    async def test_persist_results_updates_real_category_over_existing(
         self, async_session: AsyncSession
     ) -> None:
-        """Once a token has a category, it should not be changed by subsequent runs."""
+        """When CoinGecko reclassifies a token, the category should be updated."""
         from app.scheduler.jobs import _persist_results
 
         # First run: l1
         await _persist_results([_RESULT_BTC], session=async_session)
 
-        # Second run: pipeline now says 'infrastructure' (unlikely but possible)
+        # Second run: pipeline now says 'infrastructure' (CoinGecko reclassified)
         changed = {**_RESULT_BTC, "token_category": "infrastructure"}
         await _persist_results([changed], session=async_session)
 
         token = (await async_session.execute(select(Token))).scalars().first()
         assert token is not None
-        # Category should stay as the original classification
+        # Category should be updated to the new real classification
+        assert token.category == "infrastructure"
+
+    @pytest.mark.asyncio
+    async def test_persist_results_does_not_downgrade_to_unknown(
+        self, async_session: AsyncSession
+    ) -> None:
+        """Once a token has a real category, 'unknown' should not overwrite it."""
+        from app.scheduler.jobs import _persist_results
+
+        # First run: l1
+        await _persist_results([_RESULT_BTC], session=async_session)
+
+        # Second run: category detection failed → unknown
+        changed = {**_RESULT_BTC, "token_category": "unknown"}
+        await _persist_results([changed], session=async_session)
+
+        token = (await async_session.execute(select(Token))).scalars().first()
+        assert token is not None
+        # Should NOT downgrade from l1 to unknown
         assert token.category == "l1"
 
     @pytest.mark.asyncio

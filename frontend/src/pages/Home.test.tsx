@@ -181,4 +181,27 @@ describe("Home", () => {
     });
     await waitFor(() => expect(requestCount).toBe(2));
   });
+
+  // ── Category filter ─────────────────────────────────────────────────
+
+  it("renders_category_filter_chips_when_data_loads", async () => {
+    renderHome();
+    await waitFor(() => {
+      // MOCK_CATEGORIES returns l1, defi, memecoin
+      expect(screen.getByRole("button", { name: /l1/i })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /defi/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /memecoin/i }),
+    ).toBeInTheDocument();
+  });
+
+  // ── Page size selector ──────────────────────────────────────────────
+
+  it("renders_page_size_selector_with_default_value_50", () => {
+    renderHome();
+    const select = screen.getByRole("combobox", { name: /rows per page/i });
+    expect(select).toBeInTheDocument();
+    expect(select).toHaveValue("50");
+  });
 });

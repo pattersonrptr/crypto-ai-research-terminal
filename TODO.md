@@ -796,8 +796,8 @@ token scores high.
   USD1 + 17 more), wrapped/bridged (WBTC, WETH, stETH, cbETH, rETH + 14
   more), dead tokens (volume < $10k or missing volume data).
 - ✅ Rankings API applies filter before returning results (post-query).
-- 🔲 Frontend: filter chips for category (DeFi, AI, L1, L2, Meme, etc.)
-  and market cap range (micro/small/mid/large). → **Deferred to Phase 15 (DataTable rework)**
+- ✅ Frontend: category filter chips (DeFi, AI, L1, L2, Meme, etc.) with
+  toggle exclude/include. Done in Phase 15 (`CategoryFilter` component).
 - ✅ Tests for filtering logic — 27 unit tests + 6 API tests (TDD).
 
 ### Item 2 — Persist Twitter/Reddit data to social_data table
@@ -845,8 +845,8 @@ token scores high.
   scores remain unchanged (no adjustment).
 - ✅ Tests: 8 new tests (5 cycle_adjusted_score + 3 detect_cycle_phase)
   + 1 existing test updated to mock detect_cycle_phase — TDD.
-- 🔲 Display current cycle phase on Rankings page header (frontend).
-  → Deferred to Phase 15 (DataTable rework).
+- ✅ Display current cycle phase on Rankings page header (frontend).
+  Done in Phase 15 (`CycleIndicator` component wired to Home page header).
 
 ### Item 6 — Score explanation on Token Detail
 - ✅ `scoring/score_explainer.py` — `ScoreExplainer.explain(token_data)`
@@ -887,7 +887,7 @@ The system can answer: "Which cryptos could perform well in the next bull run?"
 
 ---
 
-## Phase 15 — Category-Based Filtering + Professional DataTable (target: ~2–3 weeks)
+## Phase 15 — Category-Based Filtering + Professional DataTable (target: ~2–3 weeks) ✅ COMPLETE
 
 > **Goal:** Replace the card grid with a professional data table powered by
 > live token categories from CoinGecko. Users can filter by category, sort
@@ -903,16 +903,22 @@ tokens, this is unusable. Users cannot filter by token type (L1, DeFi, Meme)
 or exclude categories they don't care about (stablecoins, wrapped).
 
 ### Persist token categories from CoinGecko
-- 🔲 Add `category` column to `Token` model (VARCHAR 50, nullable, indexed).
-  Alembic migration.
-- 🔲 `daily_collection_job` calls `CoinGeckoCollector.collect_categories()`
-  for all tokens and persists the **primary** category (first non-null from
-  CoinGecko's category list, classified via `TokenCategoryClassifier`).
-- 🔲 Backfill: on first run, populate categories for all existing tokens.
-- 🔲 Tests for category persistence in pipeline (TDD).
+- ✅ `category` column on `Token` model (VARCHAR 50, nullable, indexed) —
+  already existed from Ranking Quality Loop. Alembic migration already applied.
+- ✅ `daily_collection_job` calls `CoinGeckoCollector.collect_categories()`
+  for **all** tokens (not just top 20) and merges CoinGecko categories into
+  the processed dict **before** scoring, so `TokenCategoryClassifier.classify()`
+  receives real category data instead of relying on symbol-based fallback.
+- ✅ `_persist_results` always updates `token.category` — except when the
+  new value is `"unknown"` and the token already has a real classification
+  (prevents downgrading a known category on transient CoinGecko failures).
+- ✅ Backfill: categories populated on every pipeline run for all tokens.
+- ✅ Tests for category persistence in pipeline (TDD) — 7 new tests in
+  `test_pipeline_category_population.py` + 1 updated test in
+  `test_persist_category.py`.
 
-### Backend: server-side filtering, sorting, pagination, search
-- 🔲 Refactor `GET /rankings/opportunities` to support query params:
+### Backend: server-side filtering, sorting, pagination, search (PR #30)
+- ✅ Refactored `GET /rankings/opportunities` with full query params:
   - `categories` — comma-separated list of categories to include
     (e.g. `?categories=l1,defi,ai`). Empty = all categories.
   - `exclude_categories` — comma-separated list to exclude
@@ -923,59 +929,70 @@ or exclude categories they don't care about (stablecoins, wrapped).
   - `search` — text search on `symbol` and `name` (case-insensitive ILIKE).
   - `page` / `page_size` — server-side pagination (default: page=1, size=50).
   - Response includes `total_count` for pagination UI.
-- 🔲 Replace hardcoded `TokenFilter.should_exclude()` with category-based
-  filtering: exclude tokens whose category is in `exclude_categories`.
-  Keep `TokenFilter` only for truly broken data (null volume, dead tokens).
-- 🔲 `GET /rankings/categories` — returns list of all distinct categories
-  in the database with token counts (for filter UI).
-- 🔲 Tests for all new query params and edge cases (TDD).
+- ✅ Category-based filtering replaces hardcoded `TokenFilter.should_exclude()`.
+  `TokenFilter` only filters truly broken data (null volume, dead tokens).
+- ✅ `GET /rankings/categories` — returns distinct categories with token
+  counts (`[{category: "l1", count: 42}, ...]`) for filter UI.
+- ✅ Fixed 422 bug: `exclude_categories` default changed from `""` to `None`
+  so omitting the param doesn't create an empty-string filter.
+- ✅ Tests for all new query params and edge cases (TDD) — 46 new backend tests.
 
-### Frontend: TanStack Table + category filters
-- 🔲 Install `@tanstack/react-table` (free, MIT, headless — style with
-  shadcn/Tailwind). Already using `@tanstack/react-query` from same ecosystem.
-- 🔲 Replace card grid on Home page with a professional `DataTable` component:
-  - **Column sorting** — click header to sort asc/desc. Server-side.
-  - **Category filter** — multi-select chip bar (DeFi, L1, L2, AI, Meme,
-    Gaming, RWA, Privacy, Infrastructure, Unknown). Toggle on/off.
-  - **Default excluded categories** — stablecoins, wrapped tokens excluded
-    by default. User can re-enable. Preference saved to localStorage.
-  - **Global search** — text input that searches symbol/name. Debounced,
-    server-side.
-  - **Column visibility** — toggle columns on/off (extend existing
-    `useTableStore`). Some columns hidden by default (e.g. listing_probability).
-  - **Column reordering** — drag-and-drop column headers (TanStack supports
-    this natively).
-  - **Server-side pagination** — page controls at bottom. Page size selector
-    (25 / 50 / 100).
-  - **Cycle phase indicator** — show current market phase in table header
-    area (moved from deferred Item 5).
-- 🔲 `tokens.service.ts` — update `fetchRankingOpportunities()` to accept
-  filter/sort/pagination params and return `{ data, totalCount }`.
-- 🔲 Expand `useTableStore` with `categoryFilter`, `excludedCategories`,
-  `defaultExcludedCategories`, `searchQuery` state.
-- 🔲 Tests for DataTable (sorting, filtering, pagination, column toggle,
-  search) with MSW mocks (TDD).
+### Frontend: TanStack Table + category filters (PR #30 + current branch)
+- ✅ Installed `@tanstack/react-table` (headless, styled with Tailwind).
+- ✅ Replaced card grid with professional `RankingsTable` component:
+  - **Column sorting** — click header to sort asc/desc. Server-side via
+    `tableStore.sort` + `tableStore.order`.
+  - **Global search** — text input searches symbol/name. Debounced,
+    server-side via `tableStore.search`.
+  - **Column visibility** — `ColumnPicker` toggle (11 tests). Some columns
+    hidden by default (listing_probability, cycle_leader_prob).
+  - **Server-side pagination** — page controls at bottom with prev/next.
+  - **Cycle phase indicator** — `CycleIndicator` component in table header
+    area (from deferred Ranking Quality Loop Item 5).
+  - **Collect Now button** — in header, triggers pipeline manually.
+- ✅ `CategoryFilter` component — chip bar showing available categories from
+  `/rankings/categories`. Toggle exclude/include per category. Default
+  excluded: `stablecoin`, `wrapped-tokens`. "Reset filters" button.
+  Preferences saved to localStorage via Zustand persist. 8 tests.
+- ✅ `PageSizeSelector` component — select dropdown (25/50/100 options),
+  wired to `tableStore.setPageSize()`. 4 tests.
+- ✅ `tokens.service.ts` — `fetchRankingOpportunities()` accepts
+  `RankingsParams` (search, categories, exclude_categories, sort, order,
+  page, page_size) and returns `{ data, total_count }`.
+  `fetchCategories()` returns `CategoryCount[]`.
+- ✅ `useTableStore` expanded with `excludeCategories`, `categories`,
+  `search`, `sort`, `order`, `page`, `pageSize`, `setExcludeCategories`,
+  `setSearch`, `setSort`, `setPage`, `setPageSize`, `resetFilters`.
+  Zustand persist with localStorage. 20 store tests.
+- ✅ Home page wires CategoryFilter + PageSizeSelector between search bar
+  and data table. 2 new Home integration tests. 11/11 Home tests pass.
+- ✅ Tests for RankingsTable (sorting, column display, links, empty state,
+  category column) — 13 tests. Column reordering deferred.
 
 ### Reddit collector short-circuit
 - 🔲 Same pattern as Twitter fix: `collect_social_data()` checks if Reddit
   is being rate-limited (403 responses) and short-circuits early instead
   of retrying for every token. Log informative skip message.
-- 🔲 Tests (TDD).
+  → Deferred to Future Phase.
+- 🔲 Tests (TDD). → Deferred to Future Phase.
 
 ### Documentation
-- 🔲 Update `README.md` with new query params, category system.
-- 🔲 Update `CHANGELOG.md` with Phase 15 entries.
+- ✅ Update `README.md` with new query params, category system.
+- ✅ Update `CHANGELOG.md` with Phase 15 entries.
 
-### Tests summary (estimated)
-- 🔲 ~40-50 new backend tests (categories, filtering, sorting, pagination, search, Reddit fix)
-- 🔲 ~30-40 new frontend tests (DataTable, filters, column toggle, search, pagination)
-- 🔲 All existing tests must continue to pass (1483 backend + 168 frontend)
+### Tests summary (actual)
+- ✅ **53 new backend tests** (46 server-side filtering/sorting/pagination +
+  7 category population pipeline). **Total: 1536 backend tests, 92.28% coverage.**
+- ✅ **46 new frontend tests** (13 RankingsTable + 20 tableStore + 8 CategoryFilter +
+  4 PageSizeSelector + 2 Home integration - 1 removed card test).
+  **Total: 214 frontend tests, all passing.**
+- ✅ All existing tests continue to pass.
 
 **Deliverable:** Rankings page is a professional data table with server-side
 sorting, filtering by category, search, column configuration, and pagination.
-Token categories populated from CoinGecko (no hardcoded lists). User can
-configure default excluded categories. Reddit collector handles rate limits
-gracefully.
+Token categories populated from CoinGecko on every pipeline run. User can
+toggle category exclusions via chip bar. Page size selector (25/50/100).
+Preferences persist in localStorage.
 
 ---
 
