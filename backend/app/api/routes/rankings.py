@@ -275,19 +275,13 @@ async def get_opportunities(
     exclude_categories: str | None = Query(
         default=None, description="Comma-separated categories to exclude"
     ),
-    sort: SortColumn = Query(
-        default=SortColumn.opportunity_score, description="Column to sort by"
-    ),
-    order: SortOrder = Query(
-        default=SortOrder.desc, description="Sort direction"
-    ),
+    sort: SortColumn = Query(default=SortColumn.opportunity_score, description="Column to sort by"),
+    order: SortOrder = Query(default=SortOrder.desc, description="Sort direction"),
     search: str | None = Query(
         default=None, description="Search symbol or name (case-insensitive)"
     ),
     page: int = Query(default=1, ge=1, description="Page number (1-based)"),
-    page_size: int = Query(
-        default=50, ge=1, le=500, description="Items per page"
-    ),
+    page_size: int = Query(default=50, ge=1, le=500, description="Items per page"),
 ) -> PaginatedRankingsResponse:
     """Return tokens ranked with server-side filtering, sorting, and pagination.
 
@@ -381,10 +375,7 @@ async def get_categories(db: DbDep) -> list[CategoryCountSchema]:
     result = await db.execute(stmt)
     rows = result.all()
 
-    return [
-        CategoryCountSchema(category=cat, count=cnt)
-        for cat, cnt in rows
-    ]
+    return [CategoryCountSchema(category=cat, count=cnt) for cat, cnt in rows]
 
 
 # Keep the dependency importable for test overrides
