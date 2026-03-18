@@ -9,7 +9,6 @@ Naming: test_<unit>_<scenario>_<expected_outcome>
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -116,10 +115,6 @@ class TestPipelineCategoriesFromCoingecko:
             categories_return=categories_map,
         )
 
-        captured_processed: list[dict[str, Any]] = []
-
-        original_process = None
-
         with (
             patch("app.scheduler.jobs.CoinGeckoCollector", cls_mock),
             patch("app.scheduler.jobs.MarketProcessor") as mock_proc,
@@ -127,11 +122,23 @@ class TestPipelineCategoriesFromCoingecko:
             patch("app.scheduler.jobs.FundamentalScorer") as mock_fund,
             patch("app.scheduler.jobs.OpportunityEngine") as mock_eng,
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock) as mock_persist,
-            patch("app.scheduler.jobs.detect_cycle_phase", new_callable=AsyncMock, return_value=None),
-            patch("app.scheduler.jobs.get_active_weights", new_callable=AsyncMock, side_effect=Exception("no DB")),
+            patch(
+                "app.scheduler.jobs.detect_cycle_phase", new_callable=AsyncMock, return_value=None
+            ),
+            patch(
+                "app.scheduler.jobs.get_active_weights",
+                new_callable=AsyncMock,
+                side_effect=Exception("no DB"),
+            ),
         ):
+
             def capture_process(raw: dict) -> dict:
-                result = {**raw, "volume_mcap_ratio": 0.04, "price_velocity": 0.0, "ath_distance_pct": 37.5}
+                result = {
+                    **raw,
+                    "volume_mcap_ratio": 0.04,
+                    "price_velocity": 0.0,
+                    "ath_distance_pct": 37.5,
+                }
                 return result
 
             mock_proc.process = MagicMock(side_effect=capture_process)
@@ -167,11 +174,22 @@ class TestPipelineCategoriesFromCoingecko:
             patch("app.scheduler.jobs.FundamentalScorer") as mock_fund,
             patch("app.scheduler.jobs.OpportunityEngine") as mock_eng,
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock),
-            patch("app.scheduler.jobs.detect_cycle_phase", new_callable=AsyncMock, return_value=None),
-            patch("app.scheduler.jobs.get_active_weights", new_callable=AsyncMock, side_effect=Exception("no DB")),
+            patch(
+                "app.scheduler.jobs.detect_cycle_phase", new_callable=AsyncMock, return_value=None
+            ),
+            patch(
+                "app.scheduler.jobs.get_active_weights",
+                new_callable=AsyncMock,
+                side_effect=Exception("no DB"),
+            ),
         ):
             mock_proc.process = MagicMock(
-                side_effect=lambda raw: {**raw, "volume_mcap_ratio": 0.04, "price_velocity": 0.0, "ath_distance_pct": 37.5}
+                side_effect=lambda raw: {
+                    **raw,
+                    "volume_mcap_ratio": 0.04,
+                    "price_velocity": 0.0,
+                    "ath_distance_pct": 37.5,
+                }
             )
             mock_pipe.score = MagicMock(return_value=_SUB_SCORES)
             mock_fund.sub_pillar_score = MagicMock(return_value=0.75)
@@ -204,11 +222,22 @@ class TestPipelineCategoriesFromCoingecko:
             patch("app.scheduler.jobs.FundamentalScorer") as mock_fund,
             patch("app.scheduler.jobs.OpportunityEngine") as mock_eng,
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock) as mock_persist,
-            patch("app.scheduler.jobs.detect_cycle_phase", new_callable=AsyncMock, return_value=None),
-            patch("app.scheduler.jobs.get_active_weights", new_callable=AsyncMock, side_effect=Exception("no DB")),
+            patch(
+                "app.scheduler.jobs.detect_cycle_phase", new_callable=AsyncMock, return_value=None
+            ),
+            patch(
+                "app.scheduler.jobs.get_active_weights",
+                new_callable=AsyncMock,
+                side_effect=Exception("no DB"),
+            ),
         ):
             mock_proc.process = MagicMock(
-                side_effect=lambda raw: {**raw, "volume_mcap_ratio": 0.03, "price_velocity": 0.0, "ath_distance_pct": 77.0}
+                side_effect=lambda raw: {
+                    **raw,
+                    "volume_mcap_ratio": 0.03,
+                    "price_velocity": 0.0,
+                    "ath_distance_pct": 77.0,
+                }
             )
             mock_pipe.score = MagicMock(return_value=_SUB_SCORES)
             mock_fund.sub_pillar_score = MagicMock(return_value=0.60)
@@ -236,11 +265,22 @@ class TestPipelineCategoriesFromCoingecko:
             patch("app.scheduler.jobs.FundamentalScorer") as mock_fund,
             patch("app.scheduler.jobs.OpportunityEngine") as mock_eng,
             patch("app.scheduler.jobs._persist_results", new_callable=AsyncMock) as mock_persist,
-            patch("app.scheduler.jobs.detect_cycle_phase", new_callable=AsyncMock, return_value=None),
-            patch("app.scheduler.jobs.get_active_weights", new_callable=AsyncMock, side_effect=Exception("no DB")),
+            patch(
+                "app.scheduler.jobs.detect_cycle_phase", new_callable=AsyncMock, return_value=None
+            ),
+            patch(
+                "app.scheduler.jobs.get_active_weights",
+                new_callable=AsyncMock,
+                side_effect=Exception("no DB"),
+            ),
         ):
             mock_proc.process = MagicMock(
-                side_effect=lambda raw: {**raw, "volume_mcap_ratio": 0.04, "price_velocity": 0.0, "ath_distance_pct": 37.5}
+                side_effect=lambda raw: {
+                    **raw,
+                    "volume_mcap_ratio": 0.04,
+                    "price_velocity": 0.0,
+                    "ath_distance_pct": 37.5,
+                }
             )
             mock_pipe.score = MagicMock(return_value=_SUB_SCORES)
             mock_fund.sub_pillar_score = MagicMock(return_value=0.75)

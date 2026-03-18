@@ -427,17 +427,13 @@ async def daily_collection_job(
 
         # Fetch CoinGecko categories for ALL tokens (used for classification + narratives)
         all_coingecko_ids = [
-            str(r.get("coingecko_id", ""))
-            for r in raw_data
-            if r.get("coingecko_id")
+            str(r.get("coingecko_id", "")) for r in raw_data if r.get("coingecko_id")
         ]
         categories_map: dict[str, list[str]] = {}
         try:
             if all_coingecko_ids:
                 async with CoinGeckoCollector(api_key=api_key) as cat_collector:
-                    categories_map = await cat_collector.collect_categories(
-                        all_coingecko_ids
-                    )
+                    categories_map = await cat_collector.collect_categories(all_coingecko_ids)
             log.info(
                 "daily_collection_job.categories_fetched",
                 requested=len(all_coingecko_ids),
@@ -640,7 +636,7 @@ async def _persist_results(
             symbol = str(item["symbol"])
             coingecko_id = str(item["coingecko_id"])
             name = str(item["name"])
-            token_category = item.get("token_category") or None
+            token_category = item.get("token_category") or None  # noqa: S105
 
             # Upsert token (get-or-create by coingecko_id, fallback by symbol)
             stmt = select(Token).where(Token.coingecko_id == coingecko_id)
@@ -671,9 +667,10 @@ async def _persist_results(
 
                 # Update category: always overwrite unless new value is
                 # "unknown" (i.e., don't downgrade a real classification).
-                if token_category is not None:
-                    if token_category != "unknown" or token.category is None:
-                        token.category = token_category
+                if token_category is not None and (
+                    token_category != "unknown" or token.category is None  # noqa: S105
+                ):
+                    token.category = token_category
 
             # Insert score snapshot
             score = TokenScore(
